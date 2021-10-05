@@ -158,10 +158,10 @@ class CSVParser {
         let selectedRow = selectedChannel.row
         
         // Process points
-        let points: [Point] = try lines.map { substring in
-            let string = String(substring)
-            return try parsePoint(text: string, incrementTime: increment, row: selectedRow)
-        }
+        var linesStr = lines.map({String($0)})
+        linesStr = linesStr.filter({!$0.isEmpty})
+        
+        let points: [Point] = try linesStr.map({try parsePoint(text: $0, incrementTime: increment, row: selectedRow)})
         
         return points
     }
