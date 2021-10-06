@@ -44,12 +44,29 @@ class CSVParser {
     private struct HeaderInfo {
         var channels: [Channel]
         var increment: Decimal?
+        
+        var description: String {
+            var str = ""
+            str += "Channels:" + "\n"
+            for channel in channels {
+                str += "\t" + channel.description + "\n"
+            }
+            if let increment = increment {
+                str += "Time step: \(increment)" + "\n"
+            }
+            
+            return str
+        }
     }
     
-    private struct Channel {
+    public struct Channel {
         var name: String
         var row: Int
         var unit: String?
+        
+        var description: String {
+            return "\(name) (unit: \(unit ?? "nil"))"
+        }
     }
     
     private static func parseFirstAndSecondLines(_ line1: String, _ line2: String) throws -> HeaderInfo {
@@ -128,7 +145,9 @@ class CSVParser {
         return Point(time: time, value: valueDecimal)
     }
     
-    public static func parseCsv(_ data: Data, forChannel channelLabel: String) throws -> [Point]{
+    public static func parseCsv(_ data: Data,
+                                forChannel channelLabel: String,
+                                analyse: Bool) throws -> (Channel,[Point]){
         // Convert to string
         guard let input = String(data: data, encoding: .ascii) else {
             throw ParseError.invalidFileFormat
@@ -144,6 +163,10 @@ class CSVParser {
         // Process Header
         let headerInfo = try parseFirstAndSecondLines(String(lines.removeFirst()),
                                                       String(lines.removeFirst()))
+        if(analyse) {
+            print(headerInfo.description)
+        }
+        
         let increment = headerInfo.increment
         let channels = headerInfo.channels
         
@@ -151,7 +174,15 @@ class CSVParser {
             throw ParseError.incrementNotFound
         }
         
-        guard let selectedChannel = channels.first(where: {$0.name == channelLabel}) else {
+        var selectedChannel: Channel?
+        
+        selectedChannel = channels.first(where: {$0.name == channelLabel})
+        
+        if selectedChannel == nil && analyse {
+            selectedChannel = channels.first!
+        }
+        
+        guard let selectedChannel = selectedChannel else {
             throw ParseError.channelNotFound(channelLabel: channelLabel)
         }
         
@@ -163,7 +194,7 @@ class CSVParser {
         
         let points: [Point] = try linesStr.map({try parsePoint(text: $0, incrementTime: increment, row: selectedRow)})
         
-        return points
+        return (selectedChannel,points)
     }
 }
 
