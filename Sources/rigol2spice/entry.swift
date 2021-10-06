@@ -10,7 +10,7 @@ import ArgumentParser
 
 @main
 struct rigol2spice: ParsableCommand {
-    @Argument(help: "The filename of the .csv file from your oscilloscope", completion: CompletionKind.file(extensions: ["csv"]))
+    @Argument(help: "The filename of the .csv from your oscilloscope", completion: CompletionKind.file(extensions: ["csv"]))
     var filename: String
     var filenameExpanded: String {
         NSString(string: filename).expandingTildeInPath
