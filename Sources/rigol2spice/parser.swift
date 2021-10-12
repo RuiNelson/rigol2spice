@@ -19,14 +19,14 @@ public enum ParseError: LocalizedError {
     
     public var errorDescription: String? {
         switch self {
-            case .invalidFileFormat: return "Invalid file format"
-            case .insufficientLines: return "No header or values found"
-            case .noChannelsDetected: return "No channels found"
-            case .channelNotFound(channelLabel: let channel): return "Specified channel \"\(channel)\" not found in file"
-            case .incrementNotFound: return "Time increment not found"
-            case .invalidIncrementValue(value: let valueStr): return "Time increment value is not valid: \(valueStr)"
-            case .sequenceNumberNotFoundOrInvalid(line: let lineStr): return "Couldn't find sequence number in line: \(lineStr)"
-            case .invalidValue(value: let val, line: let line): return "Invalid decimal number: \"\(val)\" in line: \(line)"
+        case .invalidFileFormat: return "Invalid file format"
+        case .insufficientLines: return "No header or values found"
+        case .noChannelsDetected: return "No channels found"
+        case .channelNotFound(channelLabel: let channel): return "Specified channel \"\(channel)\" not found in file"
+        case .incrementNotFound: return "Time increment not found"
+        case .invalidIncrementValue(value: let valueStr): return "Time increment value is not valid: \(valueStr)"
+        case .sequenceNumberNotFoundOrInvalid(line: let lineStr): return "Couldn't find sequence number in line: \(lineStr)"
+        case .invalidValue(value: let val, line: let line): return "Invalid decimal number: \"\(val)\" in line: \(line)"
         }
     }
 }
@@ -147,7 +147,7 @@ class CSVParser {
     
     public static func parseCsv(_ data: Data,
                                 forChannel channelLabel: String,
-                                analyse: Bool) throws -> (Channel,[Point]){
+                                analyse: Bool) throws -> [Point]{
         // Convert to string
         guard let input = String(data: data, encoding: .ascii) else {
             throw ParseError.invalidFileFormat
@@ -159,12 +159,13 @@ class CSVParser {
         guard lines.count > 2 else {
             throw ParseError.insufficientLines
         }
-                
+        
         // Process Header
         let headerInfo = try parseFirstAndSecondLines(String(lines.removeFirst()),
                                                       String(lines.removeFirst()))
         if(analyse) {
             print(headerInfo.description)
+            return []
         }
         
         let increment = headerInfo.increment
@@ -178,10 +179,6 @@ class CSVParser {
         
         selectedChannel = channels.first(where: {$0.name == channelLabel})
         
-        if selectedChannel == nil && analyse {
-            selectedChannel = channels.first!
-        }
-        
         guard let selectedChannel = selectedChannel else {
             throw ParseError.channelNotFound(channelLabel: channelLabel)
         }
@@ -194,7 +191,7 @@ class CSVParser {
         
         let points: [Point] = try linesStr.map({try parsePoint(text: $0, incrementTime: increment, row: selectedRow)})
         
-        return (selectedChannel,points)
+        return points
     }
 }
 

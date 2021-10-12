@@ -19,7 +19,7 @@ struct rigol2spice: ParsableCommand {
     @Option(name: .shortAndLong, help: "The label of the channel to be processed (case sensitive)")
     var channel: String = "CH1"
     
-    @Option(name: .shortAndLong, help: "Analyse the file and quit")
+    @Flag(name: .shortAndLong, help: "Analyse the file's header and quit")
     var analyse: Bool = false
     
     mutating func run() throws {
@@ -29,40 +29,14 @@ struct rigol2spice: ParsableCommand {
         
         let data = try Data(contentsOf: url)
         
-        let (selChannel,points) = try CSVParser.parseCsv(data,
-                                                         forChannel: channel,
-                                                         analyse: analyse)
+        let points = try CSVParser.parseCsv(data,
+                                            forChannel: channel,
+                                            analyse: analyse)
         
-        if !analyse {
+        if !points.isEmpty {
             for point in points  {
                 print(point.serialize)
             }
-        }
-        else {
-            var peakMin = Decimal.greatestFiniteMagnitude
-            var peakMax = Decimal.greatestFiniteMagnitude * -1
-            var timeSpan = Decimal(0)
-            
-            for point in points {
-                let value = point.value
-                if value < peakMin {
-                    peakMin = value
-                }
-                if value > peakMax {
-                    peakMax = value
-                }
-                
-                let time = point.time
-                if time > timeSpan {
-                    timeSpan = time
-                }
-            }
-            
-            print("== Stats for \(selChannel.name) ==")
-            print("Signal Peak Min:   \t \(peakMin) \(selChannel.unit ?? "")")
-            print("Signal Peak Max:   \t \(peakMax) \(selChannel.unit ?? "")")
-            print("Signal Points:     \t \(points.count)")
-            print("Signal Last Point: \t \(timeSpan) s")
         }
     }
 }
