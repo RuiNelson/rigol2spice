@@ -1,6 +1,6 @@
 # rigol2spice
 
-*A program to convert Rigol oscilloscope's .CSV files to a format readable by LTSpice.*
+*A program to convert Rigol oscilloscope's .CSV files to a format readable by LTspice.*
 
 Your Rigol oscilloscope can output .CSV files that capture a waveform, this program reads the .CSV file and converts it to [a PWL (piecewise linear)](https://www.analog.com/en/technical-articles/ltspice-importing-exporting-pwl-data.html) format.
 
@@ -15,21 +15,21 @@ Your Rigol oscilloscope can output .CSV files that capture a waveform, this prog
 
 3. To **Run**, insert the pen-drive on your PC, open [Windows's command prompt](https://www.lifewire.com/how-to-open-command-prompt-2618089) and execute the program with the argument being the path to the .CSV file, e.g. if your pen-drive is the `D:` drive and the file-name is `NewFile1.csv`:
 
-    C:\rigol2spice\rigol2spice.exe D:\NewFile1.csv
+    `C:\rigol2spice\rigol2spice.exe D:\NewFile1.csv`
 
-The program will run and will output the PWL data points to the standard output (screen). If you want to save to a file, use the ` > ` operator and specify the name of the file, e.g.:
+    The program will run and will output the PWL data points to the standard output (screen). If you want to save to a file, use the ` > ` operator and specify the name of the file, e.g.:
 
-    C:\rigol2spice\rigol2spice.exe D:\NewFile1.csv > D:\PWLFile.txt
+    `C:\rigol2spice\rigol2spice.exe D:\NewFile1.csv > D:\PWLFile.txt`
 
-To see how long your capture lasts, open the generated file in a text editor and check the last line.
+    To see how long your capture lasts, open the generated file in a text editor and check the last line.
 
 4. **Load** the file in LTSpice. Insert a voltage or current source in your design, right click on the component and click the `Advanced` button, in the dialog that appears. Select `PWL FILE` option and click the `Browse` button to select your PWL file. LTSpice should parse the file and use your waveform in the simulation.
 
 ## How to use (multiple channels)
 
-First, note that a Rigol .CSV file can have information of multiple channels, but a LTSpice PWL file can have only one channel.
+First, note that a Rigol .CSV file can have information of multiple channels, but a LTspice PWL file can have only one channel.
 
-By default, the program reads only the `CH1` channel, if the `CH1` channel is not found, it reads the first channel that it finds. To see what channels a .CSV contains, run the program with the `-a` flag:
+By default, the program reads only the `CH1` channel. To see what channels a .CSV contains, run the program with the `-a` flag:
 
     C:\rigol2spice\rigol2spice.exe -a D:\NewFile2.csv
 
