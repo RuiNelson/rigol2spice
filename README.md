@@ -4,6 +4,7 @@
 
 Your Rigol oscilloscope can output .CSV files that capture a waveform, this program reads the .CSV file and converts it to [a PWL (piecewise linear)](https://www.analog.com/en/technical-articles/ltspice-importing-exporting-pwl-data.html) format.
 
+[![YouTube video](https://img.youtube.com/vi/LTEc7fjmXSg/0.jpg)](https://www.youtube.com/watch?v=LTEc7fjmXSg)
 ## How to use (simple) 
 
 1. **Acquire**s waveform on your machine, after you have acquired a waveform, use the `Storage` key to save it to `CSV` file format and store it on a pen drive. Note that you can have more than one channel in a CSV file, but a PWL file can only have one signal. Also, large captures will take a long time to be processed both this program and LTSpice.
