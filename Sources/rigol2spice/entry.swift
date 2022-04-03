@@ -10,17 +10,17 @@ import ArgumentParser
 
 @main
 struct rigol2spice: ParsableCommand {
+    @Flag(name: .shortAndLong, help: "Analyse the file's header and quit")
+    var analyse: Bool = false
+    
+    @Option(name: .shortAndLong, help: "The label of the channel to be processed")
+    var channel: String = "CH1"
+    
     @Argument(help: "The filename of the .csv from your oscilloscope", completion: CompletionKind.file(extensions: ["csv"]))
     var filename: String
     var filenameExpanded: String {
         NSString(string: filename).expandingTildeInPath
     }
-    
-    @Option(name: .shortAndLong, help: "The label of the channel to be processed (case sensitive)")
-    var channel: String = "CH1"
-    
-    @Flag(name: .shortAndLong, help: "Analyse the file's header and quit")
-    var analyse: Bool = false
     
     mutating func run() throws {
         let cd = FileManager.default.currentDirectoryPath

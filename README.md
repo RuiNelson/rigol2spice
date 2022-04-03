@@ -25,7 +25,7 @@ Your Rigol oscilloscope can output .CSV files that capture a waveform, this prog
 
 4. **Load** the file in LTSpice. Insert a voltage or current source in your design, right click on the component and click the `Advanced` button, in the dialog that appears. Select `PWL FILE` option and click the `Browse` button to select your PWL file. LTSpice should parse the file and use your waveform in the simulation.
 
-## How to use (multiple channels)
+## Multiple Channels
 
 First, note that a Rigol .CSV file can have information of multiple channels, but a LTspice PWL file can have only one channel.
 
@@ -40,22 +40,21 @@ The output:
         CH2 (unit: Volt)
     Time step: 0.00000000005
 
-Now if you want to use the `CH2`, run the program with the `--channel` option, then a space, then the channel name, note that channel names are CaSe-SeNsItIvE for this program:
+Now if you want to use the `CH2`, run the program with the `--channel` option, then a space, then the channel name:
 
     C:\rigol2spice\rigol2spice.exe --channel CH2 D:\NewFile2.csv > D:\CH2.txt
 
 ## Usage reference
 
-    USAGE: rigol2spice <filename> [--channel <channel>] [--analyse]
-
+    USAGE: rigol2spice [--analyse] [--channel <channel>] <filename>
+    
     ARGUMENTS:
-    <filename>              The filename of the .csv file from your oscilloscope
-
+      <filename>              The filename of the .csv from your oscilloscope
+    
     OPTIONS:
-    -c, --channel <channel> The label of the channel to be processed (case
-                            sensitive) (default: CH1)
-    -a, --analyse           Analyse the file's header and quit
-    -h, --help              Show help information.
+      -a, --analyse           Analyse the file's header and quit
+      -c, --channel <channel> The label of the channel to be processed (default: CH1)
+      -h, --help              Show help information.
 
 
 ## Building

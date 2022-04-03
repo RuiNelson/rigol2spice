@@ -179,6 +179,12 @@ class CSVParser {
         
         selectedChannel = channels.first(where: {$0.name == channelLabel})
         
+        if selectedChannel == nil {
+            selectedChannel = channels.first(where: {
+                $0.name.lowercased() == channelLabel.lowercased()
+            })
+        }
+        
         guard let selectedChannel = selectedChannel else {
             throw ParseError.channelNotFound(channelLabel: channelLabel)
         }
