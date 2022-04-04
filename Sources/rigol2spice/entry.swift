@@ -28,6 +28,9 @@ struct rigol2spice: ParsableCommand {
     @Option(name: .shortAndLong, help: "The label of the channel to be processed")
     var channel: String = "CH1"
     
+    @Flag(name: .shortAndLong, help: "Don't remove redundant points. Points where the signal value maintains (useful for output file post-processing)")
+    var keepAll: Bool = false
+    
     @Argument(help: "The filename of the .csv from the oscilloscope to be read", completion: CompletionKind.file(extensions: ["csv"]))
     var inputFile: String
     var inputFileExpanded: String {
@@ -112,14 +115,19 @@ struct rigol2spice: ParsableCommand {
         }
         
         // Compacting...
-        print("")
-        print("→ Removing unecessary points...")
-        let beforePoints = points.count
-        points = removeUnecessary(points)
-        let afterPoints = points.count
+        if(!keepAll) {
+            print("")
+            print("→ Removing redundant points...")
+            
+            let beforePoints = points.count
+            
+            points = removeUnecessary(points)
+            
+            let afterPoints = points.count
+            
+            print("  " + "From \(decimalNF.string(for: beforePoints)!) points to \(decimalNF.string(for: afterPoints)!) points")
+        }
         
-        print("  " + "From \(decimalNF.string(for: beforePoints)!) points to \(decimalNF.string(for: afterPoints)!) points")
-
         // Output
         print("")
         print("→ Writing output file...")
