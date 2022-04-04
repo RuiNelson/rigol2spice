@@ -31,19 +31,41 @@ public enum ParseError: LocalizedError {
     }
 }
 
+let SixteenBitNumberFormatter: NumberFormatter = {
+    let nf = NumberFormatter()
+    nf.numberStyle = .scientific
+    nf.maximumIntegerDigits = 1
+    nf.maximumFractionDigits = 4
+    nf.minimumFractionDigits = 4
+    nf.localizesFormat = false
+    return nf
+}()
+
+let TenGigasamplesNumberFormatter: NumberFormatter = {
+    let nf = NumberFormatter()
+    nf.numberStyle = .scientific
+    nf.maximumIntegerDigits = 1
+    nf.maximumFractionDigits = 10
+    nf.minimumFractionDigits = 10
+    nf.localizesFormat = false
+    return nf
+}()
+
 public struct Point {
-    var time: Decimal
-    var value: Decimal
+    var time: Double
+    var value: Double
     
     var serialize: String {
-        return "\(time)\t\(value)"
+        let timeString = TenGigasamplesNumberFormatter.string(for: time)!
+        let valueString = SixteenBitNumberFormatter.string(for: value)!
+        return timeString + "\t" + valueString
     }
 }
 
 class CSVParser {
     private struct HeaderInfo {
         var channels: [Channel]
-        var increment: Decimal?
+        var increment: Double?
         
         var description: String {
             let nf = NumberFormatter()
@@ -55,7 +77,8 @@ class CSVParser {
                 str += "    " + channel.description + "\n"
             }
             if let increment = increment {
-                str += "  " + "Time step: \(nf.string(fromDecimal: increment)!) s" + "\n"
+                let incrementString = nf.string(for: increment)!
+                str += "  " + "Time step: \(incrementString) s" + "\n"
             }
             
             return str
@@ -114,10 +137,9 @@ class CSVParser {
         let line2Fields = line2.split(separator: ",")
         
         let incrementString = line2Fields[incrementIndex]
-        guard let incrementDouble = Double(incrementString) else {
+        guard let increment = Double(incrementString) else {
             throw ParseError.invalidIncrementValue(value: String(incrementString))
         }
-        increment = Decimal(incrementDouble)
         
         channels = channels.map({
             var copy = $0
@@ -129,23 +151,25 @@ class CSVParser {
         return HeaderInfo(channels: channels, increment: increment)
     }
     
-    private static func parsePoint(text: String, incrementTime: Decimal, row: Int) throws -> Point {
+    private static func parsePoint(text: String, incrementTime: Double, row: Int) throws -> Point {
         let fields = text.split(separator: ",").map({return String($0)})
         
+        // Time
         guard let firstField = fields.first, let sequence = Int(firstField) else {
             throw ParseError.sequenceNumberNotFoundOrInvalid(line: text)
         }
         
-        let time = incrementTime * Decimal(sequence)
+        let time = incrementTime * Double(sequence)
+        
+        // Value
         
         let valueField = fields[row]
         
-        guard let valueDouble = Double(valueField) else {
+        guard let value = Double(valueField) else {
             throw ParseError.invalidValue(value: valueField, line: text)
         }
-        let valueDecimal = Decimal(valueDouble)
         
-        return Point(time: time, value: valueDecimal)
+        return Point(time: time, value: value)
     }
     
     public static func parseCsv(_ data: Data,

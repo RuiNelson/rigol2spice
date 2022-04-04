@@ -98,19 +98,19 @@ struct rigol2spice: ParsableCommand {
         
         let nPointsString = nf2.string(for: points.count)!
         print("  " + "Points: \(nPointsString)")
-        print("  " + "Last Point: \(nf.string(fromDecimal: lastTime)!) s")
+        print("  " + "Last Point: \(nf.string(for: lastTime)!) s")
         
         // Sample rate
         if points.count >= 2 {
             let firstPointTime = points.first!.time
             let lastPointTime = points.last!.time
-            let nPoints = Decimal(points.count)
+            let nPoints = Double(points.count)
             
             let timeInterval = (lastPointTime - firstPointTime) / (nPoints - 1)
             let sampleRate = 1 / timeInterval
             
-            let timeIntervalString = nf.string(fromDecimal: timeInterval) ?? ""
-            let sampleRateString = nf2.string(fromDecimal: sampleRate) ?? ""
+            let timeIntervalString = nf.string(for: timeInterval) ?? ""
+            let sampleRateString = nf2.string(for: sampleRate) ?? ""
             
             print("  " + "Sample 𝛥t: \(timeIntervalString) s")
             print("  " + "Sample Rate: \(sampleRateString) sa/s")
@@ -134,12 +134,5 @@ struct rigol2spice: ParsableCommand {
         
         print("")
         print("Job complete")
-    }
-}
-
-extension NumberFormatter {
-    func string(fromDecimal: Decimal) -> String? {
-        let ns = NSDecimalNumber(decimal: fromDecimal)
-        return self.string(from: ns)
     }
 }
