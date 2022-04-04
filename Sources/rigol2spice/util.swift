@@ -7,22 +7,24 @@
 
 import Foundation
 
+let usLocale = Locale(identifier: "en_US")
+
 let sixteenBitNF: NumberFormatter = {
     let nf = NumberFormatter()
     nf.numberStyle = .scientific
+    nf.locale = usLocale
     nf.maximumIntegerDigits = 1
     nf.maximumFractionDigits = 4
     nf.minimumFractionDigits = 4
-    nf.localizesFormat = false
     return nf
 }()
 
-let tenGigasamplesNF: NumberFormatter = {
+let timeNF: NumberFormatter = {
     let nf = NumberFormatter()
     nf.numberStyle = .scientific
-    nf.maximumFractionDigits = 10
-    nf.minimumFractionDigits = 10
-    nf.localizesFormat = false
+    nf.locale = usLocale
+    nf.minimumFractionDigits = 9
+    nf.maximumFractionDigits = 14
     return nf
 }()
 

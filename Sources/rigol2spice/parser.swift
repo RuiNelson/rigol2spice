@@ -36,7 +36,7 @@ public struct Point {
     var value: Double
     
     var serialize: String {
-        let timeString = tenGigasamplesNF.string(for: time)!
+        let timeString = timeNF.string(for: time)!
         let valueString = sixteenBitNF.string(for: value)!
         return timeString + "\t" + valueString
     }

@@ -66,7 +66,7 @@ struct rigol2spice: ParsableCommand {
         
         // Processing
         
-        print("→ Reading input file...")
+        print("→ Loading input file...")
         let inputFileUrl = URL(fileURLWithPath: inputFileExpanded, relativeTo: cdUrl)
 
         let data = try Data(contentsOf: inputFileUrl)
@@ -93,7 +93,7 @@ struct rigol2spice: ParsableCommand {
         
         let nPointsString = decimalNF.string(for: points.count)!
         print("  " + "Points: \(nPointsString)")
-        print("  " + "Last Point: \(tenGigasamplesNF.string(for: lastTime)!) s")
+        print("  " + "Last Point: \(timeNF.string(for: lastTime)!) s")
         
         // Sample rate
         if points.count >= 2 {
@@ -104,7 +104,7 @@ struct rigol2spice: ParsableCommand {
             let timeInterval = (lastPointTime - firstPointTime) / (nPoints - 1)
             let sampleRate = 1 / timeInterval
             
-            let timeIntervalString = tenGigasamplesNF.string(for: timeInterval)!
+            let timeIntervalString = timeNF.string(for: timeInterval)!
             let sampleRateString = decimalNF.string(for: sampleRate)!
             
             print("  " + "Sample 𝛥t: \(timeIntervalString) s")
@@ -118,7 +118,7 @@ struct rigol2spice: ParsableCommand {
         points = removeUnecessary(points)
         let afterPoints = points.count
         
-        print("  " + "From \(beforePoints) points to \(afterPoints) points")
+        print("  " + "From \(decimalNF.string(for: beforePoints)!) points to \(decimalNF.string(for: afterPoints)!) points")
 
         // Output
         print("")
