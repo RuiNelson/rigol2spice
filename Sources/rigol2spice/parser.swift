@@ -31,33 +31,13 @@ public enum ParseError: LocalizedError {
     }
 }
 
-let SixteenBitNF: NumberFormatter = {
-    let nf = NumberFormatter()
-    nf.numberStyle = .scientific
-    nf.maximumIntegerDigits = 1
-    nf.maximumFractionDigits = 4
-    nf.minimumFractionDigits = 4
-    nf.localizesFormat = false
-    return nf
-}()
-
-let TenGigasamplesNF: NumberFormatter = {
-    let nf = NumberFormatter()
-    nf.numberStyle = .scientific
-    nf.maximumIntegerDigits = 1
-    nf.maximumFractionDigits = 10
-    nf.minimumFractionDigits = 10
-    nf.localizesFormat = false
-    return nf
-}()
-
 public struct Point {
     var time: Double
     var value: Double
     
     var serialize: String {
-        let timeString = TenGigasamplesNF.string(for: time)!
-        let valueString = SixteenBitNF.string(for: value)!
+        let timeString = tenGigasamplesNF.string(for: time)!
+        let valueString = sixteenBitNF.string(for: value)!
         return timeString + "\t" + valueString
     }
 }

@@ -11,13 +11,11 @@ import ArgumentParser
 @main
 struct rigol2spice: ParsableCommand {
     enum Rigol2SpiceErrors: LocalizedError {
-        case outputFileAlreadyExists(filePath: String)
         case outputFileNotSpeccified
         case inputFileContainsNoPoints
         
         var errorDescription: String? {
             switch self {
-            case .outputFileAlreadyExists(filePath: let path): return "The file \(path) already exists, will not overwrite"
             case .outputFileNotSpeccified: return "Please speccify the output file name after the input file name"
             case .inputFileContainsNoPoints: return "Input file contains zero points"
             }
@@ -51,10 +49,6 @@ struct rigol2spice: ParsableCommand {
             guard outputFile != nil else {
                 throw Rigol2SpiceErrors.outputFileNotSpeccified
             }
-            
-            guard FileManager.default.fileExists(atPath: outputFileExapnded) == false else {
-                throw Rigol2SpiceErrors.outputFileAlreadyExists(filePath: outputFileExapnded)
-            }
         }
         
         
@@ -81,8 +75,9 @@ struct rigol2spice: ParsableCommand {
         
         print("  " + "Read \(numBytesString) bytes")
         
+        print("")
         print("→ Parsing input file...")
-        let points = try CSVParser.parseCsv(data,
+        var points = try CSVParser.parseCsv(data,
                                             forChannel: channel,
                                             listChannelsOnly: listChannels)
         
@@ -98,7 +93,7 @@ struct rigol2spice: ParsableCommand {
         
         let nPointsString = decimalNF.string(for: points.count)!
         print("  " + "Points: \(nPointsString)")
-        print("  " + "Last Point: \(scientificNF.string(for: lastTime)!) s")
+        print("  " + "Last Point: \(tenGigasamplesNF.string(for: lastTime)!) s")
         
         // Sample rate
         if points.count >= 2 {
@@ -109,17 +104,30 @@ struct rigol2spice: ParsableCommand {
             let timeInterval = (lastPointTime - firstPointTime) / (nPoints - 1)
             let sampleRate = 1 / timeInterval
             
-            let timeIntervalString = scientificNF.string(for: timeInterval)!
+            let timeIntervalString = tenGigasamplesNF.string(for: timeInterval)!
             let sampleRateString = decimalNF.string(for: sampleRate)!
             
             print("  " + "Sample 𝛥t: \(timeIntervalString) s")
             print("  " + "Sample Rate: \(sampleRateString) sa/s")
         }
         
+        // Compacting...
+        print("")
+        print("→ Removing unecessary points...")
+        let beforePoints = points.count
+        points = removeUnecessary(points)
+        let afterPoints = points.count
+        
+        print("  " + "From \(beforePoints) points to \(afterPoints) points")
 
         // Output
+        print("")
         print("→ Writing output file...")
         let outputFileUrl = URL(fileURLWithPath: outputFileExapnded, relativeTo: cdUrl)
+        
+        if FileManager.default.fileExists(atPath: outputFileUrl.path) {
+            try FileManager.default.removeItem(at: outputFileUrl)
+        }
         
         FileManager.default.createFile(atPath: outputFileUrl.path, contents: nil)
         
@@ -133,6 +141,6 @@ struct rigol2spice: ParsableCommand {
         outputFileHandle.closeFile()
         
         print("")
-        print("Job complete")
+        print("Job complete ✓")
     }
 }
