@@ -13,11 +13,13 @@ struct rigol2spice: ParsableCommand {
     enum Rigol2SpiceErrors: LocalizedError {
         case outputFileNotSpeccified
         case inputFileContainsNoPoints
+        case invalidDownsampleValue(value: Int)
         
         var errorDescription: String? {
             switch self {
             case .outputFileNotSpeccified: return "Please speccify the output file name after the input file name"
             case .inputFileContainsNoPoints: return "Input file contains zero points"
+            case .invalidDownsampleValue(value: let v): return "Invalid downsample value: \(v)"
             }
         }
     }
@@ -27,6 +29,9 @@ struct rigol2spice: ParsableCommand {
     
     @Option(name: .shortAndLong, help: "The label of the channel to be processed")
     var channel: String = "CH1"
+    
+    @Option(name: .shortAndLong, help: "Downsample ratio")
+    var downsample: Int?
     
     @Flag(name: .shortAndLong, help: "Don't remove redundant points. Points where the signal value maintains (useful for output file post-processing)")
     var keepAll: Bool = false
@@ -112,6 +117,21 @@ struct rigol2spice: ParsableCommand {
             
             print("  " + "Sample 𝛥t: \(timeIntervalString) s")
             print("  " + "Sample Rate: \(sampleRateString) sa/s")
+        }
+        
+        if let ds = downsample {
+            guard ds > 1 else {
+                throw Rigol2SpiceErrors.invalidDownsampleValue(value: ds)
+            }
+            
+            print("")
+            print("→ Downsampling...")
+            
+            let beforePoints = points.count
+            points = downsamplePoints(points, interval: ds)
+            let afterPoints = points.count
+            
+            print("  " + "From \(beforePoints) to \(afterPoints)")
         }
         
         // Compacting...

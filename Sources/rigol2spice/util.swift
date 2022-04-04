@@ -44,3 +44,19 @@ func removeUnecessary(_ source: [Point]) -> [Point] {
     return output
 }
 
+func downsamplePoints(_ source: [Point], interval: Int) -> [Point] {
+    var i = 0
+    
+    let downsampled = source.filter {_ in
+        i += 1
+        if i == interval {
+            i = 0
+            return false
+        }
+        else {
+            return true
+        }
+    }
+    
+    return downsampled
+}
