@@ -46,13 +46,16 @@ class CSVParser {
         var increment: Decimal?
         
         var description: String {
+            let nf = NumberFormatter()
+            nf.numberStyle = .scientific
+            
             var str = ""
-            str += "Channels:" + "\n"
+            str += "  " + "Channels:" + "\n"
             for channel in channels {
-                str += "\t" + channel.description + "\n"
+                str += "    " + channel.description + "\n"
             }
             if let increment = increment {
-                str += "Time step: \(increment)" + "\n"
+                str += "  " + "Time step: \(nf.string(fromDecimal: increment)!) s" + "\n"
             }
             
             return str
@@ -147,7 +150,7 @@ class CSVParser {
     
     public static func parseCsv(_ data: Data,
                                 forChannel channelLabel: String,
-                                analyse: Bool) throws -> [Point]{
+                                listChannelsOnly: Bool) throws -> [Point]{
         // Convert to string
         guard let input = String(data: data, encoding: .ascii) else {
             throw ParseError.invalidFileFormat
@@ -163,7 +166,8 @@ class CSVParser {
         // Process Header
         let headerInfo = try parseFirstAndSecondLines(String(lines.removeFirst()),
                                                       String(lines.removeFirst()))
-        if(analyse) {
+        
+        if listChannelsOnly {
             print(headerInfo.description)
             return []
         }

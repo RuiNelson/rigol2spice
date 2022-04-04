@@ -1,19 +1,22 @@
 # rigol2spice
 
-*A program to convert Rigol oscilloscope's .CSV files to a format readable by LTspice.*
+*A program to convert Rigol oscilloscopes .CSV files to a format readable by LTspice.*
 
-Your Rigol oscilloscope can output .CSV files that capture a waveform, this program reads the .CSV file and converts it to [a PWL (piecewise linear)](https://www.analog.com/en/technical-articles/ltspice-importing-exporting-pwl-data.html) format.
+This program reads CSV files from Rigol oscillospes and outputs to a time-value format used by LtSpice and other SPICE programs ([PWL data](https://www.analog.com/en/technical-articles/ltspice-importing-exporting-pwl-data.html)). 
 
 [![YouTube video](https://img.youtube.com/vi/LTEc7fjmXSg/0.jpg)](https://www.youtube.com/watch?v=LTEc7fjmXSg)
 
 [YouTube demo/instructions](https://www.youtube.com/watch?v=LTEc7fjmXSg)
+
+## Intstall
+
+Download the program from [here](https://github.com/RuiCarneiro/rigol2spice/releases), unpack all the files in the RAR file to a folder in your computer (e.g. `C:\rigol2spice` used in this document)
+
 ## How to use (simple) 
 
-1. **Acquire**s waveform on your machine, after you have acquired a waveform, use the `Storage` key to save it to `CSV` file format and store it on a pen drive. Note that you can have more than one channel in a CSV file, but a PWL file can only have one signal. Also, large captures will take a long time to be processed both this program and LTSpice.
+1. **Acquire**s waveform on your machine, after you have acquired a waveform, use the `Storage` button to save it as a `CSV` and store it to a pen drive.
 
-2. **Download** or compile the program from the [releases](https://github.com/RuiCarneiro/rigol2spice/releases) (binaries provided only for Windows x64 at the moment) and [decompress](https://www.7-zip.org) the files to a folder in your computer (e.g. `C:\rigol2spice`), make sure you remember the folder you decompressed the files to.
-
-3. To **Run**, insert the pen-drive on your PC, open [Windows's command prompt](https://www.lifewire.com/how-to-open-command-prompt-2618089) and execute the program with the argument being the path to the .CSV file, e.g. if your pen-drive is the `D:` drive and the file-name is `NewFile1.csv`:
+2. To **Run**, insert the pen-drive on your PC, open Window's command line (Windows+R and enter `cmd` and run) and execute the program like this (if the pen-drive is drive `D:` and the file name is `NewFile1.csv`)
 
     `C:\rigol2spice\rigol2spice.exe D:\NewFile1.csv`
 
@@ -23,7 +26,7 @@ Your Rigol oscilloscope can output .CSV files that capture a waveform, this prog
 
     To see how long your capture lasts, open the generated file in a text editor and check the last line.
 
-4. **Load** the file in LTSpice. Insert a voltage or current source in your design, right click on the component and click the `Advanced` button, in the dialog that appears. Select `PWL FILE` option and click the `Browse` button to select your PWL file. LTSpice should parse the file and use your waveform in the simulation.
+3. **Load** the file in LTSpice. Insert a voltage or current source in your design, right click on the component and click the `Advanced` button, in the dialog that appears. Select `PWL FILE` option and click the `Browse` button to select your PWL file. LTSpice should parse the file and use your waveform in the simulation.
 
 ## Multiple Channels
 
