@@ -31,7 +31,7 @@ public enum ParseError: LocalizedError {
     }
 }
 
-let SixteenBitNumberFormatter: NumberFormatter = {
+let SixteenBitNF: NumberFormatter = {
     let nf = NumberFormatter()
     nf.numberStyle = .scientific
     nf.maximumIntegerDigits = 1
@@ -41,7 +41,7 @@ let SixteenBitNumberFormatter: NumberFormatter = {
     return nf
 }()
 
-let TenGigasamplesNumberFormatter: NumberFormatter = {
+let TenGigasamplesNF: NumberFormatter = {
     let nf = NumberFormatter()
     nf.numberStyle = .scientific
     nf.maximumIntegerDigits = 1
@@ -56,8 +56,8 @@ public struct Point {
     var value: Double
     
     var serialize: String {
-        let timeString = TenGigasamplesNumberFormatter.string(for: time)!
-        let valueString = SixteenBitNumberFormatter.string(for: value)!
+        let timeString = TenGigasamplesNF.string(for: time)!
+        let valueString = SixteenBitNF.string(for: value)!
         return timeString + "\t" + valueString
     }
 }

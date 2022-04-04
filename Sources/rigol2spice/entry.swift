@@ -59,11 +59,11 @@ struct rigol2spice: ParsableCommand {
         
         
         // static
-        let nf = NumberFormatter()
-        nf.numberStyle = .scientific
+        let scientificNF = NumberFormatter()
+        scientificNF.numberStyle = .scientific
 
-        let nf2 = NumberFormatter()
-        nf2.numberStyle = .decimal
+        let decimalNF = NumberFormatter()
+        decimalNF.numberStyle = .decimal
         
         let newlineBytes = "\r\n".data(using: .ascii)!
         
@@ -72,16 +72,16 @@ struct rigol2spice: ParsableCommand {
         
         // Processing
         
-        print("1. Reading input file...")
+        print("→ Reading input file...")
         let inputFileUrl = URL(fileURLWithPath: inputFileExpanded, relativeTo: cdUrl)
 
         let data = try Data(contentsOf: inputFileUrl)
         
-        let numBytesString = nf2.string(for: data.count)!
+        let numBytesString = decimalNF.string(for: data.count)!
         
         print("  " + "Read \(numBytesString) bytes")
         
-        print("2. Parsing input file...")
+        print("→ Parsing input file...")
         let points = try CSVParser.parseCsv(data,
                                             forChannel: channel,
                                             listChannelsOnly: listChannels)
@@ -96,9 +96,9 @@ struct rigol2spice: ParsableCommand {
         
         let lastTime = points.last!.time
         
-        let nPointsString = nf2.string(for: points.count)!
+        let nPointsString = decimalNF.string(for: points.count)!
         print("  " + "Points: \(nPointsString)")
-        print("  " + "Last Point: \(nf.string(for: lastTime)!) s")
+        print("  " + "Last Point: \(scientificNF.string(for: lastTime)!) s")
         
         // Sample rate
         if points.count >= 2 {
@@ -109,8 +109,8 @@ struct rigol2spice: ParsableCommand {
             let timeInterval = (lastPointTime - firstPointTime) / (nPoints - 1)
             let sampleRate = 1 / timeInterval
             
-            let timeIntervalString = nf.string(for: timeInterval) ?? ""
-            let sampleRateString = nf2.string(for: sampleRate) ?? ""
+            let timeIntervalString = scientificNF.string(for: timeInterval)!
+            let sampleRateString = decimalNF.string(for: sampleRate)!
             
             print("  " + "Sample 𝛥t: \(timeIntervalString) s")
             print("  " + "Sample Rate: \(sampleRateString) sa/s")
@@ -118,7 +118,7 @@ struct rigol2spice: ParsableCommand {
         
 
         // Output
-        print("3. Writing output file...")
+        print("→ Writing output file...")
         let outputFileUrl = URL(fileURLWithPath: outputFileExapnded, relativeTo: cdUrl)
         
         FileManager.default.createFile(atPath: outputFileUrl.path, contents: nil)
