@@ -48,16 +48,13 @@ class CSVParser {
         var increment: Double?
         
         var description: String {
-            let nf = NumberFormatter()
-            nf.numberStyle = .scientific
-            
             var str = ""
             str += "  " + "Channels:" + "\n"
             for channel in channels {
                 str += "    " + channel.description + "\n"
             }
             if let increment = increment {
-                let incrementString = nf.string(for: increment)!
+                let incrementString = timeNF.string(for: increment)!
                 str += "  " + "Time step: \(incrementString) s" + "\n"
             }
             
@@ -77,7 +74,6 @@ class CSVParser {
     
     private static func parseFirstAndSecondLines(_ line1: String, _ line2: String) throws -> HeaderInfo {
         var channels: [Channel] = []
-        var increment: Decimal!
         var incrementIndex: Int?
         
         // First Line
