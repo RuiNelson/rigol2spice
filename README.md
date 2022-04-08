@@ -51,11 +51,11 @@ Points before 0.0 seconds will be removed.
 
 #### Cutting
 
-Using the `--cut` option you can remove points of the signal after a certain timestamp. For example, `--cut 10u` will remove points of the signal after 10 microseconds, inclusively.
+Using the `--cut` option you can remove points of the signal after a certain timestamp. For example, `--cut 10u` will remove points of the capture after 10 microseconds, inclusively.
 
 #### Repeating
 
-The `--repeat`  option will allow you to repeat the signal multiple times. E.g. `-- repeat 3` will add 3 repetitions of the original signal.
+The `--repeat`  option will allow you to repeat the signal multiple times. E.g., `-- repeat 3` will add 3 repetitions of the original signal.
 
 #### Combining Time Operations
 
@@ -69,10 +69,9 @@ You can reduce the sample rate of the capture with the `--downsample` option. A 
 
 #### Deactivating Optimizations
 
-To optimize the resulting PWL file, `rigol2spice` will skip points where the value is the same as the previous point. This will produce smaller PWL files for LtSpice that will save CPU time when simulating, while producing the exact same results.
+To optimize the resulting PWL file, `rigol2spice` will skip points where the value maintained from the previous point. This produces smaller PWL files for LtSpice that will save CPU time when simulating (due to less parseing), while producing the exact same results.
 
 But you might want to disable this optimization, for example, if you are passing the results to another tool for analysis/transformation. Use the `--keep-all` flag if you want this.
-
 
 ## Usage reference
 
@@ -85,7 +84,7 @@ But you might want to disable this optimization, for example, if you are passing
     OPTIONS:
     -l, --list-channels             Only list channels present in the file and quit
     -c, --channel <channel>         The label of the channel to be processed (default: CH1)
-    -t, --shift <shift>             Time-shift seconds
+    -s, --shift <shift>             Time-shift seconds
     -x, --cut <cut>                 Cut signal after timestamp
     -r, --repeat <repeat>           Repeat signal number of times
     -d, --downsample <downsample>   Downsample ratio

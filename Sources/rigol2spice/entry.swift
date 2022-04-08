@@ -41,7 +41,7 @@ struct rigol2spice: ParsableCommand {
     @Option(name: .shortAndLong, help: "The label of the channel to be processed")
     var channel: String = "CH1"
     
-    @Option(name: [.customShort("t"), .customLong("shift")], help: "Time-shift seconds")
+    @Option(name: [.customShort("s"), .customLong("shift")], help: "Time-shift seconds")
     var timeShift: String?
     
     @Option(name: [.customShort("x"), .customLong("cut")], help: "Cut signal after timestamp")
