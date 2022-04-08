@@ -37,18 +37,18 @@ func downsamplePoints(_ source: [Point], interval: Int) -> [Point] {
 func parseEngineeringNotation(_ input: String) -> Double? {
     var str = input
     var multiplier: Double = 1.0
-    var signal: Double = 0.0
+    var signal: Double!
     
     if str.hasPrefix("l") {
         str.removeFirst()
-        signal = -1.0
+        signal = -1
     }
     else if str.hasPrefix("r") {
         str.removeFirst()
-        signal = +1.0
+        signal = +1
     }
     else {
-        return nil
+        signal = 1.0
     }
     
     if str.hasSuffix("s") {
