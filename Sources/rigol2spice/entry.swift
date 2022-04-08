@@ -30,7 +30,7 @@ struct rigol2spice: ParsableCommand {
     @Option(name: .shortAndLong, help: "The label of the channel to be processed")
     var channel: String = "CH1"
     
-    @Option(name: .shortAndLong, help: "Downsample ratio")
+    @Option(name: [.customLong("ds", withSingleDash: true), .customLong("downsample", withSingleDash: false)], help: "Downsample ratio")
     var downsample: Int?
     
     @Flag(name: .shortAndLong, help: "Don't remove redundant points. Points where the signal value maintains (useful for output file post-processing)")
@@ -61,19 +61,12 @@ struct rigol2spice: ParsableCommand {
         
         
         // static
-        let scientificNF = NumberFormatter()
-        scientificNF.numberStyle = .scientific
-
-        let decimalNF = NumberFormatter()
-        decimalNF.numberStyle = .decimal
-        
         let newlineBytes = "\r\n".data(using: .ascii)!
         
         let cd = FileManager.default.currentDirectoryPath
         let cdUrl = URL(fileURLWithPath: cd)
         
-        // Processing
-        
+        // Loading
         print("→ Loading input file...")
         let inputFileUrl = URL(fileURLWithPath: inputFileExpanded, relativeTo: cdUrl)
 
@@ -83,6 +76,7 @@ struct rigol2spice: ParsableCommand {
         
         print("  " + "Read \(numBytesString) bytes")
         
+        // Parsing
         print("")
         print("→ Parsing input file...")
         var points = try CSVParser.parseCsv(data,
@@ -100,8 +94,10 @@ struct rigol2spice: ParsableCommand {
         let lastTime = points.last!.time
         
         let nPointsString = decimalNF.string(for: points.count)!
+        let lastPointString = scientificNF.string(for: lastTime)!
+        
         print("  " + "Points: \(nPointsString)")
-        print("  " + "Last Point: \(timeNF.string(for: lastTime)!) s")
+        print("  " + "Last Point: \(lastPointString) s")
         
         // Sample rate
         if points.count >= 2 {
@@ -112,7 +108,7 @@ struct rigol2spice: ParsableCommand {
             let timeInterval = (lastPointTime - firstPointTime) / (nPoints - 1)
             let sampleRate = 1 / timeInterval
             
-            let timeIntervalString = timeNF.string(for: timeInterval)!
+            let timeIntervalString = scientificNF.string(for: timeInterval)!
             let sampleRateString = decimalNF.string(for: sampleRate)!
             
             print("  " + "Sample 𝛥t: \(timeIntervalString) s")
@@ -131,7 +127,10 @@ struct rigol2spice: ParsableCommand {
             points = downsamplePoints(points, interval: ds)
             let afterPoints = points.count
             
-            print("  " + "From \(beforePoints) to \(afterPoints)")
+            let beforePointsString = decimalNF.string(for: beforePoints)!
+            let afterPointString = decimalNF.string(for: afterPoints)!
+            
+            print("  " + "From \(beforePointsString) to \(afterPointString) points")
         }
         
         // Compacting...

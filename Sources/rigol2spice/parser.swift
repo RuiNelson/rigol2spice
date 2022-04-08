@@ -37,8 +37,8 @@ public struct Point {
     
     var serialize: String {
         let timeString = timeNF.string(for: time)!
-        let valueString = sixteenBitNF.string(for: value)!
-        return timeString + "\t" + valueString
+        let valueString = valueNF.string(for: value)!
+        return [timeString, valueString].joined(separator: "\t")
     }
 }
 
@@ -47,15 +47,11 @@ class CSVParser {
         var channels: [Channel]
         var increment: Double?
         
-        var description: String {
+        var channelsDescription: String {
             var str = ""
-            str += "  " + "Channels:" + "\n"
+            str += "  " + "Channels:"
             for channel in channels {
-                str += "    " + channel.description + "\n"
-            }
-            if let increment = increment {
-                let incrementString = timeNF.string(for: increment)!
-                str += "  " + "Time step: \(incrementString) s" + "\n"
+                str += "\n" + "    " + channel.description
             }
             
             return str
@@ -167,8 +163,9 @@ class CSVParser {
         let headerInfo = try parseFirstAndSecondLines(String(lines.removeFirst()),
                                                       String(lines.removeFirst()))
         
+        print(headerInfo.channelsDescription)
+        
         if listChannelsOnly {
-            print(headerInfo.description)
             return []
         }
         
@@ -192,6 +189,8 @@ class CSVParser {
         guard let selectedChannel = selectedChannel else {
             throw ParseError.channelNotFound(channelLabel: channelLabel)
         }
+        
+        print("  " + "Selected channel: \(selectedChannel.name)")
         
         let selectedRow = selectedChannel.row
         
