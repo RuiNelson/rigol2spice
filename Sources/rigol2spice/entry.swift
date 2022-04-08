@@ -256,6 +256,7 @@ struct rigol2spice: ParsableCommand {
             outputFileHandle.write(pointBytes)
             outputFileHandle.write(newlineBytes)
         }
+        
         outputFileHandle.closeFile()
         
         print("")
