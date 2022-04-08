@@ -35,7 +35,7 @@ func downsamplePoints(_ source: [Point], interval: Int) -> [Point] {
 }
 
 func parseEngineeringNotation(_ input: String) -> Double? {
-    var str = input
+    var str = input.lowercased()
     var multiplier: Double = 1.0
     var signal: Double!
     
@@ -48,7 +48,7 @@ func parseEngineeringNotation(_ input: String) -> Double? {
         signal = +1
     }
     else {
-        signal = 1.0
+        signal = +1
     }
     
     if str.hasSuffix("s") {
@@ -76,7 +76,7 @@ func parseEngineeringNotation(_ input: String) -> Double? {
         multiplier = 1E-15
     }
     
-    if let base = Double(str) {
+    if let base = Double(str.uppercased()) {
         return signal * base * multiplier
     }
     else {
@@ -94,4 +94,29 @@ func timeShiftPoints(_ points: [Point], value: Double) -> [Point] {
     let filtered = shifted.filter { return $0.time >= 0 }
     
     return filtered
+}
+
+func cutAfter(_ points: [Point], after: Double) -> [Point] {
+    return points.filter { $0.time < after }
+}
+
+func repeatPoints(_ points: [Point], n: Int) -> [Point] {
+    let firstPointTime = points.first!.time
+    let lastPointTime = points.last!.time
+    let lastPointPlusOneTime = lastPointTime + firstPointTime
+    
+    var newPoints = [Point]()
+    
+    for i in 0...n {
+        if i == 0 {
+            newPoints.append(contentsOf: points)
+        }
+        else {
+            let startPoint = lastPointPlusOneTime * Double(i)
+            let shiftedPoints = timeShiftPoints(points, value: startPoint)
+            newPoints.append(contentsOf: shiftedPoints)
+        }
+    }
+    
+    return newPoints
 }
