@@ -1,6 +1,6 @@
 # rigol2spice
 
-*A program to convert Rigol oscilloscopes .CSV files to a format readable by LTspice.*
+*A program to convert Rigol oscilloscopes CSV files to a format readable by LTspice.*
 
 This program reads CSV files from Rigol oscillospes and outputs to a time-value format used by LtSpice and other SPICE programs ([PWL data](https://www.analog.com/en/technical-articles/ltspice-importing-exporting-pwl-data.html)). 
 
@@ -10,9 +10,9 @@ This program reads CSV files from Rigol oscillospes and outputs to a time-value 
 
 ## Install
 
-Download the program from [here](https://github.com/RuiCarneiro/rigol2spice/releases), unpack all the files in the [RAR file](https://www.rarlab.com/) to a folder in your computer (e.g. `C:\rigol2spice` used in this document)
+Download the program from [here](https://github.com/RuiCarneiro/rigol2spice/releases), unpack all the files in the [RAR file](https://www.rarlab.com/) to a folder in your computer (e.g., `C:\rigol2spice` used in this document)
 
-## How to use (simple) 
+## How to Use (simple) 
 
 1. Use your oscilloscpe to save a capture in the CSV format to a pen drive, then mount the pen-drive in your computer (example for the pen-drive mounted as drive `D:`, and file saved as `NewFile1.csv`)
 2. Open the Windows command prompt (right-click the Start menu and select *"Command Prompt"*)
