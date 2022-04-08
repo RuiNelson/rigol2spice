@@ -60,7 +60,7 @@ struct rigol2spice: ParsableCommand {
         }
         
         // Loading
-        print("→ Loading input file...")
+        print("> Loading input file...")
         let inputFileUrl = URL(fileURLWithPath: inputFileExpanded, relativeTo: cdUrl)
 
         let data = try Data(contentsOf: inputFileUrl)
@@ -71,7 +71,7 @@ struct rigol2spice: ParsableCommand {
         
         // Parsing
         print("")
-        print("→ Parsing input file...")
+        print("> Parsing input file...")
         var points = try CSVParser.parseCsv(data,
                                             forChannel: channel,
                                             listChannelsOnly: listChannels)
@@ -104,7 +104,7 @@ struct rigol2spice: ParsableCommand {
             let timeIntervalString = scientificNF.string(for: timeInterval)!
             let sampleRateString = decimalNF.string(for: sampleRate)!
             
-            print("  " + "Sample 𝛥t: \(timeIntervalString) s")
+            print("  " + "Sample Interval: \(timeIntervalString) s")
             print("  " + "Sample Rate: \(sampleRateString) sa/s")
         }
         
@@ -114,7 +114,7 @@ struct rigol2spice: ParsableCommand {
             }
             
             print("")
-            print("→ Downsampling...")
+            print("> Downsampling...")
             
             let beforePoints = points.count
             points = downsamplePoints(points, interval: ds)
@@ -129,7 +129,7 @@ struct rigol2spice: ParsableCommand {
         // Compacting...
         if(!keepAll) {
             print("")
-            print("→ Removing redundant points...")
+            print("> Removing redundant points...")
             
             let beforePoints = points.count
             
@@ -142,7 +142,7 @@ struct rigol2spice: ParsableCommand {
         
         // Output
         print("")
-        print("→ Writing output file...")
+        print("> Writing output file...")
         let outputFileUrl = URL(fileURLWithPath: outputFileExapnded, relativeTo: cdUrl)
         
         if FileManager.default.fileExists(atPath: outputFileUrl.path) {
@@ -161,6 +161,6 @@ struct rigol2spice: ParsableCommand {
         outputFileHandle.closeFile()
         
         print("")
-        print("→ Job complete ✓")
+        print("> Job complete")
     }
 }
