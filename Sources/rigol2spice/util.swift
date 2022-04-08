@@ -30,7 +30,6 @@ let scientificNF: NumberFormatter = {
     let nf = NumberFormatter()
     nf.numberStyle = .scientific
     nf.locale = usLocale
-    nf.minimumFractionDigits = 1
     nf.maximumFractionDigits = 14
     return nf
 }()
