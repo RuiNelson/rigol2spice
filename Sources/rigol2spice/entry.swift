@@ -59,13 +59,6 @@ struct rigol2spice: ParsableCommand {
             }
         }
         
-        
-        // static
-        let newlineBytes = "\r\n".data(using: .ascii)!
-        
-        let cd = FileManager.default.currentDirectoryPath
-        let cdUrl = URL(fileURLWithPath: cd)
-        
         // Loading
         print("→ Loading input file...")
         let inputFileUrl = URL(fileURLWithPath: inputFileExpanded, relativeTo: cdUrl)
@@ -168,6 +161,6 @@ struct rigol2spice: ParsableCommand {
         outputFileHandle.closeFile()
         
         print("")
-        print("Job complete ✓")
+        print("→ Job complete ✓")
     }
 }

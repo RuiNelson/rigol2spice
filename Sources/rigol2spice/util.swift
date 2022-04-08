@@ -43,6 +43,11 @@ let decimalNF: NumberFormatter = {
     return nf
 }()
 
+// static
+let newlineBytes = "\r\n".data(using: .ascii)!
+let cd = FileManager.default.currentDirectoryPath
+let cdUrl = URL(fileURLWithPath: cd)
+
 func removeUnecessary(_ source: [Point]) -> [Point] {
     var previousValue: Double = Double.nan
     
