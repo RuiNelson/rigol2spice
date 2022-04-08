@@ -14,12 +14,14 @@ struct rigol2spice: ParsableCommand {
         case outputFileNotSpeccified
         case inputFileContainsNoPoints
         case invalidDownsampleValue(value: Int)
+        case invalidTimeShiftValue(value: String)
         
         var errorDescription: String? {
             switch self {
             case .outputFileNotSpeccified: return "Please speccify the output file name after the input file name"
             case .inputFileContainsNoPoints: return "Input file contains zero points"
             case .invalidDownsampleValue(value: let v): return "Invalid downsample value: \(v)"
+            case .invalidTimeShiftValue(value: let v): return "Invalid timeshift value: \(v)"
             }
         }
     }
@@ -30,7 +32,10 @@ struct rigol2spice: ParsableCommand {
     @Option(name: .shortAndLong, help: "The label of the channel to be processed")
     var channel: String = "CH1"
     
-    @Option(name: [.customLong("ds", withSingleDash: true), .customLong("downsample", withSingleDash: false)], help: "Downsample ratio")
+    @Option(name: .shortAndLong, help: "Time-shift")
+    var timeShift: String?
+    
+    @Option(name: .shortAndLong, help: "Downsample ratio")
     var downsample: Int?
     
     @Flag(name: .shortAndLong, help: "Don't remove redundant points. Points where the signal value maintains (useful for output file post-processing)")
@@ -50,7 +55,7 @@ struct rigol2spice: ParsableCommand {
         }
         return NSString(string: outputFile).expandingTildeInPath
     }
-        
+    
     mutating func run() throws {
         // argument validation
         if listChannels == false {
@@ -62,7 +67,7 @@ struct rigol2spice: ParsableCommand {
         // Loading
         print("> Loading input file...")
         let inputFileUrl = URL(fileURLWithPath: inputFileExpanded, relativeTo: cdUrl)
-
+        
         let data = try Data(contentsOf: inputFileUrl)
         
         let numBytesString = decimalNF.string(for: data.count)!
@@ -108,6 +113,36 @@ struct rigol2spice: ParsableCommand {
             print("  " + "Sample Rate: \(sampleRateString) sa/s")
         }
         
+        // Time-shift
+        if let timeShift = timeShift {
+            guard let timeShiftValue = parseEngineeringNotation(timeShift) else {
+                throw Rigol2SpiceErrors.invalidTimeShiftValue(value: timeShift)
+            }
+            
+            let timeShiftValueString = scientificNF.string(for: timeShiftValue)!
+            
+            print("")
+            print("> Shifting signal for \(timeShiftValueString) s")
+            
+            let pointsBefore = points.count
+            points = timeShiftPoints(points, value: timeShiftValue)
+            let pointsAfter = points.count
+            
+            assert(pointsAfter > 0)
+            
+            if pointsAfter != pointsBefore {
+                let pointsBeforeString = decimalNF.string(for: pointsBefore)!
+                let pointsAfterString = decimalNF.string(for: pointsAfter)!
+                
+                print("  " + "From \(pointsBeforeString) points to \(pointsAfterString) points")
+            }
+            
+        }
+        
+        // Repeat
+        
+        
+        // Downsample
         if let ds = downsample {
             guard ds > 1 else {
                 throw Rigol2SpiceErrors.invalidDownsampleValue(value: ds)
@@ -116,14 +151,16 @@ struct rigol2spice: ParsableCommand {
             print("")
             print("> Downsampling...")
             
-            let beforePoints = points.count
+            let nPointsBefore = points.count
             points = downsamplePoints(points, interval: ds)
-            let afterPoints = points.count
+            let nPointsAfter = points.count
             
-            let beforePointsString = decimalNF.string(for: beforePoints)!
-            let afterPointString = decimalNF.string(for: afterPoints)!
+            assert(nPointsAfter > 0)
             
-            print("  " + "From \(beforePointsString) to \(afterPointString) points")
+            let nPointsBeforeString = decimalNF.string(for: nPointsBefore)!
+            let nPointsAfterString = decimalNF.string(for: nPointsAfter)!
+            
+            print("  " + "From \(nPointsBeforeString) to \(nPointsAfterString) points")
         }
         
         // Compacting...
@@ -131,13 +168,14 @@ struct rigol2spice: ParsableCommand {
             print("")
             print("> Removing redundant points...")
             
-            let beforePoints = points.count
-            
+            let nPointsBefore = points.count
             points = removeUnecessary(points)
+            let nPointsAfter = points.count
             
-            let afterPoints = points.count
+            let nPointsBeforeString = decimalNF.string(for: nPointsBefore)!
+            let nPointsAfterString = decimalNF.string(for: nPointsAfter)!
             
-            print("  " + "From \(decimalNF.string(for: beforePoints)!) points to \(decimalNF.string(for: afterPoints)!) points")
+            print("  " + "From \(nPointsBeforeString) points to \(nPointsAfterString) points")
         }
         
         // Output

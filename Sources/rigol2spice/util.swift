@@ -7,46 +7,6 @@
 
 import Foundation
 
-let usLocale = Locale(identifier: "en_US")
-
-let valueNF: NumberFormatter = {
-    let nf = NumberFormatter()
-    nf.numberStyle = .decimal
-    nf.locale = usLocale
-    nf.maximumFractionDigits = 14
-    return nf
-}()
-
-let timeNF: NumberFormatter = {
-    let nf = NumberFormatter()
-    nf.numberStyle = .decimal
-    nf.locale = usLocale
-    nf.minimumFractionDigits = 9
-    nf.maximumFractionDigits = 14
-    return nf
-}()
-
-let scientificNF: NumberFormatter = {
-    let nf = NumberFormatter()
-    nf.numberStyle = .scientific
-    nf.locale = usLocale
-    nf.maximumFractionDigits = 14
-    return nf
-}()
-
-let decimalNF: NumberFormatter = {
-    let nf = NumberFormatter()
-    nf.numberStyle = .decimal
-    nf.locale = usLocale
-    nf.hasThousandSeparators = true
-    return nf
-}()
-
-// static
-let newlineBytes = "\r\n".data(using: .ascii)!
-let cd = FileManager.default.currentDirectoryPath
-let cdUrl = URL(fileURLWithPath: cd)
-
 func removeUnecessary(_ source: [Point]) -> [Point] {
     var previousValue: Double = Double.nan
     
@@ -72,4 +32,66 @@ func downsamplePoints(_ source: [Point], interval: Int) -> [Point] {
     }
     
     return downsampled
+}
+
+func parseEngineeringNotation(_ input: String) -> Double? {
+    var str = input
+    var multiplier: Double = 1.0
+    var signal: Double = 0.0
+    
+    if str.hasPrefix("l") {
+        str.removeFirst()
+        signal = -1.0
+    }
+    else if str.hasPrefix("r") {
+        str.removeFirst()
+        signal = +1.0
+    }
+    else {
+        return nil
+    }
+    
+    if str.hasSuffix("s") {
+        str.removeLast()
+    }
+    
+    if str.hasSuffix("m") {
+        str.removeLast()
+        multiplier = 1E-3
+    }
+    else if str.hasSuffix("u") || str.hasSuffix("µ") {
+        str.removeLast()
+        multiplier = 1E-6
+    }
+    else if str.hasSuffix("n") {
+        str.removeLast()
+        multiplier = 1E-9
+    }
+    else if str.hasSuffix("p") {
+        str.removeLast()
+        multiplier = 1E-12
+    }
+    else if str.hasSuffix("f") {
+        str.removeLast()
+        multiplier = 1E-15
+    }
+    
+    if let base = Double(str) {
+        return signal * base * multiplier
+    }
+    else {
+        return nil
+    }
+}
+
+func timeShiftPoints(_ points: [Point], value: Double) -> [Point] {
+    let shifted: [Point] = points.map { point in
+        var shiftedPoint = point
+        shiftedPoint.time = shiftedPoint.time + value
+        return shiftedPoint
+    }
+    
+    let filtered = shifted.filter { return $0.time >= 0 }
+    
+    return filtered
 }

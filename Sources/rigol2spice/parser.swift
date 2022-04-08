@@ -53,6 +53,12 @@ class CSVParser {
             for channel in channels {
                 str += "\n" + "    " + channel.description
             }
+            if let increment = increment {
+                str += "\n"
+
+                let incrementString = scientificNF.string(for: increment)!
+                str += "  " + "Increment: \(incrementString) s"
+            }
             
             return str
         }
