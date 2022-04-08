@@ -8,27 +8,32 @@
 import Foundation
 import ArgumentParser
 
-@main
-struct rigol2spice: ParsableCommand {
-    enum Rigol2SpiceErrors: LocalizedError {
-        case outputFileNotSpeccified
-        case inputFileContainsNoPoints
-        case invalidDownsampleValue(value: Int)
-        case invalidTimeShiftValue(value: String)
-        case invalidCutAfterValue(value: String)
-        case invalidRepeatCountValue(value: Int)
-        
-        var errorDescription: String? {
-            switch self {
-            case .outputFileNotSpeccified: return "Please speccify the output file name after the input file name"
-            case .inputFileContainsNoPoints: return "Input file contains zero points"
-            case .invalidDownsampleValue(value: let v): return "Invalid downsample value: \(v)"
-            case .invalidTimeShiftValue(value: let v): return "Invalid timeshift value: \(v)"
-            case .invalidCutAfterValue(value: let v): return "Invalid cut timestamp: \(v)"
-            case .invalidRepeatCountValue(value: let v): return "Invalid repeat count value: \(v)"
-            }
+enum Rigol2SpiceErrors: LocalizedError {
+    case outputFileNotSpeccified
+    case inputFileContainsNoPoints
+    case invalidDownsampleValue(value: Int)
+    case invalidTimeShiftValue(value: String)
+    case invalidCutAfterValue(value: String)
+    case invalidRepeatCountValue(value: Int)
+    case mustHaveAtLeastTwoPointsToRepeat
+    
+    var errorDescription: String? {
+        switch self {
+        case .outputFileNotSpeccified: return "Please speccify the output file name after the input file name"
+        case .inputFileContainsNoPoints: return "Input file contains zero points"
+        case .invalidDownsampleValue(value: let v): return "Invalid downsample value: \(v)"
+        case .invalidTimeShiftValue(value: let v): return "Invalid timeshift value: \(v)"
+        case .invalidCutAfterValue(value: let v): return "Invalid cut timestamp: \(v)"
+        case .invalidRepeatCountValue(value: let v): return "Invalid repeat count value: \(v)"
+        case .mustHaveAtLeastTwoPointsToRepeat: return "Must have at least two original points to repeat points"
         }
     }
+}
+
+
+@main
+struct rigol2spice: ParsableCommand {
+
     
     @Flag(name: .shortAndLong, help: "Only list channels present in the file and quit")
     var listChannels: Bool = false
@@ -39,7 +44,7 @@ struct rigol2spice: ParsableCommand {
     @Option(name: [.customShort("t"), .customLong("shift")], help: "Time-shift seconds")
     var timeShift: String?
     
-    @Option(name: [.customShort("x"), .customLong("cut")], help: "Cut signal after time in seconds")
+    @Option(name: [.customShort("x"), .customLong("cut")], help: "Cut signal after timestamp")
     var cut: String?
     
     @Option(name: [.customShort("r"), .customLong("repeat")], help: "Repeat signal number of times")

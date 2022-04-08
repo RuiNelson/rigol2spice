@@ -91,7 +91,7 @@ func timeShiftPoints(_ points: [Point], value: Double) -> [Point] {
         return shiftedPoint
     }
     
-    let filtered = shifted.filter { return $0.time >= 0 }
+    let filtered = shifted.filter { $0.time >= 0 }
     
     return filtered
 }
@@ -100,11 +100,12 @@ func cutAfter(_ points: [Point], after: Double) -> [Point] {
     return points.filter { $0.time < after }
 }
 
-func repeatPoints(_ points: [Point], n: Int) -> [Point] {
-    let firstPointTime = points.first!.time
-    let lastPointTime = points.last!.time
-    let lastPointPlusOneTime = lastPointTime + firstPointTime
+func repeatPoints(_ points: [Point], n: Int) throws -> [Point] {
+    guard points.count >= 2 else {
+        throw Rigol2SpiceErrors.mustHaveAtLeastTwoPointsToRepeat
+    }
     
+    let increment = points[1].time - points[0].time
     var newPoints = [Point]()
     
     for i in 0...n {
@@ -112,9 +113,10 @@ func repeatPoints(_ points: [Point], n: Int) -> [Point] {
             newPoints.append(contentsOf: points)
         }
         else {
-            let startPoint = lastPointPlusOneTime * Double(i)
-            let shiftedPoints = timeShiftPoints(points, value: startPoint)
-            newPoints.append(contentsOf: shiftedPoints)
+            var start = newPoints.last!.time + increment
+            let shifted = timeShiftPoints(points, value: start)
+            
+            newPoints.append(contentsOf: shifted)
         }
     }
     
