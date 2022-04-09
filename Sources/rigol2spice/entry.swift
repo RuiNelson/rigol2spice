@@ -21,13 +21,13 @@ enum Rigol2SpiceErrors: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .outputFileNotSpecified: return "Please specify the output file name after the input file name"
-        case .inputFileContainsNoPoints: return "Input file contains zero points"
+        case .inputFileContainsNoPoints: return "Input file contains zero samples"
         case .invalidDownsampleValue(value: let v): return "Invalid downsample value: \(v)"
         case .invalidTimeShiftValue(value: let v): return "Invalid time-shift value: \(v)"
         case .invalidCutAfterValue(value: let v): return "Invalid cut timestamp: \(v)"
         case .invalidRepeatCountValue(value: let v): return "Invalid repeat count value: \(v)"
-        case .mustHaveAtLeastTwoPointsToRepeat: return "Must have at least two original points to repeat points"
-        case .operationRemovedEveryPoint: return "Operation removed every point"
+        case .mustHaveAtLeastTwoPointsToRepeat: return "Must have at least two original samples to repeat capture"
+        case .operationRemovedEveryPoint: return "Operation removed every sample"
         }
     }
 }
@@ -55,7 +55,7 @@ struct rigol2spice: ParsableCommand {
     @Option(name: .shortAndLong, help: "Downsample ratio")
     var downsample: Int?
     
-    @Flag(name: .shortAndLong, help: "Don't remove redundant points. Points where the signal value maintains (useful for output file post-processing)")
+    @Flag(name: .shortAndLong, help: "Don't remove redundant sample points. Sample points where the signal value maintains (useful for output file post-processing)")
     var keepAll: Bool = false
     
     @Argument(help: "The filename of the .csv from the oscilloscope to be read", completion: CompletionKind.file(extensions: ["csv"]))
@@ -127,8 +127,8 @@ struct rigol2spice: ParsableCommand {
         let nPointsString = decimalNF.string(for: points.count)!
         let lastPointString = scientificNF.string(for: lastTime)!
         
-        print("  " + "Points: \(nPointsString)")
-        print("  " + "Last Point: \(lastPointString) s")
+        print("  " + "Samples: \(nPointsString)")
+        print("  " + "Last Sample Point: \(lastPointString) s")
         
         // Sample rate
         if points.count >= 2 {
@@ -188,7 +188,7 @@ struct rigol2spice: ParsableCommand {
             }
             
             print("")
-            print("> Repeating signal for \(repeatTimes) times")
+            print("> Repeating capture for \(repeatTimes) times")
             
             let nPointsBefore = points.count
             points = try repeatPoints(points, n: repeatTimes)
@@ -216,7 +216,7 @@ struct rigol2spice: ParsableCommand {
         // Compacting...
         if(!keepAll) {
             print("")
-            print("> Removing redundant points (optimize)...")
+            print("> Removing redundant sample points (optimize)...")
             
             let nPointsBefore = points.count
             points = removeRedundant(points)
@@ -236,7 +236,7 @@ struct rigol2spice: ParsableCommand {
         let firstSampleString = scientificNF.string(for: firstPointTime)!
         let lastSampleString = scientificNF.string(for: lastPointTime)!
         
-        print("  " + "Number of points: \(nSamplesString)")
+        print("  " + "Number of sample points: \(nSamplesString)")
         print("  " + "First sample: \(firstSampleString)")
         print("  " + "Last sample: \(lastSampleString)")
         

@@ -47,11 +47,11 @@ You can shift in time the signal to the left or to the right using the `--shift`
 * `--shift l0.2ms` will shift 200 microseconds to the left
 * `--shift r1s` will shift 1 second to the right
 
-Points before 0.0 seconds will be removed.
+Sample points before 0.0 seconds will be removed.
 
 #### Cutting
 
-Using the `--cut` option you can remove points of the signal after a certain timestamp. For example, `--cut 10u` will remove points of the capture after 10 microseconds, inclusively.
+Using the `--cut` option you can remove sample points of the signal after a certain timestamp. For example, `--cut 10u` will remove points of the capture after 10 microseconds, inclusively.
 
 #### Repeating
 
@@ -59,7 +59,7 @@ The `--repeat`  option will allow you to repeat the signal multiple times. E.g.,
 
 #### Combining Time Operations
 
-`--shift`, `--cut` and `--repeat` will apply to the capture in this order.
+`--shift`, `--cut` and `--repeat` will apply to the capture in this order, from the result of the previous operation.
 
 ### Downsampling and Post-Processing
 
@@ -69,7 +69,7 @@ You can reduce the sample rate of the capture with the `--downsample` option. A 
 
 #### Deactivating Optimisations
 
-To optimize the resulting PWL file, `rigol2spice` will skip points where the value maintained from the previous point. This produces smaller PWL files for LtSpice that will save CPU time when simulating (due to less parseing), while producing the exact same results.
+To optimize the resulting PWL file, `rigol2spice` will skip sample points where the value maintained from the previous point. This produces smaller PWL files for LtSpice that will save CPU time when simulating (due to less parseing), while producing the exact same results.
 
 But you might want to disable this optimisation, for example, if you are passing the results to another tool for analysis/transformation. Use the `--keep-all` flag if you want this.
 
@@ -88,7 +88,7 @@ But you might want to disable this optimisation, for example, if you are passing
     -x, --cut <cut>                 Cut signal after timestamp
     -r, --repeat <repeat>           Repeat signal number of times
     -d, --downsample <downsample>   Downsample ratio
-    -k, --keep-all                  Don't remove redundant points. Points where the signal value maintains (useful for output file post-processing)
+    -k, --keep-all                  Don't remove redundant sample points. Sample points where the signal value maintains (useful for output file post-processing)
     -h, --help                      Show help information.
 
 
