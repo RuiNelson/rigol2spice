@@ -16,6 +16,7 @@ enum Rigol2SpiceErrors: LocalizedError {
     case invalidCutAfterValue(value: String)
     case invalidRepeatCountValue(value: Int)
     case mustHaveAtLeastTwoPointsToRepeat
+    case operationRemovedEveryPoint
     
     var errorDescription: String? {
         switch self {
@@ -26,6 +27,7 @@ enum Rigol2SpiceErrors: LocalizedError {
         case .invalidCutAfterValue(value: let v): return "Invalid cut timestamp: \(v)"
         case .invalidRepeatCountValue(value: let v): return "Invalid repeat count value: \(v)"
         case .mustHaveAtLeastTwoPointsToRepeat: return "Must have at least two original points to repeat points"
+        case .operationRemovedEveryPoint: return "Operation removed every point"
         }
     }
 }
@@ -69,6 +71,22 @@ struct rigol2spice: ParsableCommand {
             return ""
         }
         return NSString(string: outputFile).expandingTildeInPath
+    }
+    
+    func nPointsReport(before: Int, after: Int) throws {
+        guard after > 0 else {
+            throw Rigol2SpiceErrors.operationRemovedEveryPoint
+        }
+        
+        if after != before {
+            let beforeString = decimalNF.string(for: before)!
+            let afterString = decimalNF.string(for: after)!
+            
+            print ("  " + "From \(beforeString) samples to \(afterString) samples")
+        }
+        else {
+            print("  " + "Maintained all the samples")
+        }
     }
     
     mutating func run() throws {
@@ -139,19 +157,11 @@ struct rigol2spice: ParsableCommand {
             print("")
             print("> Shifting signal for \(timeShiftValueString) s")
             
-            let pointsBefore = points.count
+            let nPointsBefore = points.count
             points = timeShiftPoints(points, value: timeShiftValue)
-            let pointsAfter = points.count
+            let nPointsAfter = points.count
             
-            assert(pointsAfter > 0, "Time-shift removed every point")
-            
-            if pointsAfter != pointsBefore {
-                let pointsBeforeString = decimalNF.string(for: pointsBefore)!
-                let pointsAfterString = decimalNF.string(for: pointsAfter)!
-                
-                print("  " + "From \(pointsBeforeString) points to \(pointsAfterString) points")
-            }
-            
+            try nPointsReport(before: nPointsBefore, after: nPointsAfter)
         }
         // Cut
         if let cut = cut {
@@ -164,16 +174,11 @@ struct rigol2spice: ParsableCommand {
             print("")
             print("> Cutting signal after \(cutValueString) s")
             
-            let pointsBefore = points.count
+            let nPointsBefore = points.count
             points = cutAfter(points, after: cutValue)
-            let pointsAfter = points.count
+            let nPointsAfter = points.count
             
-            assert(pointsAfter > 0, "Cut removed every point")
-            
-            let pointsBeforeString = decimalNF.string(for: pointsBefore)!
-            let pointsAfterString = decimalNF.string(for: pointsAfter)!
-            
-            print("  " + "From \(pointsBeforeString) points to \(pointsAfterString)")
+            try nPointsReport(before: nPointsBefore, after: nPointsAfter)
         }
         
         // Repeat
@@ -185,14 +190,11 @@ struct rigol2spice: ParsableCommand {
             print("")
             print("> Repeating signal for \(repeatTimes) times")
             
-            let pointsBefore = points.count
+            let nPointsBefore = points.count
             points = try repeatPoints(points, n: repeatTimes)
-            let pointsAfter = points.count
+            let nPointsAfter = points.count
             
-            let pointsBeforeString = decimalNF.string(for: pointsBefore)!
-            let pointsAfterString = decimalNF.string(for: pointsAfter)!
-            
-            print("  " + "From \(pointsBeforeString) points to \(pointsAfterString)")
+            try nPointsReport(before: nPointsBefore, after: nPointsAfter)
         }
         
         // Downsample
@@ -208,12 +210,7 @@ struct rigol2spice: ParsableCommand {
             points = downsamplePoints(points, interval: ds)
             let nPointsAfter = points.count
             
-            assert(nPointsAfter > 0, "Downsample removed every point")
-            
-            let nPointsBeforeString = decimalNF.string(for: nPointsBefore)!
-            let nPointsAfterString = decimalNF.string(for: nPointsAfter)!
-            
-            print("  " + "From \(nPointsBeforeString) to \(nPointsAfterString) points")
+            try nPointsReport(before: nPointsBefore, after: nPointsAfter)
         }
         
         // Compacting...
@@ -225,10 +222,7 @@ struct rigol2spice: ParsableCommand {
             points = removeRedundant(points)
             let nPointsAfter = points.count
             
-            let nPointsBeforeString = decimalNF.string(for: nPointsBefore)!
-            let nPointsAfterString = decimalNF.string(for: nPointsAfter)!
-            
-            print("  " + "From \(nPointsBeforeString) points to \(nPointsAfterString) points")
+            try nPointsReport(before: nPointsBefore, after: nPointsAfter)
         }
         
         // Output
