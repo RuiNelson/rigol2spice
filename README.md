@@ -61,6 +61,13 @@ The `--repeat`  option will allow you to repeat the signal multiple times. E.g.,
 
 `--shift`, `--cut` and `--repeat` will apply to the capture in this order, from the result of the previous operation.
 
+For example `rigol2spice.exe --shift l5ms --cut 7.5ms --repeat 3` will result in:
+
+1. Nullify the first 5 milliseconds of the capture, and bring the waveform 5 ms to the left
+2. Remove everything after the new 7.5 ms mark. (12.5 ms in the original waveform), the total width of the waveform is now 7.5 ms.
+3. Repeat the same 7.5 ms three times, the resulting PWL file is 22.5 ms in lenght
+
+
 ### Downsampling and Post-Processing
 
 #### Downsampling
