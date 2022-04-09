@@ -4,9 +4,9 @@
 
 This program reads CSV files from Rigol oscillospes and outputs to a time-value format used by LtSpice and other SPICE programs ([PWL data](https://www.analog.com/en/technical-articles/ltspice-importing-exporting-pwl-data.html)). 
 
-[![YouTube video](https://img.youtube.com/vi/LTEc7fjmXSg/0.jpg)](https://www.youtube.com/watch?v=LTEc7fjmXSg)
+[![YouTube video](https://img.youtube.com/vi/AaCvPtJ-cZM/0.jpg)](https://www.youtube.com/watch?v=AaCvPtJ-cZM)
 
-[YouTube demo/instructions](https://www.youtube.com/watch?v=LTEc7fjmXSg)
+[YouTube demo/instructions](https://www.youtube.com/watch?v=AaCvPtJ-cZM)
 
 ## Install
 
