@@ -14,7 +14,7 @@ Download the program from [here](https://github.com/RuiCarneiro/rigol2spice/rele
 
 ## How to Use (simple) 
 
-1. Use your oscilloscpe to save a capture in the CSV format to a pen drive, then mount the pen-drive in your computer (example for the pen-drive mounted as drive `D:`, and file saved as `NewFile1.csv`)
+1. Use your oscilloscope to save a capture in the CSV format to a pen drive, then mount the pen-drive in your computer (example for the pen-drive mounted as drive `D:`, and file saved as `NewFile1.csv`)
 2. Open the Windows command prompt (right-click the Start menu and select *"Command Prompt"*)
 3. Run `rigol2spice.exe` with the first argument being the input file an the second argument where you want to save the file to, e.g.:
     
@@ -67,11 +67,11 @@ The `--repeat`  option will allow you to repeat the signal multiple times. E.g.,
 
 You can reduce the sample rate of the capture with the `--downsample` option. A `--downsample 2` will skip every odd point of the capture and will turn a 100 Megasample/s capture into a 50 Megsample/s capture for example.
 
-#### Deactivating Optimizations
+#### Deactivating Optimisations
 
 To optimize the resulting PWL file, `rigol2spice` will skip points where the value maintained from the previous point. This produces smaller PWL files for LtSpice that will save CPU time when simulating (due to less parseing), while producing the exact same results.
 
-But you might want to disable this optimization, for example, if you are passing the results to another tool for analysis/transformation. Use the `--keep-all` flag if you want this.
+But you might want to disable this optimisation, for example, if you are passing the results to another tool for analysis/transformation. Use the `--keep-all` flag if you want this.
 
 ## Usage reference
 

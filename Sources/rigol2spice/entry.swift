@@ -9,7 +9,7 @@ import Foundation
 import ArgumentParser
 
 enum Rigol2SpiceErrors: LocalizedError {
-    case outputFileNotSpeccified
+    case outputFileNotSpecified
     case inputFileContainsNoPoints
     case invalidDownsampleValue(value: Int)
     case invalidTimeShiftValue(value: String)
@@ -19,10 +19,10 @@ enum Rigol2SpiceErrors: LocalizedError {
     
     var errorDescription: String? {
         switch self {
-        case .outputFileNotSpeccified: return "Please speccify the output file name after the input file name"
+        case .outputFileNotSpecified: return "Please specify the output file name after the input file name"
         case .inputFileContainsNoPoints: return "Input file contains zero points"
         case .invalidDownsampleValue(value: let v): return "Invalid downsample value: \(v)"
-        case .invalidTimeShiftValue(value: let v): return "Invalid timeshift value: \(v)"
+        case .invalidTimeShiftValue(value: let v): return "Invalid time-shift value: \(v)"
         case .invalidCutAfterValue(value: let v): return "Invalid cut timestamp: \(v)"
         case .invalidRepeatCountValue(value: let v): return "Invalid repeat count value: \(v)"
         case .mustHaveAtLeastTwoPointsToRepeat: return "Must have at least two original points to repeat points"
@@ -64,7 +64,7 @@ struct rigol2spice: ParsableCommand {
     
     @Argument(help: "The PWL filename to write to", completion: nil)
     var outputFile: String?
-    var outputFileExapnded: String {
+    var outputFileExpanded: String {
         guard let outputFile = outputFile else {
             return ""
         }
@@ -75,7 +75,7 @@ struct rigol2spice: ParsableCommand {
         // argument validation
         if listChannels == false {
             guard outputFile != nil else {
-                throw Rigol2SpiceErrors.outputFileNotSpeccified
+                throw Rigol2SpiceErrors.outputFileNotSpecified
             }
         }
         
@@ -143,7 +143,7 @@ struct rigol2spice: ParsableCommand {
             points = timeShiftPoints(points, value: timeShiftValue)
             let pointsAfter = points.count
             
-            assert(pointsAfter > 0, "Timeshift removed every point")
+            assert(pointsAfter > 0, "Time-shift removed every point")
             
             if pointsAfter != pointsBefore {
                 let pointsBeforeString = decimalNF.string(for: pointsBefore)!
@@ -186,7 +186,7 @@ struct rigol2spice: ParsableCommand {
             print("> Repeating signal for \(repeatTimes) times")
             
             let pointsBefore = points.count
-            points = repeatPoints(points, n: repeatTimes)
+            points = try repeatPoints(points, n: repeatTimes)
             let pointsAfter = points.count
             
             let pointsBeforeString = decimalNF.string(for: pointsBefore)!
@@ -219,10 +219,10 @@ struct rigol2spice: ParsableCommand {
         // Compacting...
         if(!keepAll) {
             print("")
-            print("> Removing redundant points...")
+            print("> Removing redundant points (optimize)...")
             
             let nPointsBefore = points.count
-            points = removeUnecessary(points)
+            points = removeRedundant(points)
             let nPointsAfter = points.count
             
             let nPointsBeforeString = decimalNF.string(for: nPointsBefore)!
@@ -246,7 +246,7 @@ struct rigol2spice: ParsableCommand {
         print("  " + "First sample: \(firstSampleString)")
         print("  " + "Last sample: \(lastSampleString)")
         
-        let outputFileUrl = URL(fileURLWithPath: outputFileExapnded, relativeTo: cdUrl)
+        let outputFileUrl = URL(fileURLWithPath: outputFileExpanded, relativeTo: cdUrl)
         
         if FileManager.default.fileExists(atPath: outputFileUrl.path) {
             try FileManager.default.removeItem(at: outputFileUrl)

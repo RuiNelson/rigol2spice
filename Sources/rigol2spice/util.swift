@@ -7,7 +7,7 @@
 
 import Foundation
 
-func removeUnecessary(_ source: [Point]) -> [Point] {
+func removeRedundant(_ source: [Point]) -> [Point] {
     var previousValue: Double = Double.nan
     
     let output = source.filter { point in
