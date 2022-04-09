@@ -63,7 +63,7 @@ The `--repeat`  option will allow you to repeat the signal multiple times. E.g.,
 
 `--shift`, `--cut` and `--repeat` will apply to the capture in this order, from the result of the previous operation.
 
-For example `rigol2spice.exe --shift l5ms --cut 7.5ms --repeat 3` will result in:
+For example `rigol2spice.exe --shift L5ms --cut 7.5ms --repeat 3` will result in:
 
 1. Nullify the first 5 milliseconds of the capture, and bring the waveform 5ms to the left
 2. Remove everything after the new 7.5ms mark. (12.5ms in the original waveform), the total width of the waveform is now 7.5ms.
