@@ -40,14 +40,16 @@ By default, `rigol2spice` will use `CH1`. If you want to use channel 2, use the 
 
 #### Time-Shifting
 
-You can shift in time the signal to the left or to the right using the `--shift` option, then `l` or `r` for "left" or "right", and the amount of time you want to shift, e.g:
+You can shift in time the signal to the left or to the right using the `--shift` option, then `L` or `R` for "left" or "right", and the amount of time you want to shift, e.g:
 
-* `--shift l5ms` will shift 5 milliseconds to the left
-* `--shift r100ns` will shift 100 nanoseconds to the right
-* `--shift l0.2ms` will shift 200 microseconds to the left
-* `--shift r1s` will shift 1 second to the right
+* `--shift L5ms` will shift 5 milliseconds to the left
+* `--shift R100us` will shift 100 microseconds to the right
+* `--shift L0.2ms` will shift 200 microseconds to the left
+* `--shift R1s` will shift 1 second to the right
 
 Sample points before 0.0 seconds will be removed.
+
+You can use scientific notation with `E` or SI prefixes `m`, `u`, `n`, `p`, `f`, the `s` unit is facultative.
 
 #### Cutting
 
