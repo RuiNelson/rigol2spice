@@ -8,19 +8,22 @@
 import Foundation
 
 func removeRedundant(_ source: [Point]) -> [Point] {
-    var previousValue: Double = Double.nan
+    var samples = source
+    var toDelete: Set<Double> = []
     
-    let output = source.filter { point in
-        if point.value == previousValue {
-            return false
-        }
-        else {
-            previousValue = point.value
-            return true
+    for n in 1..<(samples.count - 1) {
+        let before = samples[n-1]
+        let now = samples[n]
+        let after = samples[n+1]
+        
+        if before.value == after.value, now.value == before.value {
+            toDelete.insert(now.time)
         }
     }
     
-    return output
+    samples = samples.filter { toDelete.contains($0.time) == false }
+    
+    return samples
 }
 
 func downsamplePoints(_ source: [Point], interval: Int) -> [Point] {
