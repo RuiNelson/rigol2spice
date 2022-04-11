@@ -47,9 +47,9 @@ You can shift in time the signal to the left or to the right using the `--shift`
 * `--shift L0.2ms` will shift 200 microseconds to the left
 * `--shift R1s` will shift 1 second to the right
 
-Sample points before 0.0 seconds will be removed.
+Sample points that end before 0 seconds will be removed.
 
-You can use scientific notation with `E` or SI prefixes `m`, `u`, `n`, `p`, `f`, the `s` unit is facultative.
+You can use scientific notation with `E` (e.g., `15E-6`) or SI prefixes `m`, `u`, `n`, `p`, `f`. The `s` unit is facultative.
 
 #### Cutting
 
