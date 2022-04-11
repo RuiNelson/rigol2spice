@@ -78,7 +78,7 @@ You can reduce the sample rate of the capture with the `--downsample` option. A 
 
 #### Deactivating Optimisations
 
-To optimize the resulting PWL file, `rigol2spice` will skip sample points where the value maintained from the previous point. This produces smaller PWL files for LtSpice that will save CPU time when simulating (due to less parseing), while producing the exact same results.
+To optimize the resulting PWL file, `rigol2spice` will skip sample points where the value maintained from the previous point. This produces smaller PWL files for LtSpice that will save CPU time when simulating (due to less parsing), while producing the exact same results.
 
 But you might want to disable this optimisation, for example, if you are passing the results to another tool for analysis/transformation. Use the `--keep-all` flag if you want this.
 
