@@ -1,44 +1,43 @@
 //
 //  File.swift
-//  
+//
 //
 //  Created by Rui Magalhães Carneiro on 08/04/2022.
 //
 
 import Foundation
+import SwiftEngineeringNumberFormatter
 
 let usLocale = Locale(identifier: "en_US")
 
 let valueNF: NumberFormatter = {
     let nf = NumberFormatter()
-    nf.numberStyle = .decimal
     nf.locale = usLocale
+    nf.numberStyle = .decimal
     nf.maximumFractionDigits = 14
     return nf
 }()
 
 let timeNF: NumberFormatter = {
     let nf = NumberFormatter()
-    nf.numberStyle = .decimal
     nf.locale = usLocale
+    nf.numberStyle = .decimal
     nf.minimumFractionDigits = 9
     nf.maximumFractionDigits = 14
     return nf
 }()
 
-let scientificNF: NumberFormatter = {
-    let nf = NumberFormatter()
-    nf.numberStyle = .scientific
+let engineeringNF: EngineeringNumberFormatter = {
+    let nf = EngineeringNumberFormatter()
     nf.locale = usLocale
-    nf.minimumFractionDigits = 2
-    nf.maximumFractionDigits = 14
+    nf.maximumFractionDigits = 12
+    nf.useGreekMu = false
     return nf
 }()
 
 let decimalNF: NumberFormatter = {
     let nf = NumberFormatter()
     nf.numberStyle = .decimal
-    nf.locale = usLocale
     nf.hasThousandSeparators = true
     return nf
 }()
@@ -47,5 +46,3 @@ let decimalNF: NumberFormatter = {
 let newlineBytes = "\r\n".data(using: .ascii)!
 let cd = FileManager.default.currentDirectoryPath
 let cdUrl = URL(fileURLWithPath: cd)
-
-

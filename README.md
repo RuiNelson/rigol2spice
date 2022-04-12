@@ -49,11 +49,11 @@ You can shift in time the signal to the left or to the right using the `--shift`
 
 Sample points that end before 0 seconds will be removed.
 
-You can use scientific notation with `E` (e.g., `15E-6`) or SI prefixes `m`, `u`, `n`, `p`, `f`. The `s` unit is facultative.
+You can use engineering (e.g., `3.3ns`) or scientific notation (e.g., `5E-3s`). The `s` unit is facultative.
 
 #### Cutting
 
-Using the `--cut` option you can remove sample points of the signal after a certain timestamp. For example, `--cut 10u` will remove points of the capture after 10 microseconds, inclusively.
+Using the `--cut` option you can remove sample points of the signal after a certain timestamp. For example, `--cut 10us` will remove points of the capture after 10 microseconds, inclusively.
 
 #### Repeating
 
