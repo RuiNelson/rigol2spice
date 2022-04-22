@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug rigol2spice",
+            "program": "${workspaceFolder:rigol2spice}/.build/debug/rigol2spice",
+            "args": [],
+            "cwd": "${workspaceFolder:rigol2spice}",
+            "preLaunchTask": "swift: Build Debug rigol2spice"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Release rigol2spice",
+            "program": "${workspaceFolder:rigol2spice}/.build/release/rigol2spice",
+            "args": [],
+            "cwd": "${workspaceFolder:rigol2spice}",
+            "preLaunchTask": "swift: Build Release rigol2spice"
+        }
+    ]
+}
