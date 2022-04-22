@@ -39,29 +39,29 @@ func downsamplePoints(_ source: [Point], interval: Int) -> [Point] {
 
 func parseEngineeringNotation(_ input: String) -> Double? {
     var numberStr = input
-    
-    if numberStr.hasSuffix("s") {
+
+    if numberStr.hasSuffix("s") || numberStr.hasSuffix("S") {
         numberStr.removeLast()
     }
-    
+
     let signal: Double = {
         let lowercased = input.lowercased()
-        
+
         if lowercased.hasPrefix("l") {
             numberStr.removeFirst()
             return -1
-        }
-        else if lowercased.hasPrefix("r") {
+        } else if lowercased.hasPrefix("r") {
             numberStr.removeFirst()
             return +1
+        } else {
+            return +1
         }
-        return +1
     }()
-    
+
     guard let value = engineeringNF.double(numberStr) else {
         return nil
     }
-    
+
     return signal * value
 }
 
