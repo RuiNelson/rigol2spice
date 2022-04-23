@@ -96,9 +96,7 @@ struct rigol2spice: ParsableCommand {
         // Loading
         print("> Loading input file...")
         let inputFileUrl = URL(fileURLWithPath: inputFileExpanded, relativeTo: cdUrl)
-
         let data = try Data(contentsOf: inputFileUrl)
-
         let numBytesString = decimalNF.string(for: data.count)!
 
         print("  " + "Read \(numBytesString) bytes")
