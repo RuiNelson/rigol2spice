@@ -295,33 +295,32 @@ struct rigol2spice: ParsableCommand {
         let firstSampleString = engineeringNF.string(newFirstPointTime)
         let lastSampleString = engineeringNF.string(newLastPointTime)
         let captureDurationString = engineeringNF.string(captureDuration)
-
+        
         print("  " + "Number of sample points: \(nSamplesString)")
-        print("  " + "First sample: \(firstSampleString)s")
-        print("  " + "Last sample: \(lastSampleString)s")
-        print("  " + "Capture duration: \(captureDurationString)s")
 
-        let outputFileUrl = URL(fileURLWithPath: outputFileExpanded, relativeTo: cdUrl)
-
-        if FileManager.default.fileExists(atPath: outputFileUrl.path) {
-            try FileManager.default.removeItem(at: outputFileUrl)
-        }
-
-        FileManager.default.createFile(atPath: outputFileUrl.path, contents: nil)
-
-        let outputFileHandle = try FileHandle(forWritingTo: outputFileUrl)
-
+        var outputFileData = Data()
         var outputFileProgressBar = ProgressBar(count: points.count)
         
         for point in points {
             let pointBytes = point.serialize.data(using: .ascii)!
-            outputFileHandle.write(pointBytes)
-            outputFileHandle.write(newlineBytes)
+            outputFileData.append(pointBytes)
+            outputFileData.append(newlineBytes)
             
             outputFileProgressBar.next()
         }
+        
+        let fileSizeStr = memBCF.string(fromByteCount: Int64(outputFileData.count))
+        
+        print("  " + "First sample: \(firstSampleString)s")
+        print("  " + "Last sample: \(lastSampleString)s")
+        print("  " + "Capture duration: \(captureDurationString)s")
+        print("  " + "Saving file: \(fileSizeStr)...")
+        let outputFileUrl = URL(fileURLWithPath: outputFileExpanded, relativeTo: cdUrl)
+        if FileManager.default.fileExists(atPath: outputFileUrl.path) {
+            try FileManager.default.removeItem(at: outputFileUrl)
+        }
 
-        outputFileHandle.closeFile()
+        FileManager.default.createFile(atPath: outputFileUrl.path, contents: outputFileData)
 
         print("")
         print("> Job complete")

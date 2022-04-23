@@ -37,6 +37,12 @@ let decimalNF: NumberFormatter = {
     return nf
 }()
 
+let memBCF: ByteCountFormatter = {
+    let bcf = ByteCountFormatter()
+    bcf.countStyle = .file
+    return bcf
+}()
+
 // static
 let newlineBytes = "\r\n".data(using: .ascii)!
 let cd = FileManager.default.currentDirectoryPath
