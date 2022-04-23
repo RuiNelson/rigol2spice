@@ -318,7 +318,6 @@ struct rigol2spice: ParsableCommand {
         if FileManager.default.fileExists(atPath: outputFileUrl.path) {
             try FileManager.default.removeItem(at: outputFileUrl)
         }
-
         FileManager.default.createFile(atPath: outputFileUrl.path, contents: outputFileData)
 
         print("")
