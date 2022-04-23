@@ -172,10 +172,12 @@ struct rigol2spice: ParsableCommand {
                 throw Rigol2SpiceErrors.invalidOffsetValue(value: offset)
             }
             
+            engineeringNF.positiveSign = "+"
             let offsetValueStr = engineeringNF.string(offsetValue)
+            engineeringNF.positiveSign = ""
             
             print("")
-            print("> Offsetting signal by \(offsetValueStr)...")
+            print("> Offsetting signal by \(offsetValueStr) units...")
             
             points = offsetPoints(points, offset: offsetValue)
         }
