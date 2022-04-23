@@ -81,7 +81,7 @@ func timeShiftPoints(_ points: [Point], value: Double) -> [Point] {
 }
 
 func cutAfter(_ points: [Point], after: Double) -> [Point] {
-    return points.filter { $0.time < after }
+    points.filter { $0.time < after }
 }
 
 func repeatPoints(_ points: [Point], n: Int) throws -> [Point] {
