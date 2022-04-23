@@ -7,6 +7,7 @@ import Progress
 enum Rigol2SpiceErrors: LocalizedError {
     case outputFileNotSpecified
     case inputFileContainsNoPoints
+    case invalidOffsetValue(value: String)
     case invalidAmplificationValue(value: String)
     case invalidDownsampleValue(value: Int)
     case invalidTimeShiftValue(value: String)
@@ -19,6 +20,7 @@ enum Rigol2SpiceErrors: LocalizedError {
         switch self {
         case .outputFileNotSpecified: return "Please specify the output file name after the input file name"
         case .inputFileContainsNoPoints: return "Input file contains zero samples"
+        case let .invalidOffsetValue(value: v): return "Invalid offset value: \(v)"
         case let .invalidAmplificationValue(value: v): return "Invalid amplification factor: \(v)"
         case let .invalidDownsampleValue(value: v): return "Invalid downsample value: \(v)"
         case let .invalidTimeShiftValue(value: v): return "Invalid time-shift value: \(v)"
@@ -40,6 +42,9 @@ struct rigol2spice: ParsableCommand {
     
     @Option(name: .shortAndLong, help: "Multiplication factor for signal")
     var multiplication: String?
+    
+    @Option(name: .shortAndLong, help: "Offset factor for signal")
+    var offset: String?
 
     @Option(name: [.customShort("s"), .customLong("shift")], help: "Time-shift seconds")
     var timeShift: String?
@@ -143,6 +148,20 @@ struct rigol2spice: ParsableCommand {
 
             print("  " + "Sample Interval: \(timeIntervalString)s")
             print("  " + "Sample Rate: \(sampleRateString)sa/s")
+        }
+        
+        // Offset
+        if let offset = offset {
+            guard let offsetValue = parseEngineeringNotation(offset) else {
+                throw Rigol2SpiceErrors.invalidOffsetValue(value: offset)
+            }
+            
+            let offsetValueStr = engineeringNF.string(offsetValue)
+            
+            print("")
+            print("> Offsetting signal by \(offsetValueStr)...")
+            
+            points = offsetPoints(points, offset: offsetValue)
         }
         
         // Multiplication

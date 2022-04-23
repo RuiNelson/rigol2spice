@@ -68,6 +68,14 @@ func multiplyValueOfPoints(_ points: [Point], factor: Double) -> [Point] {
     }
 }
 
+func offsetPoints(_ points: [Point], offset: Double) -> [Point] {
+    points.map {
+        var point = $0
+        point.value = point.value + offset
+        return point
+    }
+}
+
 func timeShiftPoints(_ points: [Point], value: Double) -> [Point] {
     let shifted: [Point] = points.map { point in
         var shiftedPoint = point
