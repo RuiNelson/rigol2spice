@@ -39,16 +39,16 @@ struct rigol2spice: ParsableCommand {
 
     @Option(name: .shortAndLong, help: "The label of the channel to be processed")
     var channel: String = "CH1"
-    
+
     @Flag(name: [.customLong("dc", withSingleDash: true), .customLong("remove-dc")], help: "Remove DC component")
     var removeDc: Bool = false
-    
+
     @Option(name: .shortAndLong, help: "Offset factor for signal")
     var offset: String?
-    
+
     @Option(name: .shortAndLong, help: "Multiplication factor for signal")
     var multiplication: String?
-    
+
     @Option(name: [.customShort("s"), .customLong("shift")], help: "Time-shift seconds")
     var timeShift: String?
 
@@ -151,54 +151,54 @@ struct rigol2spice: ParsableCommand {
             print("  " + "Sample Interval: \(timeIntervalString)s")
             print("  " + "Sample Rate: \(sampleRateString)sa/s")
         }
-        
+
         // Removing DC component
         if removeDc {
             print("")
             print("> Removing DC component...")
-            
+
             let dcRemoved = removeDC(points)
-            
+
             let dcComponentStr = engineeringNF.string(dcRemoved.dcComponent)
             print("  " + "DC Component: \(dcComponentStr) units")
-            
+
             points = dcRemoved.points
         }
-        
+
         // Offset
         if let offset = offset {
             guard let offsetValue = parseEngineeringNotation(offset) else {
                 throw Rigol2SpiceErrors.invalidOffsetValue(value: offset)
             }
-            
+
             engineeringNF.positiveSign = "+"
             let offsetValueStr = engineeringNF.string(offsetValue)
             engineeringNF.positiveSign = ""
-            
+
             print("")
             print("> Offsetting signal by \(offsetValueStr) units...")
-            
+
             points = offsetPoints(points, offset: offsetValue)
         }
-        
+
         // Multiplication
         if let multiplication = multiplication {
             guard let multiplicationFactor = parseEngineeringNotation(multiplication) else {
                 throw Rigol2SpiceErrors.invalidAmplificationValue(value: multiplication)
             }
-            
+
             let isAttenuation = abs(multiplicationFactor) < 1.0
-            
+
             let amplificationFactor = multiplicationFactor
             let attenuationFactor = 1 / multiplicationFactor
-            
+
             let verb = isAttenuation ? "Attenuating" : "Amplifying"
             let value = isAttenuation ? attenuationFactor : amplificationFactor
             let valueStr = decimalNF.string(for: value)!
-            
+
             print("")
             print("> \(verb) signal by a factor of \(valueStr)...")
-            
+
             points = multiplyValueOfPoints(points, factor: multiplicationFactor)
         }
 
@@ -294,22 +294,22 @@ struct rigol2spice: ParsableCommand {
         let firstSampleString = engineeringNF.string(newFirstPointTime)
         let lastSampleString = engineeringNF.string(newLastPointTime)
         let captureDurationString = engineeringNF.string(captureDuration)
-        
+
         print("  " + "Number of sample points: \(nSamplesString)")
 
         var outputFileData = Data()
         var outputFileProgressBar = ProgressBar(count: points.count)
-        
+
         for point in points {
             let pointBytes = point.serialize.data(using: .ascii)!
             outputFileData.append(pointBytes)
             outputFileData.append(newlineBytes)
-            
+
             outputFileProgressBar.next()
         }
-        
+
         let fileSizeStr = memBCF.string(fromByteCount: Int64(outputFileData.count))
-        
+
         print("  " + "First sample: \(firstSampleString)s")
         print("  " + "Last sample: \(lastSampleString)s")
         print("  " + "Capture duration: \(captureDurationString)s")
