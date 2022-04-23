@@ -30,8 +30,8 @@ A Rigol CSV file can store captures from multiple channels (including physical c
 You can analyse and list all the channels in your CSV file with the `-l` flag (e.g. `C:\rigol2spice\rigol2spice.exe -l D:\NewFile1.csv`) can produce:
 
     Channels:
-      CH1 (unit: Volt)
-      CH2 (unit: Volt)
+       - CH1 (unit: Volt)
+       - CH2 (unit: Volt)
     Increment: 2us
 
 By default, `rigol2spice` will use `CH1`. If you want to use channel 2, use the `--channel` option and then the channel name (e.g. `C:\rigol2spice\rigol2spice.exe --channel CH2 D:\NewFile1.csv D:\chan2.txt`) will save `CH2` to `D:\chan2.txt`) 
