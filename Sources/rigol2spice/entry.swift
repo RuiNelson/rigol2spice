@@ -98,13 +98,17 @@ struct rigol2spice: ParsableCommand {
         print("> Loading input file...")
         let inputFileUrl = URL(fileURLWithPath: inputFileExpanded, relativeTo: cdUrl)
         let data = try Data(contentsOf: inputFileUrl)
-        let numBytesString = decimalNF.string(for: data.count)!
+        let numBytes = data.count
+        let numBytesString = decimalNF.string(for: numBytes)!
 
         print("  " + "Read \(numBytesString) bytes")
 
         // Parsing
         print("")
         print("> Parsing input file...")
+        if numBytes > 1000000 {
+            print("  " + "(This might take a while)")
+        }
         var points = try CSVParser.parseCsv(data,
                                             forChannel: channel,
                                             listChannelsOnly: listChannels)
