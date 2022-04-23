@@ -40,7 +40,7 @@ struct rigol2spice: ParsableCommand {
     @Option(name: .shortAndLong, help: "The label of the channel to be processed")
     var channel: String = "CH1"
     
-    @Option(name: [.customLong("dc", withSingleDash: true), .customLong("remove-dc")], help: "Remove DC component")
+    @Flag(name: [.customLong("dc", withSingleDash: true), .customLong("remove-dc")], help: "Remove DC component")
     var removeDc: Bool = false
     
     @Option(name: .shortAndLong, help: "Offset factor for signal")
