@@ -51,7 +51,7 @@ enum CSVParser {
             var str = ""
             str += "  " + "Channels:"
             for channel in channels {
-                str += "\n" + "    " + channel.description
+                str += "\n" + "    " + " - " + channel.description
             }
             if let increment = increment {
                 str += "\n"

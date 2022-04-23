@@ -238,7 +238,7 @@ struct rigol2spice: ParsableCommand {
         print("  " + "Number of sample points: \(nSamplesString)")
         print("  " + "First sample: \(firstSampleString)s")
         print("  " + "Last sample: \(lastSampleString)s")
-        print("  " + "Capture duration: \(captureDurationString)")
+        print("  " + "Capture duration: \(captureDurationString)s")
 
         let outputFileUrl = URL(fileURLWithPath: outputFileExpanded, relativeTo: cdUrl)
 
