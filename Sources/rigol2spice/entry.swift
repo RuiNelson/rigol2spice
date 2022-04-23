@@ -7,6 +7,7 @@ import Progress
 enum Rigol2SpiceErrors: LocalizedError {
     case outputFileNotSpecified
     case inputFileContainsNoPoints
+    case invalidAmplificationValue(value: String)
     case invalidDownsampleValue(value: Int)
     case invalidTimeShiftValue(value: String)
     case invalidCutAfterValue(value: String)
@@ -18,6 +19,7 @@ enum Rigol2SpiceErrors: LocalizedError {
         switch self {
         case .outputFileNotSpecified: return "Please specify the output file name after the input file name"
         case .inputFileContainsNoPoints: return "Input file contains zero samples"
+        case let .invalidAmplificationValue(value: v): return "Invalid amplification factor: \(v)"
         case let .invalidDownsampleValue(value: v): return "Invalid downsample value: \(v)"
         case let .invalidTimeShiftValue(value: v): return "Invalid time-shift value: \(v)"
         case let .invalidCutAfterValue(value: v): return "Invalid cut timestamp: \(v)"
@@ -35,6 +37,9 @@ struct rigol2spice: ParsableCommand {
 
     @Option(name: .shortAndLong, help: "The label of the channel to be processed")
     var channel: String = "CH1"
+    
+    @Option(name: .shortAndLong, help: "Multiplication factor for waveform")
+    var multiplication: String?
 
     @Option(name: [.customShort("s"), .customLong("shift")], help: "Time-shift seconds")
     var timeShift: String?
@@ -138,6 +143,27 @@ struct rigol2spice: ParsableCommand {
 
             print("  " + "Sample Interval: \(timeIntervalString)s")
             print("  " + "Sample Rate: \(sampleRateString)sa/s")
+        }
+        
+        // Multiplication
+        if let multiplication = multiplication {
+            guard let multiplicationFactor = parseEngineeringNotation(multiplication) else {
+                throw Rigol2SpiceErrors.invalidAmplificationValue(value: multiplication)
+            }
+            
+            let isAttenuation = abs(multiplicationFactor) < 1.0
+            
+            let amplificationFactor = multiplicationFactor
+            let attenuationFactor = 1 / multiplicationFactor
+            
+            let verb = isAttenuation ? "Attenuating" : "Amplifying"
+            let value = isAttenuation ? attenuationFactor : amplificationFactor
+            let valueStr = decimalNF.string(for: value)!
+            
+            print("")
+            print("> \(verb) signal by a factor of \(valueStr)...")
+            
+            points = multiplyValueOfPoints(points, factor: multiplicationFactor)
         }
 
         // Time-shift

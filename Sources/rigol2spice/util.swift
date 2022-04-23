@@ -42,10 +42,10 @@ func parseEngineeringNotation(_ input: String) -> Double? {
     let signal: Double = {
         let lowercased = input.lowercased()
 
-        if lowercased.hasPrefix("l") {
+        if lowercased.hasPrefix("l") || lowercased.hasPrefix("m") {
             numberStr.removeFirst()
             return -1
-        } else if lowercased.hasPrefix("r") {
+        } else if lowercased.hasPrefix("r") || lowercased.hasPrefix("p") {
             numberStr.removeFirst()
             return +1
         } else {
@@ -58,6 +58,14 @@ func parseEngineeringNotation(_ input: String) -> Double? {
     }
 
     return signal * value
+}
+
+func multiplyValueOfPoints(_ points: [Point], factor: Double) -> [Point] {
+    points.map {
+        var point = $0
+        point.value = point.value * factor
+        return point
+    }
 }
 
 func timeShiftPoints(_ points: [Point], value: Double) -> [Point] {
