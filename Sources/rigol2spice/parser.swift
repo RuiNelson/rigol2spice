@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Progress
 
 public enum ParseError: LocalizedError {
     case invalidFileFormat
@@ -201,8 +202,14 @@ enum CSVParser {
         // Process points
         var linesStr = lines.map { String($0) }
         linesStr = linesStr.filter { !$0.isEmpty }
+        
+        var progress = ProgressBar(count: linesStr.count)
 
-        let points: [Point] = try linesStr.map { try parsePoint(text: $0, incrementTime: increment, row: selectedRow) }
+        let points: [Point] = try linesStr.map {
+            let point = try parsePoint(text: $0, incrementTime: increment, row: selectedRow)
+            progress.next()
+            return point
+        }
 
         return points
     }

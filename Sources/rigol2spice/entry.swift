@@ -7,6 +7,7 @@
 
 import ArgumentParser
 import Foundation
+import Progress
 
 enum Rigol2SpiceErrors: LocalizedError {
     case outputFileNotSpecified
@@ -248,10 +249,14 @@ struct rigol2spice: ParsableCommand {
 
         let outputFileHandle = try FileHandle(forWritingTo: outputFileUrl)
 
+        var outputFileProgressBar = ProgressBar(count: points.count)
+        
         for point in points {
             let pointBytes = point.serialize.data(using: .ascii)!
             outputFileHandle.write(pointBytes)
             outputFileHandle.write(newlineBytes)
+            
+            outputFileProgressBar.next()
         }
 
         outputFileHandle.closeFile()
