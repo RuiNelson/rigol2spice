@@ -38,7 +38,7 @@ struct rigol2spice: ParsableCommand {
     @Option(name: .shortAndLong, help: "The label of the channel to be processed")
     var channel: String = "CH1"
     
-    @Option(name: .shortAndLong, help: "Multiplication factor for waveform")
+    @Option(name: .shortAndLong, help: "Multiplication factor for signal")
     var multiplication: String?
 
     @Option(name: [.customShort("s"), .customLong("shift")], help: "Time-shift seconds")
