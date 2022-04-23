@@ -1,9 +1,4 @@
-//
-//  parser.swift
-//  rigol2spice
-//
-//  Created by Rui Nelson Carneiro on 05/10/2021.
-//
+// (C) Rui Carneiro
 
 import Foundation
 import Progress

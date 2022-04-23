@@ -1,9 +1,4 @@
-//
-//  File.swift
-//
-//
-//  Created by Rui Magalhães Carneiro on 08/04/2022.
-//
+// (C) Rui Carneiro
 
 import Foundation
 import SwiftEngineeringNumberFormatter
