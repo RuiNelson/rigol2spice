@@ -110,32 +110,32 @@ struct rigol2spice: ParsableCommand {
                                             forChannel: channel,
                                             listChannelsOnly: listChannels)
 
-        guard listChannels == false else {
+        guard !listChannels else {
             return
         }
 
-        guard points.isEmpty == false else {
+        guard !points.isEmpty else {
             throw Rigol2SpiceErrors.inputFileContainsNoPoints
         }
 
-        let lastTime = points.last!.time
+        let firstPointTime = points.first!.time
+        let lastPointTime = points.last!.time
+        var sampleTimeInterval = 0.0
 
         let nPointsString = decimalNF.string(for: points.count)!
-        let lastPointString = engineeringNF.string(lastTime)
+        let lastPointString = engineeringNF.string(lastPointTime)
 
         print("  " + "Samples: \(nPointsString)")
         print("  " + "Last Sample Point: \(lastPointString)s")
 
-        // Sample rate
+        // Sample Rate Calculation
         if points.count >= 2 {
-            let firstPointTime = points.first!.time
-            let lastPointTime = points.last!.time
             let nPoints = Double(points.count)
 
-            let timeInterval = (lastPointTime - firstPointTime) / (nPoints - 1)
-            let sampleRate = 1 / timeInterval
+            sampleTimeInterval = (lastPointTime - firstPointTime) / (nPoints - 1)
+            let sampleRate = 1 / sampleTimeInterval
 
-            let timeIntervalString = engineeringNF.string(timeInterval)
+            let timeIntervalString = engineeringNF.string(sampleTimeInterval)
             let sampleRateString = engineeringNF.string(sampleRate)
 
             print("  " + "Sample Interval: \(timeIntervalString)s")
@@ -151,7 +151,7 @@ struct rigol2spice: ParsableCommand {
             let timeShiftValueString = engineeringNF.string(timeShiftValue)
 
             print("")
-            print("> Shifting signal for \(timeShiftValueString)s")
+            print("> Shifting signal for \(timeShiftValueString)s...")
 
             let nPointsBefore = points.count
             points = timeShiftPoints(points, value: timeShiftValue)
@@ -159,6 +159,7 @@ struct rigol2spice: ParsableCommand {
 
             try nPointsReport(before: nPointsBefore, after: nPointsAfter)
         }
+
         // Cut
         if let cut = cut {
             guard let cutValue = parseEngineeringNotation(cut), cutValue > 0 else {
@@ -168,7 +169,7 @@ struct rigol2spice: ParsableCommand {
             let cutValueString = engineeringNF.string(cutValue)
 
             print("")
-            print("> Cutting signal after \(cutValueString)s")
+            print("> Cutting signal after \(cutValueString)s...")
 
             let nPointsBefore = points.count
             points = cutAfter(points, after: cutValue)
@@ -184,7 +185,7 @@ struct rigol2spice: ParsableCommand {
             }
 
             print("")
-            print("> Repeating capture for \(repeatTimes) times")
+            print("> Repeating capture for \(repeatTimes) times...")
 
             let nPointsBefore = points.count
             points = try repeatPoints(points, n: repeatTimes)
@@ -225,16 +226,19 @@ struct rigol2spice: ParsableCommand {
         print("")
         print("> Writing output file...")
         let nPoints = points.count
-        let firstPointTime = points.first!.time
-        let lastPointTime = points.last!.time
+        let newFirstPointTime = points.first!.time
+        let newLastPointTime = points.last!.time
+        let captureDuration = newLastPointTime + sampleTimeInterval
 
         let nSamplesString = decimalNF.string(for: nPoints)!
-        let firstSampleString = engineeringNF.string(firstPointTime)
-        let lastSampleString = engineeringNF.string(lastPointTime)
+        let firstSampleString = engineeringNF.string(newFirstPointTime)
+        let lastSampleString = engineeringNF.string(newLastPointTime)
+        let captureDurationString = engineeringNF.string(captureDuration)
 
         print("  " + "Number of sample points: \(nSamplesString)")
         print("  " + "First sample: \(firstSampleString)s")
         print("  " + "Last sample: \(lastSampleString)s")
+        print("  " + "Capture duration: \(captureDurationString)")
 
         let outputFileUrl = URL(fileURLWithPath: outputFileExpanded, relativeTo: cdUrl)
 
