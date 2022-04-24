@@ -5,12 +5,14 @@ import Foundation
 func parseEngineeringNotation(_ input: String) -> Double? {
     var numberStr = input
 
-    if numberStr.hasSuffix("s") || numberStr.hasSuffix("S") {
+    let lowercasedNumberStr = numberStr.lowercased()
+    
+    if lowercasedNumberStr.hasSuffix("s") || lowercasedNumberStr.hasSuffix("v") || lowercasedNumberStr.hasSuffix("x") {
         numberStr.removeLast()
     }
 
     let signal: Double = {
-        let lowercased = input.lowercased()
+        let lowercased = numberStr.lowercased()
 
         if lowercased.hasPrefix("l") || lowercased.hasPrefix("m") || lowercased.hasPrefix("n") || lowercased.hasPrefix("d") {
             numberStr.removeFirst()
