@@ -46,8 +46,8 @@ You can remove the DC component using the `--remove-dc` flag. `rigol2spice` will
 
 The `--offset` option alllows you to apply a vertical offsset to a signal. In the argument, use the `U` or `D` prefixes for up and down direction then the desired value, e.g.:
 
-* `--offset U1` will offset the signal 1V up (positive)
-* `--offset D0.500` will offset the singal negatively (down) by 500mV
+* `--offset U1` will offset the signal 1 up (positive)
+* `--offset D0.500` will offset the singal negatively (down) by 500m
 
 You can also use SI prefixes, e.g. `D500m` equals `D0.500`.
 
