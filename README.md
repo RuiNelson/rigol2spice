@@ -15,7 +15,7 @@ Download the program from [here](https://github.com/RuiCarneiro/rigol2spice/rele
 ## How to Use (simple) 
 
 1. Use your oscilloscope to save a capture in the CSV format to a pen drive, then mount the pen-drive in your computer (example for the pen-drive mounted as drive `D:`, and file saved as `NewFile1.csv`)
-2. Open the Windows command prompt (right-click the Start menu and select *"Command Prompt"*)
+2. Open the Windows command prompt (right-click the Start menu (or press Windows+X) and select "Command Prompt")
 3. Run `rigol2spice.exe` with the first argument being the input file an the second argument where you want to save the file to, e.g.:
     
        C:\rigol2spice\rigol2spice.exe D:\NewFile1.csv D:\my_capture.txt
@@ -27,7 +27,7 @@ Download the program from [here](https://github.com/RuiCarneiro/rigol2spice/rele
 
 A Rigol CSV file can store captures from multiple channels (including physical channels and math channels), but a PWL file can only have one channel.
 
-You can analyse and list all the channels in your CSV file with the `-l` flag (e.g. `C:\rigol2spice\rigol2spice.exe -l D:\NewFile1.csv`) can produce:
+You can analyse and list all the channels in your CSV file with the `--list-channels` flag (e.g. `C:\rigol2spice\rigol2spice.exe --list-channels D:\NewFile1.csv`) can produce:
 
     Channels:
        - CH1 (unit: Volt)
@@ -36,7 +36,34 @@ You can analyse and list all the channels in your CSV file with the `-l` flag (e
 
 By default, `rigol2spice` will use `CH1`. If you want to use channel 2, use the `--channel` option and then the channel name (e.g. `C:\rigol2spice\rigol2spice.exe --channel CH2 D:\NewFile1.csv D:\chan2.txt`) will save `CH2` to `D:\chan2.txt`) 
 
-### Time Operations
+### Vertical Operations
+
+#### Remove the DC Component
+
+You can remove the DC component using the `--remove-dc` flag. `rigol2spice` will calculate the DC component by averaging the waveform capture.
+
+#### Apply Vertical Offset
+
+The `--offset` option alllows you to apply a vertical offsset to a signal. In the argument, use the `U` or `D` prefixes for up and down direction then the desired value, e.g.:
+
+* `--offset U1` will offset the signal 1V up (positive)
+* `--offset D0.500` will offset the singal negatively (down) by 500mV
+
+You can also use SI prefixes, e.g. `D500m` equals `D0.500`.
+
+#### Multiply Verically (Amplify or Attenuate)
+
+If you want to amplify or attenature the signal (for example, if you forgot to change the probe attenuation compensation on the scope), you can use the `--multiply` option. Use the `N` prefix to indicate a negative value, e.g.:
+
+* `--multiply 10` will amplify the signal by 10X
+* `--multiply 0.001` will attenuate the singnal by 1000X
+* `--multiply N1` will change the polarity of the signal
+
+#### Combining Vertical Operations
+
+`rigol2spice` will remove the DC component (if speccified)  then will apply the vertical offset (if speccified) and will multiply vertically by last (if speccified).
+
+### Horizontal Operations
 
 #### Time-Shifting
 
@@ -59,7 +86,7 @@ Using the `--cut` option you can remove sample points of the signal after a cert
 
 The `--repeat`  option will allow you to repeat the signal multiple times. E.g., `-- repeat 3` will add 3 repetitions of the original signal.
 
-#### Combining Time Operations
+#### Combining Horizontal Operations
 
 `--shift`, `--cut` and `--repeat` will apply to the capture in this order, from the result of the previous operation.
 
@@ -68,7 +95,6 @@ For example `rigol2spice.exe --shift L5ms --cut 7.5ms --repeat 3` will result in
 1. Nullify the first 5 milliseconds of the capture, and bring the waveform 5ms to the left
 2. Remove everything after the new 7.5ms mark. (12.5ms in the original waveform), the total width of the waveform is now 7.5ms.
 3. Repeat the same 7.5ms three times, the resulting PWL file is 30ms in lenght
-
 
 ### Downsampling and Post-Processing
 
@@ -84,22 +110,24 @@ But you might want to disable this optimisation, for example, if you are passing
 
 ## Usage reference
 
-    USAGE: rigol2spice [--list-channels] [--channel <channel>] [--shift <shift>] [--cut <cut>] [--repeat <repeat>] [--downsample <downsample>] [--keep-all] <input-file> [<output-file>]
+    USAGE: rigol2spice [--list-channels] [--channel <channel>] [-dc] [--offset <offset>] [--multiply <multiply>] [--shift <shift>] [--cut <cut>] [--repeat <repeat>] [--downsample <downsample>] [--keep-all] <input-file> [<output-file>]
 
     ARGUMENTS:
-    <input-file>            The filename of the .csv from the oscilloscope to be read
-    <output-file>           The PWL filename to write to
+      <input-file>            The filename of the .csv from the oscilloscope to be read
+      <output-file>           The PWL filename to write to
 
     OPTIONS:
-    -l, --list-channels             Only list channels present in the file and quit
-    -c, --channel <channel>         The label of the channel to be processed (default: CH1)
-    -s, --shift <shift>             Time-shift seconds
-    -x, --cut <cut>                 Cut signal after timestamp
-    -r, --repeat <repeat>           Repeat signal number of times
-    -d, --downsample <downsample>   Downsample ratio
-    -k, --keep-all                  Don't remove redundant sample points. Sample points where the signal value maintains (useful for output file post-processing)
-    -h, --help                      Show help information.
-
+      -l,  --list-channels            Only list channels present in the file and quit
+      -c,  --channel <channel>        The label of the channel to be processed (default: CH1)
+      -dc, --remove-dc                Remove DC component
+      -o,  --offset <offset>          Offset value for signal (use D and U prefixes)
+      -m,  --multiply <multiply>      Multiplication factor for signal (use M prefix for negative)
+      -s,  --shift <shift>            Time-shift seconds (use L and R prefixes)
+      -x,  --cut <cut>                Cut signal after timestamp
+      -r,  --repeat <repeat>          Repeat signal number of times
+      -d,  --downsample <downsample>  Downsample ratio
+      -k,  --keep-all                 Don't remove redundant sample points. Sample points where the signal value maintains (useful for output file post-processing)
+      -h,  --help                     Show help information.
 
 ## Building
 

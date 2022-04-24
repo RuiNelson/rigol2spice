@@ -43,13 +43,13 @@ struct rigol2spice: ParsableCommand {
     @Flag(name: [.customLong("dc", withSingleDash: true), .customLong("remove-dc")], help: "Remove DC component")
     var removeDc: Bool = false
 
-    @Option(name: .shortAndLong, help: "Offset factor for signal")
+    @Option(name: .shortAndLong, help: "Offset value for signal (use M and P prefixes)")
     var offset: String?
 
-    @Option(name: .shortAndLong, help: "Multiplication factor for signal")
+    @Option(name: [.customShort("m"), .customLong("multiply", withSingleDash: false)], help: "Multiplication factor for signal (use M and P prefixes)")
     var multiplication: String?
 
-    @Option(name: [.customShort("s"), .customLong("shift")], help: "Time-shift seconds")
+    @Option(name: [.customShort("s"), .customLong("shift")], help: "Time-shift seconds (use L and R prefixes)")
     var timeShift: String?
 
     @Option(name: [.customShort("x"), .customLong("cut")], help: "Cut signal after timestamp")
