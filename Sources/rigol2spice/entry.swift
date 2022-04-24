@@ -113,7 +113,7 @@ struct rigol2spice: ParsableCommand {
         // Parsing
         print("")
         print("> Parsing input file...")
-        if data.count > 1000000 {
+        if data.count > 1_000_000 {
             print("  " + "(This might take a while)")
         }
         var points = try CSVParser.parseCsv(data,

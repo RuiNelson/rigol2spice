@@ -197,7 +197,7 @@ enum CSVParser {
         // Process points
         var linesStr = lines.map { String($0) }
         linesStr = linesStr.filter { !$0.isEmpty }
-        
+
         var progress = ProgressBar(count: linesStr.count)
 
         let points: [Point] = try linesStr.map {
