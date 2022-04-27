@@ -271,7 +271,7 @@ struct rigol2spice: ParsableCommand {
         }
 
         // Compacting...
-        if !keepAll {
+        if !keepAll && points.count >= 3 {
             print("")
             print("> Removing redundant sample points (optimize)...")
 
