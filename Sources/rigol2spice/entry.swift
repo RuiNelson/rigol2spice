@@ -157,12 +157,12 @@ struct rigol2spice: ParsableCommand {
             print("")
             print("> Removing DC component...")
 
-            let dcRemoved = removeDC(points)
-
-            let dcComponentStr = engineeringNF.string(dcRemoved.dcComponent)
-            print("  " + "DC Component: \(dcComponentStr) units")
-
-            points = dcRemoved.points
+            let dcComponent = calculateDC(points)
+            let dcComponentStr = engineeringNF.string(dcComponent)
+            
+            print("  " + "Calculated DC component: \(dcComponentStr) Vertical Units")
+            
+            points = offsetPoints(points, offset: (0 - dcComponent))
         }
 
         // Offset
@@ -176,7 +176,7 @@ struct rigol2spice: ParsableCommand {
             engineeringNF.positiveSign = ""
 
             print("")
-            print("> Offsetting signal by \(offsetValueStr) units...")
+            print("> Offsetting signal by \(offsetValueStr) Vertical Units...")
 
             points = offsetPoints(points, offset: offsetValue)
         }

@@ -18,13 +18,10 @@ func offsetPoints(_ points: [Point], offset: Double) -> [Point] {
     }
 }
 
-func removeDC(_ points: [Point]) -> (dcComponent: Double, points: [Point]) {
+func calculateDC(_ points: [Point]) -> Double {
     let sum = points.reduce(0.0) { partialResult, pt in
         partialResult + pt.value
     }
 
-    let dc = sum / Double(points.count)
-    let newPoints = offsetPoints(points, offset: 0 - dc)
-
-    return (dc, newPoints)
+    return sum / Double(points.count)
 }
