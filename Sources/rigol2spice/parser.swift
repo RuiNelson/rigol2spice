@@ -145,7 +145,7 @@ enum CSVParser {
 
     public static func parseCsv(_ data: Data,
                                 forChannel channelLabel: String,
-                                listChannelsOnly: Bool) throws -> (header: HeaderInfo, points: [Point])
+                                listChannelsOnly: Bool) throws -> (header: HeaderInfo, selectedChannel: Channel?, points: [Point])
     {
         // Convert to string
         guard let input = String(data: data, encoding: .ascii) else {
@@ -166,7 +166,7 @@ enum CSVParser {
         print(headerInfo.channelsDescription)
 
         if listChannelsOnly {
-            return (headerInfo, [])
+            return (headerInfo, nil, [])
         }
 
         let increment = headerInfo.increment
@@ -206,6 +206,6 @@ enum CSVParser {
             return point
         }
 
-        return (headerInfo, points)
+        return (headerInfo, selectedChannel, points)
     }
 }

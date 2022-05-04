@@ -121,11 +121,23 @@ struct rigol2spice: ParsableCommand {
                                              listChannelsOnly: listChannels)
 
         let header = paresed.header
+        let channel = paresed.selectedChannel
         var points = paresed.points
 
         guard !listChannels else {
             return
         }
+        
+        let verticalUnit: String = {
+            let vertUnit = channel!.unit ?? "Volt"
+            
+            switch vertUnit {
+            case "Volt": return "V"
+            case "Ampere": return "A"
+            case "Watt": return "W"
+            default: return vertUnit
+            }
+        }()
 
         guard !points.isEmpty else {
             throw Rigol2SpiceErrors.inputFileContainsNoPoints
@@ -163,7 +175,7 @@ struct rigol2spice: ParsableCommand {
             let dcComponent = calculateDC(points)
             let dcComponentStr = engineeringNF.string(dcComponent)
 
-            print("  " + "Automatically calculated DC component: \(dcComponentStr) Vertical Units")
+            print("  " + "Automatically calculated DC component: \(dcComponentStr)\(verticalUnit)")
 
             points = offsetPoints(points, offset: 0 - dcComponent)
         }
@@ -179,7 +191,7 @@ struct rigol2spice: ParsableCommand {
             engineeringNF.positiveSign = ""
 
             print("")
-            print("> Offsetting signal by \(offsetValueStr) Vertical Units...")
+            print("> Offsetting signal by \(offsetValueStr)\(verticalUnit)...")
 
             points = offsetPoints(points, offset: offsetValue)
         }
@@ -190,17 +202,10 @@ struct rigol2spice: ParsableCommand {
                 throw Rigol2SpiceErrors.invalidAmplificationValue(value: multiplication)
             }
 
-            let isAttenuation = abs(multiplicationFactor) < 1.0
-
-            let amplificationFactor = multiplicationFactor
-            let attenuationFactor = 1 / multiplicationFactor
-
-            let verb = isAttenuation ? "Attenuating" : "Amplifying"
-            let value = isAttenuation ? attenuationFactor : amplificationFactor
-            let valueStr = decimalNF.string(for: value)!
-
+            let multiplicationFactorStr = engineeringNF.string(multiplicationFactor)
+            
             print("")
-            print("> \(verb) signal by a factor of \(valueStr)...")
+            print("> Multiplying the signal by a factor of \(multiplicationFactorStr)\(verticalUnit)/\(verticalUnit)...")
 
             points = multiplyValueOfPoints(points, factor: multiplicationFactor)
         }
