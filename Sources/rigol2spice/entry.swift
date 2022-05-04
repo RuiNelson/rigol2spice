@@ -160,7 +160,7 @@ struct rigol2spice: ParsableCommand {
             let dcComponent = calculateDC(points)
             let dcComponentStr = engineeringNF.string(dcComponent)
             
-            print("  " + "Calculated DC component: \(dcComponentStr) Vertical Units")
+            print("  " + "Automatically calculated DC component: \(dcComponentStr) Vertical Units")
             
             points = offsetPoints(points, offset: (0 - dcComponent))
         }
