@@ -39,7 +39,7 @@ public struct Point {
 }
 
 enum CSVParser {
-    private struct HeaderInfo {
+    public struct HeaderInfo {
         var channels: [Channel]
         var increment: Double?
 
@@ -66,7 +66,7 @@ enum CSVParser {
         var unit: String?
 
         var description: String {
-            return "\(name) (unit: \(unit ?? "nil"))"
+            "\(name) (unit: \(unit ?? "nil"))"
         }
     }
 
@@ -145,7 +145,7 @@ enum CSVParser {
 
     public static func parseCsv(_ data: Data,
                                 forChannel channelLabel: String,
-                                listChannelsOnly: Bool) throws -> [Point]
+                                listChannelsOnly: Bool) throws -> (header: HeaderInfo, points: [Point])
     {
         // Convert to string
         guard let input = String(data: data, encoding: .ascii) else {
@@ -166,7 +166,7 @@ enum CSVParser {
         print(headerInfo.channelsDescription)
 
         if listChannelsOnly {
-            return []
+            return (headerInfo, [])
         }
 
         let increment = headerInfo.increment
@@ -206,6 +206,6 @@ enum CSVParser {
             return point
         }
 
-        return points
+        return (headerInfo, points)
     }
 }

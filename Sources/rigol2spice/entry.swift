@@ -116,9 +116,12 @@ struct rigol2spice: ParsableCommand {
         if data.count > 1_000_000 {
             print("  " + "(This might take a while)")
         }
-        var points = try CSVParser.parseCsv(data,
-                                            forChannel: channel,
-                                            listChannelsOnly: listChannels)
+        let paresed = try CSVParser.parseCsv(data,
+                                             forChannel: channel,
+                                             listChannelsOnly: listChannels)
+
+        let header = paresed.header
+        var points = paresed.points
 
         guard !listChannels else {
             return
@@ -128,21 +131,18 @@ struct rigol2spice: ParsableCommand {
             throw Rigol2SpiceErrors.inputFileContainsNoPoints
         }
 
-        let firstPointTime = points.first!.time
+        let sampleTimeInterval = header.increment ?? 0
         let lastPointTime = points.last!.time
-        var sampleTimeInterval = 0.0
+        let sampleDuration = lastPointTime + sampleTimeInterval
 
         let nPointsString = decimalNF.string(for: points.count)!
         let lastPointString = engineeringNF.string(lastPointTime)
+        let sampleDurationString = engineeringNF.string(sampleDuration)
 
         print("  " + "Samples: \(nPointsString)")
-        print("  " + "Last Sample Point: \(lastPointString)s")
 
         // Sample Rate Calculation
         if points.count >= 2 {
-            let nPoints = Double(points.count)
-
-            sampleTimeInterval = (lastPointTime - firstPointTime) / (nPoints - 1)
             let sampleRate = 1 / sampleTimeInterval
 
             let timeIntervalString = engineeringNF.string(sampleTimeInterval)
@@ -151,6 +151,9 @@ struct rigol2spice: ParsableCommand {
             print("  " + "Sample Interval: \(timeIntervalString)s")
             print("  " + "Sample Rate: \(sampleRateString)sa/s")
         }
+        
+        print("  " + "Last Sample Point: \(lastPointString)s")
+        print("  " + "Capture Duration: \(sampleDurationString)")
 
         // Removing DC component
         if removeDc {
