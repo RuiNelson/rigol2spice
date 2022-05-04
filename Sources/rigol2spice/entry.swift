@@ -162,10 +162,10 @@ struct rigol2spice: ParsableCommand {
 
             let dcComponent = calculateDC(points)
             let dcComponentStr = engineeringNF.string(dcComponent)
-            
+
             print("  " + "Automatically calculated DC component: \(dcComponentStr) Vertical Units")
-            
-            points = offsetPoints(points, offset: (0 - dcComponent))
+
+            points = offsetPoints(points, offset: 0 - dcComponent)
         }
 
         // Offset
@@ -274,7 +274,7 @@ struct rigol2spice: ParsableCommand {
         }
 
         // Compacting...
-        if !keepAll && points.count >= 3 {
+        if !keepAll, points.count >= 3 {
             print("")
             print("> Removing redundant sample points (optimize)...")
 
