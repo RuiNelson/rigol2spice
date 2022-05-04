@@ -148,12 +148,12 @@ struct rigol2spice: ParsableCommand {
             let timeIntervalString = engineeringNF.string(sampleTimeInterval)
             let sampleRateString = engineeringNF.string(sampleRate)
 
-            print("  " + "Sample Interval: \(timeIntervalString)s")
-            print("  " + "Sample Rate: \(sampleRateString)sa/s")
+            print("  " + "Sample interval: \(timeIntervalString)s")
+            print("  " + "Sample rate: \(sampleRateString)sa/s")
         }
         
-        print("  " + "Last Sample Point: \(lastPointString)s")
-        print("  " + "Capture Duration: \(sampleDurationString)")
+        print("  " + "Last sample point: \(lastPointString)s")
+        print("  " + "Capture duration: \(sampleDurationString)")
 
         // Removing DC component
         if removeDc {
