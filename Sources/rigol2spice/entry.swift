@@ -46,7 +46,7 @@ struct rigol2spice: ParsableCommand {
     @Option(name: .shortAndLong, help: "Offset value for signal (use M and P prefixes)")
     var offset: String?
 
-    @Option(name: [.customShort("m"), .customLong("multiply", withSingleDash: false)], help: "Multiplication factor for signal (use M and P prefixes)")
+    @Option(name: [.customShort("m"), .customLong("multiply", withSingleDash: false)], help: "Multiplication factor for signal (use N prefix for negative)")
     var multiplication: String?
 
     @Option(name: [.customShort("s"), .customLong("shift")], help: "Time-shift seconds (use L and R prefixes)")

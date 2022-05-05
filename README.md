@@ -121,7 +121,7 @@ But you might want to disable this optimisation, for example, if you are passing
       -c,  --channel <channel>        The label of the channel to be processed (default: CH1)
       -dc, --remove-dc                Remove DC component
       -o,  --offset <offset>          Offset value for signal (use D and U prefixes)
-      -m,  --multiply <multiply>      Multiplication factor for signal (use M prefix for negative)
+      -m,  --multiply <multiply>      Multiplication factor for signal (use N prefix for negative)
       -s,  --shift <shift>            Time-shift seconds (use L and R prefixes)
       -x,  --cut <cut>                Cut signal after timestamp
       -r,  --repeat <repeat>          Repeat signal number of times
