@@ -9,7 +9,8 @@ let valueNF: NumberFormatter = {
     let nf = NumberFormatter()
     nf.locale = usLocale
     nf.numberStyle = .decimal
-    nf.maximumFractionDigits = 14
+    nf.minimumSignificantDigits = 3
+    nf.maximumSignificantDigits = 14
     return nf
 }()
 
@@ -17,7 +18,7 @@ let timeNF: NumberFormatter = {
     let nf = NumberFormatter()
     nf.locale = usLocale
     nf.numberStyle = .decimal
-    nf.minimumFractionDigits = 9
+    nf.minimumFractionDigits = 12
     nf.maximumFractionDigits = 14
     return nf
 }()
