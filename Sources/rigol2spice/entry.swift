@@ -127,10 +127,10 @@ struct rigol2spice: ParsableCommand {
         guard !listChannels else {
             return
         }
-        
+
         let verticalUnit: String = {
             let vertUnit = channel!.unit ?? "Volt"
-            
+
             switch vertUnit {
             case "Volt": return "V"
             case "Ampere": return "A"
@@ -163,7 +163,7 @@ struct rigol2spice: ParsableCommand {
             print("  " + "Sample interval: \(timeIntervalString)s")
             print("  " + "Sample rate: \(sampleRateString)sa/s")
         }
-        
+
         print("  " + "Last sample point: \(lastPointString)s")
         print("  " + "Capture duration: \(sampleDurationString)")
 
@@ -203,7 +203,7 @@ struct rigol2spice: ParsableCommand {
             }
 
             let multiplicationFactorStr = engineeringNF.string(multiplicationFactor)
-            
+
             print("")
             print("> Multiplying the signal by a factor of \(multiplicationFactorStr)\(verticalUnit)/\(verticalUnit)...")
 

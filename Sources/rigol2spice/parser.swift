@@ -96,7 +96,7 @@ enum CSVParser {
             }
         }
 
-        guard channels.count > 0 else {
+        guard !channels.isEmpty else {
             throw ParseError.noChannelsDetected
         }
 
@@ -145,8 +145,7 @@ enum CSVParser {
 
     public static func parseCsv(_ data: Data,
                                 forChannel channelLabel: String,
-                                listChannelsOnly: Bool) throws -> (header: HeaderInfo, selectedChannel: Channel?, points: [Point])
-    {
+                                listChannelsOnly: Bool) throws -> (header: HeaderInfo, selectedChannel: Channel?, points: [Point]) {
         // Convert to string
         guard let input = String(data: data, encoding: .ascii) else {
             throw ParseError.invalidFileFormat

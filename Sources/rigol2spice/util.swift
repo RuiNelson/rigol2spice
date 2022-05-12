@@ -6,7 +6,7 @@ func parseEngineeringNotation(_ input: String) -> Double? {
     var numberStr = input
 
     let lowercasedNumberStr = numberStr.lowercased()
-    
+
     if lowercasedNumberStr.hasSuffix("s") || lowercasedNumberStr.hasSuffix("v") || lowercasedNumberStr.hasSuffix("x") {
         numberStr.removeLast()
     }
