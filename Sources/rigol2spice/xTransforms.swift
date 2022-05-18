@@ -2,6 +2,10 @@
 
 import Foundation
 
+func equal(_ a: Double, _ b: Double, _ c: Double) -> Bool {
+    a == b && b == c
+}
+
 func removeRedundant(_ source: [Point]) -> [Point] {
     var samples = source
     var toDelete: Set<Double> = []
@@ -11,7 +15,7 @@ func removeRedundant(_ source: [Point]) -> [Point] {
         let now = samples[n]
         let after = samples[n + 1]
 
-        if before.value == after.value, now.value == before.value {
+        if equal(before.value, now.value, after.value) {
             toDelete.insert(now.time)
         }
     }
