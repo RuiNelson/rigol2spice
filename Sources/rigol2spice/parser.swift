@@ -10,8 +10,7 @@ public enum ParseError: LocalizedError {
     case channelNotFound(channelLabel: String)
     case incrementNotFound
     case invalidIncrementValue(value: String)
-    case sequenceNumberNotFoundOrInvalid(line: String)
-    case invalidValue(value: String, line: String)
+    case invalidLine(line: String)
 
     public var errorDescription: String? {
         switch self {
@@ -21,8 +20,7 @@ public enum ParseError: LocalizedError {
         case let .channelNotFound(channelLabel: channel): return "Specified channel \"\(channel)\" not found in file"
         case .incrementNotFound: return "Time increment not found"
         case let .invalidIncrementValue(value: valueStr): return "Time increment value is not valid: \(valueStr)"
-        case let .sequenceNumberNotFoundOrInvalid(line: lineStr): return "Couldn't find sequence number in line: \(lineStr)"
-        case let .invalidValue(value: val, line: line): return "Invalid decimal number: \"\(val)\" in line: \(line)"
+        case let .invalidLine(line: line): return "Invalid line: \(line)"
         }
     }
 }
@@ -122,25 +120,16 @@ enum CSVParser {
         return HeaderInfo(channels: channels, increment: increment)
     }
 
-    private static func parsePoint(text: String, incrementTime: Double, row: Int) throws -> Point {
-        let fields = text.split(separator: ",").map { String($0) }
-
-        // Time
-        guard let firstField = fields.first, let sequence = Int(firstField) else {
-            throw ParseError.sequenceNumberNotFoundOrInvalid(line: text)
-        }
-
-        let time = incrementTime * Double(sequence)
-
-        // Value
-
+    private static func parsePoint(_ line: String, incrementTime: Double, row: Int) throws -> Point {
+        let fields = line.split(separator: ",")
+        let timeField = fields[0]
         let valueField = fields[row]
 
-        guard let value = Double(valueField) else {
-            throw ParseError.invalidValue(value: valueField, line: text)
+        guard let timeDiscrete = Double(String(timeField)), let value = Double(String(valueField)) else {
+            throw ParseError.invalidLine(line: line)
         }
-
-        return Point(time: time, value: value)
+        
+        return Point(time: timeDiscrete * incrementTime, value: value)
     }
 
     public static func parseCsv(_ data: Data,
@@ -200,7 +189,7 @@ enum CSVParser {
         var progress = ProgressBar(count: linesStr.count)
 
         let points: [Point] = try linesStr.map {
-            let point = try parsePoint(text: $0, incrementTime: increment, row: selectedRow)
+            let point = try parsePoint($0, incrementTime: increment, row: selectedRow)
             progress.next()
             return point
         }
