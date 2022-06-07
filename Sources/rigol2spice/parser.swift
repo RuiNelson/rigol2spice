@@ -36,7 +36,7 @@ public struct Point {
     }
 }
 
-enum CSVParser {
+class CSVParser {
     public struct HeaderInfo {
         var channels: [Channel]
         var increment: Double?
@@ -128,7 +128,7 @@ enum CSVParser {
         guard let timeDiscrete = Double(String(timeField)), let value = Double(String(valueField)) else {
             throw ParseError.invalidLine(line: line)
         }
-        
+
         return Point(time: timeDiscrete * incrementTime, value: value)
     }
 
@@ -147,23 +147,34 @@ enum CSVParser {
             throw ParseError.insufficientLines
         }
 
+        // Trim empty lines at the end
+        while String(lines.last!).isEmpty {
+            lines.removeLast()
+        }
+
+        var progress = ProgressBar(count: lines.count)
+
         // Process Header
         let headerInfo = try parseFirstAndSecondLines(String(lines.removeFirst()),
                                                       String(lines.removeFirst()))
 
         print(headerInfo.channelsDescription)
+        progress.next()
+        progress.next()
 
-        if listChannelsOnly {
+        // Header load
+        guard !listChannelsOnly else {
             return (headerInfo, nil, [])
         }
 
-        let increment = headerInfo.increment
+        let timeIncrement = headerInfo.increment
         let channels = headerInfo.channels
 
-        guard let increment = increment else {
+        guard let timeIncrement = timeIncrement else {
             throw ParseError.incrementNotFound
         }
 
+        // Select channel
         var selectedChannel: Channel?
 
         selectedChannel = channels.first(where: { $0.name == channelLabel })
@@ -177,21 +188,15 @@ enum CSVParser {
         guard let selectedChannel = selectedChannel else {
             throw ParseError.channelNotFound(channelLabel: channelLabel)
         }
+        
+        let channelRow = selectedChannel.row
 
         print("  " + "Selected channel: \(selectedChannel.name)")
-
-        let selectedRow = selectedChannel.row
-
+        
         // Process points
-        var linesStr = lines.map { String($0) }
-        linesStr = linesStr.filter { !$0.isEmpty }
 
-        var progress = ProgressBar(count: linesStr.count)
-
-        let points: [Point] = try linesStr.map {
-            let point = try parsePoint($0, incrementTime: increment, row: selectedRow)
-            progress.next()
-            return point
+        let points: [Point] = try lines.map {
+            try parsePoint(String($0), incrementTime: timeIncrement, row: channelRow)
         }
 
         return (headerInfo, selectedChannel, points)
