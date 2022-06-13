@@ -66,17 +66,20 @@ struct rigol2spice: ParsableCommand {
 
     @Argument(help: "The filename of the .csv from the oscilloscope to be read", completion: CompletionKind.file(extensions: ["csv"]))
     var inputFile: String
-    var inputFileExpanded: String {
-        NSString(string: inputFile).expandingTildeInPath
-    }
 
     @Argument(help: "The PWL filename to write to", completion: nil)
     var outputFile: String?
-    var outputFileExpanded: String {
-        guard let outputFile = outputFile else {
-            return ""
-        }
-        return NSString(string: outputFile).expandingTildeInPath
+
+    func filenameToUrl(_ filename: String) -> URL {
+        let ns = NSString(string: filename)
+        let expandedNs = ns.expandingTildeInPath
+        let expandedStr = String(expandedNs)
+
+        let cd = FileManager.default.currentDirectoryPath
+        let cdUrl = URL(fileURLWithPath: cd)
+
+        let fileUrl = URL(fileURLWithPath: expandedStr, relativeTo: cdUrl)
+        return fileUrl
     }
 
     func nPointsReport(before: Int, after: Int) throws {
@@ -96,15 +99,13 @@ struct rigol2spice: ParsableCommand {
 
     mutating func run() throws {
         // argument validation
-        if listChannels == false {
-            guard outputFile != nil else {
-                throw Rigol2SpiceErrors.outputFileNotSpecified
-            }
+        if !listChannels, outputFile == nil {
+            throw Rigol2SpiceErrors.outputFileNotSpecified
         }
 
         // Loading
         print("> Loading input file...")
-        let inputFileUrl = URL(fileURLWithPath: inputFileExpanded, relativeTo: cdUrl)
+        let inputFileUrl = filenameToUrl(inputFile)
         let data = try Data(contentsOf: inputFileUrl)
         let numBytesString = memBCF.string(fromByteCount: Int64(data.count))
 
@@ -120,13 +121,17 @@ struct rigol2spice: ParsableCommand {
                                              forChannel: channel,
                                              listChannelsOnly: listChannels)
 
-        let header = paresed.header
-        let channel = paresed.selectedChannel
-        var points = paresed.points
-
         guard !listChannels else {
             return
         }
+
+        guard let outputFile = outputFile else {
+            throw Rigol2SpiceErrors.outputFileNotSpecified
+        }
+
+        let header = paresed.header
+        let channel = paresed.selectedChannel
+        var points = paresed.points
 
         let verticalUnit: String = {
             let vertUnit = channel!.unit ?? "Volt"
@@ -322,7 +327,8 @@ struct rigol2spice: ParsableCommand {
         print("  " + "Last sample: \(lastSampleString)s")
         print("  " + "Capture duration: \(captureDurationString)s")
         print("  " + "Saving file: \(fileSizeStr)...")
-        let outputFileUrl = URL(fileURLWithPath: outputFileExpanded, relativeTo: cdUrl)
+
+        let outputFileUrl = filenameToUrl(outputFile)
         if FileManager.default.fileExists(atPath: outputFileUrl.path) {
             try FileManager.default.removeItem(at: outputFileUrl)
         }
