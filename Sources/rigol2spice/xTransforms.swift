@@ -7,22 +7,24 @@ func equal(_ a: Double, _ b: Double, _ c: Double) -> Bool {
 }
 
 func removeRedundant(_ source: [Point]) -> [Point] {
-    var samples = source
+    var output = source
     var toDelete: Set<Double> = []
 
-    for n in 1 ..< (samples.count - 1) {
-        let before = samples[n - 1]
-        let now = samples[n]
-        let after = samples[n + 1]
+    for n in 1 ..< (output.count - 1) {
+        let before = output[n - 1]
+        let now = output[n]
+        let after = output[n + 1]
 
         if equal(before.value, now.value, after.value) {
             toDelete.insert(now.time)
         }
     }
 
-    samples = samples.filter { toDelete.contains($0.time) == false }
+    if !toDelete.isEmpty {
+        output = output.filter { !toDelete.contains($0.time) }
+    }
 
-    return samples
+    return output
 }
 
 func downsamplePoints(_ source: [Point], interval: Int) -> [Point] {
