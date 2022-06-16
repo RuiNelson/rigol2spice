@@ -40,32 +40,12 @@ class CSVParser {
     public struct HeaderInfo {
         var channels: [Channel]
         var increment: Double?
-
-        var channelsDescription: String {
-            var str = ""
-            str += "  " + "Channels:"
-            for channel in channels {
-                str += "\n" + "    " + " - " + channel.description
-            }
-            if let increment = increment {
-                str += "\n"
-
-                let incrementString = engineeringNF.string(increment)
-                str += "  " + "Increment: \(incrementString)s"
-            }
-
-            return str
-        }
     }
 
     public struct Channel {
         var name: String
         var row: Int
         var unit: String?
-
-        var description: String {
-            "\(name) (unit: \(unit ?? "nil"))"
-        }
     }
 
     private static func parseFirstAndSecondLines(_ line1: String, _ line2: String) throws -> HeaderInfo {
@@ -154,13 +134,21 @@ class CSVParser {
             lines.removeLast()
         }
 
-        var progress = ProgressBar(count: lines.count)
-
         // Process Header
         let headerInfo = try parseFirstAndSecondLines(String(lines.removeFirst()),
                                                       String(lines.removeFirst()))
 
-        print(headerInfo.channelsDescription)
+        // print header info:
+        rigol2spice.printI(1, "Channels:")
+        for channel in headerInfo.channels {
+            rigol2spice.printI(2, " - \(channel.name) (unit: \(channel.unit ?? "none"))")
+        }
+        if let increment = headerInfo.increment {
+            let incrementStr = engineeringNF.string(increment)
+            rigol2spice.printI(1, "Time Increment: \(incrementStr)s")
+        }
+        
+        var progress = ProgressBar(count: lines.count)
         progress.next()
         progress.next()
 
