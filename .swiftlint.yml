@@ -5,6 +5,7 @@ disabled_rules:
   - function_body_length
   - shorthand_operator
   - large_tuple
+  - trailing_whitespace
 opt_in_rules:
   - closure_end_indentation
   - closure_spacing
