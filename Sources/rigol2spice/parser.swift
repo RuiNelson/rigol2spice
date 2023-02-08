@@ -145,7 +145,10 @@ class CSVParser {
         }
         if let increment = headerInfo.increment {
             let incrementStr = engineeringNF.string(increment)
-            rigol2spice.printI(1, "Time Increment: \(incrementStr)s")
+            
+            let incrementInverted = 1 / increment
+            let incrementInvertedStr = engineeringNF.string(incrementInverted)
+            rigol2spice.printI(1, "Time Increment: \(incrementStr)s \t (frequency: \(incrementInvertedStr)Hz)")
         }
         
         var progress = ProgressBar(count: lines.count)
