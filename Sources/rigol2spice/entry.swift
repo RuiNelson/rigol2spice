@@ -13,6 +13,7 @@ enum Rigol2SpiceErrors: LocalizedError {
     case invalidTimeShiftValue(value: String)
     case invalidCutAfterValue(value: String)
     case invalidRepeatCountValue(value: Int)
+    case invalidClampValue(value: String)
     case mustHaveAtLeastTwoPointsToRepeat
     case operationRemovedEveryPoint
     case clampMinIsGreaterOrEqualToClampMax
@@ -27,6 +28,7 @@ enum Rigol2SpiceErrors: LocalizedError {
         case let .invalidTimeShiftValue(value: v): return "Invalid time-shift value: \(v)"
         case let .invalidCutAfterValue(value: v): return "Invalid cut timestamp: \(v)"
         case let .invalidRepeatCountValue(value: v): return "Invalid repeat count value: \(v)"
+        case let .invalidClampValue(value: v): return "Invalid clamping value: \(v)"
         case .mustHaveAtLeastTwoPointsToRepeat: return "Must have at least two original samples to repeat capture"
         case .operationRemovedEveryPoint: return "Operation removed every sample"
         case .clampMinIsGreaterOrEqualToClampMax: return "`clamp-max` must be greater than `clamp-min`"
@@ -198,10 +200,16 @@ struct rigol2spice: ParsableCommand {
             
             if let clampMin {
                 clampMinDbl = parseEngineeringNotation(clampMin)
+                guard clampMinDbl != nil else {
+                    throw Rigol2SpiceErrors.invalidClampValue(value: clampMin)
+                }
             }
             
             if let clampMax {
                 clampMaxDbl = parseEngineeringNotation(clampMax)
+                guard clampMaxDbl != nil else {
+                    throw Rigol2SpiceErrors.invalidClampValue(value: clampMax)
+                }
             }
             
             // sanity check

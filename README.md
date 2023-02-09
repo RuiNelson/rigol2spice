@@ -38,6 +38,14 @@ By default, `rigol2spice` will use `CH1`. If you want to use channel 2, use the 
 
 ### Vertical Operations
 
+#### Clamping
+
+Sometimes is useful to clamp the capture between a lower and/or a upper value. Use the `--clamp-min` and `--clamp-max` flags to apply clamping of the signal. And use the `N` prefix to indicate negative values, e.g.:
+
+* `--clamp-max 5.1` will clamp the upper limit of the signal to 5.1 (vertical unit)
+* `--clamp-min N0.1` will clamp the lower limit of the sigal to -0.1 (vertical unit)
+* `--clamp-min 0 --clamp-max 3.3` will clamp the lower limit of the signal to 0 (vertical unit) and 3.3 (vertical unit). 
+
 #### Remove the DC Component
 
 You can remove the DC component using the `--remove-dc` flag. `rigol2spice` will calculate the DC component by averaging the waveform capture.
@@ -46,8 +54,8 @@ You can remove the DC component using the `--remove-dc` flag. `rigol2spice` will
 
 The `--offset` option alllows you to apply a vertical offsset to a signal. In the argument, use the `U` or `D` prefixes for up and down direction then the desired value, e.g.:
 
-* `--offset U1` will offset the signal 1 up (positive)
-* `--offset D0.500` will offset the singal negatively (down) by 500m
+* `--offset U1` will offset the signal 1 (vertical unit) up (positive)
+* `--offset D0.500` will offset the singal negatively (down) by 500m (vertical unit)
 
 You can also use SI prefixes, e.g. `D500m` equals `D0.500`.
 
@@ -61,7 +69,12 @@ If you want to amplify or attenature the signal (for example, if you forgot to c
 
 #### Combining Vertical Operations
 
-`rigol2spice` will remove the DC component (if speccified)  then will apply the vertical offset (if speccified) and will multiply vertically by last (if speccified).
+`rigol2spice` will execute vertical orders allways in the following order:
+
+1. Clamping (if speccified)
+2. Remove DC (if speccified)
+3. Vertical offset (if speccified)
+4. Multiplication (if speccified)
 
 ### Horizontal Operations
 
@@ -119,6 +132,8 @@ But you might want to disable this optimisation, for example, if you are passing
     OPTIONS:
       -l,  --list-channels            Only list channels present in the file and quit
       -c,  --channel <channel>        The label of the channel to be processed (default: CH1)
+      --clamp-min <clamp-min>         Clamp the signal to above this value (use N prefix for negative)
+      --clamp-max <clamp-max>         Clamp the signal to below this value (use N prefix for negative)
       -dc, --remove-dc                Remove DC component
       -o,  --offset <offset>          Offset value for signal (use D and U prefixes)
       -m,  --multiply <multiply>      Multiplication factor for signal (use N prefix for negative)
