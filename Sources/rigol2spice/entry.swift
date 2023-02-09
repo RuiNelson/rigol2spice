@@ -15,6 +15,7 @@ enum Rigol2SpiceErrors: LocalizedError {
     case invalidRepeatCountValue(value: Int)
     case mustHaveAtLeastTwoPointsToRepeat
     case operationRemovedEveryPoint
+    case clampMinIsGreaterOrEqualToClampMax
 
     var errorDescription: String? {
         switch self {
@@ -28,6 +29,7 @@ enum Rigol2SpiceErrors: LocalizedError {
         case let .invalidRepeatCountValue(value: v): return "Invalid repeat count value: \(v)"
         case .mustHaveAtLeastTwoPointsToRepeat: return "Must have at least two original samples to repeat capture"
         case .operationRemovedEveryPoint: return "Operation removed every sample"
+        case .clampMinIsGreaterOrEqualToClampMax: return "`clamp-max` must be greater than `clamp-min`"
         }
     }
 }
@@ -40,6 +42,12 @@ struct rigol2spice: ParsableCommand {
     @Option(name: .shortAndLong, help: "The label of the channel to be processed")
     var channel: String = "CH1"
 
+    @Option(name: .long, help: "Clamp the signal to above this value (use N prefix for negative)")
+    var clampMin: String?
+    
+    @Option(name: .long, help: "Clamp the signal to below this value (use N prefix for negative)")
+    var clampMax: String?
+    
     @Flag(name: [.customLong("dc", withSingleDash: true), .customLong("remove-dc")], help: "Remove DC component")
     var removeDc: Bool = false
 
@@ -181,6 +189,58 @@ struct rigol2spice: ParsableCommand {
 
         rigol2spice.printI(1, "Last sample point: \(lastPointString)s")
         rigol2spice.printI(1, "Capture duration: \(sampleDurationString)")
+        
+        // Clamping
+        if clampMin != nil || clampMax != nil {
+            // values
+            var clampMinDbl: Double?
+            var clampMaxDbl: Double?
+            
+            if let clampMin {
+                clampMinDbl = parseEngineeringNotation(clampMin)
+            }
+            
+            if let clampMax {
+                clampMaxDbl = parseEngineeringNotation(clampMax)
+            }
+            
+            // sanity check
+            if let clampMinDbl, let clampMaxDbl {
+                guard clampMaxDbl > clampMinDbl else {
+                    throw Rigol2SpiceErrors.clampMinIsGreaterOrEqualToClampMax
+                }
+            }
+            
+            // present information to the user
+            var print = "Clamping the signal $..."
+            
+            var clampMinStr: String?
+            var clampMaxStr: String?
+            
+            if let clampMinDbl {
+                clampMinStr = engineeringNF.string(clampMinDbl) + verticalUnit
+            }
+            
+            if let clampMaxDbl {
+                clampMaxStr = engineeringNF.string(clampMaxDbl) + verticalUnit
+            }
+            
+            if let clampMinStr, let clampMaxStr {
+                print = print.replacingOccurrences(of: "$", with: ["between", clampMinStr, "and", clampMaxStr].joined(separator: " "))
+            }
+            
+            if let clampMinStr {
+                print = print.replacingOccurrences(of: "$", with: ["above", clampMinStr].joined(separator: " "))
+            }
+            if let clampMaxStr {
+                print = print.replacingOccurrences(of: "$", with: ["below", clampMaxStr].joined(separator: " "))
+            }
+            
+            rigol2spice.printI(0, print)
+            
+            // operation
+            points = clamp(points, lowerLimit: clampMinDbl, upperLimit: clampMaxDbl)
+        }
 
         // Removing DC component
         if removeDc {
