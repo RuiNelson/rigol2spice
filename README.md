@@ -123,7 +123,7 @@ But you might want to disable this optimisation, for example, if you are passing
 
 ## Usage reference
 
-    USAGE: rigol2spice [--list-channels] [--channel <channel>] [-dc] [--offset <offset>] [--multiply <multiply>] [--shift <shift>] [--cut <cut>] [--repeat <repeat>] [--downsample <downsample>] [--keep-all] <input-file> [<output-file>]
+    USAGE: rigol2spice [<options>] <input-file> [<output-file>]
 
     ARGUMENTS:
       <input-file>            The filename of the .csv from the oscilloscope to be read
