@@ -220,7 +220,7 @@ struct rigol2spice: ParsableCommand {
             }
             
             // present information to the user
-            var print = "Clamping the signal $..."
+            var print = "Clamping the signal "
             
             var clampMinStr: String?
             var clampMaxStr: String?
@@ -234,14 +234,16 @@ struct rigol2spice: ParsableCommand {
             }
             
             if let clampMinStr, let clampMaxStr {
-                print = print.replacingOccurrences(of: "$", with: ["between", clampMinStr, "and", clampMaxStr].joined(separator: " "))
+                print = print + ["between", clampMinStr, "and", clampMaxStr]
             }
             else if let clampMinStr {
-                print = print.replacingOccurrences(of: "$", with: ["above", clampMinStr].joined(separator: " "))
+                print = print + ["above", clampMinStr]
             }
             else if let clampMaxStr {
-                print = print.replacingOccurrences(of: "$", with: ["below", clampMaxStr].joined(separator: " "))
+                print = print + ["below", clampMaxStr]
             }
+            
+            print += "..."
             
             rigol2spice.printI(0, print)
             
