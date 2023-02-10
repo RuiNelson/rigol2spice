@@ -71,10 +71,10 @@ If you want to amplify or attenature the signal (for example, if you forgot to c
 
 `rigol2spice` will execute vertical orders allways in the following order:
 
-1. Clamping (if speccified)
-2. Remove DC (if speccified)
-3. Vertical offset (if speccified)
-4. Multiplication (if speccified)
+1. Clamping (if specified)
+2. Remove DC (if specified)
+3. Vertical offset (if specified)
+4. Multiplication (if specified)
 
 ### Horizontal Operations
 
