@@ -236,11 +236,10 @@ struct rigol2spice: ParsableCommand {
             if let clampMinStr, let clampMaxStr {
                 print = print.replacingOccurrences(of: "$", with: ["between", clampMinStr, "and", clampMaxStr].joined(separator: " "))
             }
-            
-            if let clampMinStr {
+            else if let clampMinStr {
                 print = print.replacingOccurrences(of: "$", with: ["above", clampMinStr].joined(separator: " "))
             }
-            if let clampMaxStr {
+            else if let clampMaxStr {
                 print = print.replacingOccurrences(of: "$", with: ["below", clampMaxStr].joined(separator: " "))
             }
             
