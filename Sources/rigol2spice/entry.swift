@@ -233,11 +233,9 @@ struct rigol2spice: ParsableCommand {
             
             if let clampMinStr, let clampMaxStr {
                 print = print + ["between", clampMinStr, "and", clampMaxStr]
-            }
-            else if let clampMinStr {
+            } else if let clampMinStr {
                 print = print + ["above", clampMinStr]
-            }
-            else if let clampMaxStr {
+            } else if let clampMaxStr {
                 print = print + ["below", clampMaxStr]
             }
             
