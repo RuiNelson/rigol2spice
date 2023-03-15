@@ -31,7 +31,7 @@ func parseEngineeringNotation(_ input: String) -> Double? {
 }
 
 extension String {
-    static func +(lhs: String, rhs: [String]) -> String {
-        return lhs + rhs.joined(separator: " ")
+    static func + (lhs: String, rhs: [String]) -> String {
+        lhs + rhs.joined(separator: " ")
     }
 }
