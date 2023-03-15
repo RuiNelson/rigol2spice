@@ -4,6 +4,16 @@ import ArgumentParser
 import Foundation
 import Progress
 
+func printI(_ indent: Int, _ text: String) {
+    if indent == 0 {
+        print("")
+        print("> " + text)
+    } else {
+        let spaces = Array(repeating: "    ", count: indent).joined()
+        print(spaces + text)
+    }
+}
+
 enum Rigol2SpiceErrors: LocalizedError {
     case outputFileNotSpecified
     case inputFileContainsNoPoints
@@ -92,16 +102,6 @@ struct rigol2spice: ParsableCommand {
         return fileUrl
     }
 
-    static func printI(_ indent: Int, _ text: String) {
-        if indent == 0 {
-            print("")
-            print("> " + text)
-        } else {
-            let spaces = Array(repeating: "    ", count: indent).joined()
-            print(spaces + text)
-        }
-    }
-
     func nPointsReport(before: Int, after: Int) throws {
         guard after > 0 else {
             throw Rigol2SpiceErrors.operationRemovedEveryPoint
@@ -111,9 +111,9 @@ struct rigol2spice: ParsableCommand {
             let beforeString = decimalNF.string(for: before)!
             let afterString = decimalNF.string(for: after)!
 
-            rigol2spice.printI(1, "From \(beforeString) samples to \(afterString) samples")
+            printI(1, "From \(beforeString) samples to \(afterString) samples")
         } else {
-            rigol2spice.printI(1, "Maintained all the samples")
+            printI(1, "Maintained all the samples")
         }
     }
 
@@ -124,17 +124,17 @@ struct rigol2spice: ParsableCommand {
         }
 
         // Loading
-        rigol2spice.printI(0, "Loading input file...")
+        printI(0, "Loading input file...")
         let inputFileUrl = filenameToUrl(inputFile)
         let data = try Data(contentsOf: inputFileUrl)
         let numBytesString = memBCF.string(fromByteCount: Int64(data.count))
 
-        rigol2spice.printI(1, "Read \(numBytesString)")
+        printI(1, "Read \(numBytesString)")
 
         // Parsing
-        rigol2spice.printI(0, "Parsing input file...")
+        printI(0, "Parsing input file...")
         if data.count > 1_000_000 {
-            rigol2spice.printI(1, "(This might take a while)")
+            printI(1, "(This might take a while)")
         }
         
         let parsed = try CSVParser.parseCsv(data,
@@ -176,7 +176,7 @@ struct rigol2spice: ParsableCommand {
         let lastPointString = engineeringNF.string(lastPointTime)
         let sampleDurationString = engineeringNF.string(sampleDuration)
 
-        rigol2spice.printI(1, "Samples: \(nPointsString)")
+        printI(1, "Samples: \(nPointsString)")
 
         // Sample Rate Calculation
         if points.count >= 2 {
@@ -185,12 +185,12 @@ struct rigol2spice: ParsableCommand {
             let timeIntervalString = engineeringNF.string(sampleTimeInterval)
             let sampleRateString = engineeringNF.string(sampleRate)
 
-            rigol2spice.printI(1, "Sample interval: \(timeIntervalString)s")
-            rigol2spice.printI(1, "Sample rate: \(sampleRateString)sa/s")
+            printI(1, "Sample interval: \(timeIntervalString)s")
+            printI(1, "Sample rate: \(sampleRateString)sa/s")
         }
 
-        rigol2spice.printI(1, "Last sample point: \(lastPointString)s")
-        rigol2spice.printI(1, "Capture duration: \(sampleDurationString)")
+        printI(1, "Last sample point: \(lastPointString)s")
+        printI(1, "Capture duration: \(sampleDurationString)")
         
         // Clamping
         if clampMin != nil || clampMax != nil {
@@ -245,7 +245,7 @@ struct rigol2spice: ParsableCommand {
             
             print += "..."
             
-            rigol2spice.printI(0, print)
+            printI(0, print)
             
             // operation
             points = clamp(points, lowerLimit: clampMinDbl, upperLimit: clampMaxDbl)
@@ -253,12 +253,12 @@ struct rigol2spice: ParsableCommand {
 
         // Removing DC component
         if removeDc {
-            rigol2spice.printI(0, "Removing DC component...")
+            printI(0, "Removing DC component...")
 
             let dcComponent = calculateDC(points)
             let dcComponentStr = engineeringNF.string(dcComponent)
 
-            rigol2spice.printI(1, "Automatically calculated DC component: \(dcComponentStr)\(verticalUnit)")
+            printI(1, "Automatically calculated DC component: \(dcComponentStr)\(verticalUnit)")
 
             points = offsetPoints(points, offset: 0 - dcComponent)
         }
@@ -273,7 +273,7 @@ struct rigol2spice: ParsableCommand {
             let offsetValueStr = engineeringNF.string(offsetValue)
             engineeringNF.positiveSign = ""
 
-            rigol2spice.printI(0, "Offsetting signal by \(offsetValueStr)\(verticalUnit)...")
+            printI(0, "Offsetting signal by \(offsetValueStr)\(verticalUnit)...")
 
             points = offsetPoints(points, offset: offsetValue)
         }
@@ -286,7 +286,7 @@ struct rigol2spice: ParsableCommand {
 
             let multiplicationFactorStr = engineeringNF.string(multiplicationFactor)
 
-            rigol2spice.printI(0, "Multiplying the signal by a factor of \(multiplicationFactorStr)\(verticalUnit)/\(verticalUnit)...")
+            printI(0, "Multiplying the signal by a factor of \(multiplicationFactorStr)\(verticalUnit)/\(verticalUnit)...")
 
             points = multiplyValueOfPoints(points, factor: multiplicationFactor)
         }
@@ -299,7 +299,7 @@ struct rigol2spice: ParsableCommand {
 
             let timeShiftValueString = engineeringNF.string(timeShiftValue)
 
-            rigol2spice.printI(0, "Shifting signal for \(timeShiftValueString)s...")
+            printI(0, "Shifting signal for \(timeShiftValueString)s...")
 
             let nPointsBefore = points.count
             points = timeShiftPoints(points, value: timeShiftValue)
@@ -316,7 +316,7 @@ struct rigol2spice: ParsableCommand {
 
             let cutValueString = engineeringNF.string(cutValue)
 
-            rigol2spice.printI(0, "Cutting signal after \(cutValueString)s...")
+            printI(0, "Cutting signal after \(cutValueString)s...")
 
             let nPointsBefore = points.count
             points = cutAfter(points, after: cutValue)
@@ -331,7 +331,7 @@ struct rigol2spice: ParsableCommand {
                 throw Rigol2SpiceErrors.invalidRepeatCountValue(value: repeatTimes)
             }
 
-            rigol2spice.printI(0, "Repeating capture for \(repeatTimes) times...")
+            printI(0, "Repeating capture for \(repeatTimes) times...")
 
             let nPointsBefore = points.count
             points = try repeatPoints(points, n: repeatTimes)
@@ -346,7 +346,7 @@ struct rigol2spice: ParsableCommand {
                 throw Rigol2SpiceErrors.invalidDownsampleValue(value: ds)
             }
 
-            rigol2spice.printI(0, "Downsampling at 1/\(ds)...")
+            printI(0, "Downsampling at 1/\(ds)...")
 
             let nPointsBefore = points.count
             points = downsamplePoints(points, interval: ds)
@@ -357,7 +357,7 @@ struct rigol2spice: ParsableCommand {
 
         // Compacting...
         if !keepAll, points.count >= 3 {
-            rigol2spice.printI(0, "Removing redundant sample points (optimize)...")
+            printI(0, "Removing redundant sample points (optimize)...")
 
             let nPointsBefore = points.count
             points = removeRedundant(points)
@@ -367,7 +367,7 @@ struct rigol2spice: ParsableCommand {
         }
 
         // Output
-        rigol2spice.printI(0, "Writing output file...")
+        printI(0, "Writing output file...")
         let nPoints = points.count
         let newFirstPointTime = points.first!.time
         let newLastPointTime = points.last!.time
@@ -378,7 +378,7 @@ struct rigol2spice: ParsableCommand {
         let lastSampleString = engineeringNF.string(newLastPointTime)
         let captureDurationString = engineeringNF.string(captureDuration)
 
-        rigol2spice.printI(1, "Number of sample points: \(nSamplesString)")
+        printI(1, "Number of sample points: \(nSamplesString)")
 
         var outputFileData = Data()
         var outputFileProgressBar = ProgressBar(count: points.count)
@@ -393,10 +393,10 @@ struct rigol2spice: ParsableCommand {
 
         let fileSizeStr = memBCF.string(fromByteCount: Int64(outputFileData.count))
 
-        rigol2spice.printI(1, "First sample: \(firstSampleString)s")
-        rigol2spice.printI(1, "Last sample: \(lastSampleString)s")
-        rigol2spice.printI(1, "Capture duration: \(captureDurationString)s")
-        rigol2spice.printI(1, "Saving file: \(fileSizeStr)...")
+        printI(1, "First sample: \(firstSampleString)s")
+        printI(1, "Last sample: \(lastSampleString)s")
+        printI(1, "Capture duration: \(captureDurationString)s")
+        printI(1, "Saving file: \(fileSizeStr)...")
 
         let outputFileUrl = filenameToUrl(outputFile)
         if FileManager.default.fileExists(atPath: outputFileUrl.path) {
@@ -404,7 +404,7 @@ struct rigol2spice: ParsableCommand {
         }
         FileManager.default.createFile(atPath: outputFileUrl.path, contents: outputFileData)
 
-        rigol2spice.printI(0, "Job complete")
+        printI(0, "Job complete")
         print("")
     }
 }

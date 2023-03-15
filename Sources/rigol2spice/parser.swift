@@ -139,16 +139,16 @@ class CSVParser {
                                                       String(lines.removeFirst()))
 
         // print header info:
-        rigol2spice.printI(1, "Channels:")
+        printI(1, "Channels:")
         for channel in headerInfo.channels {
-            rigol2spice.printI(2, " - \(channel.name) (unit: \(channel.unit ?? "none"))")
+            printI(2, " - \(channel.name) (unit: \(channel.unit ?? "none"))")
         }
         if let increment = headerInfo.increment {
             let incrementStr = engineeringNF.string(increment)
             
             let incrementInverted = 1 / increment
             let incrementInvertedStr = engineeringNF.string(incrementInverted)
-            rigol2spice.printI(1, "Time Increment: \(incrementStr)s \t (frequency: \(incrementInvertedStr)Hz)")
+            printI(1, "Time Increment: \(incrementStr)s \t (frequency: \(incrementInvertedStr)Hz)")
         }
         
         var progress = ProgressBar(count: lines.count)
