@@ -137,7 +137,7 @@ struct rigol2spice: ParsableCommand {
             rigol2spice.printI(1, "(This might take a while)")
         }
         
-        let paresed = try CSVParser.parseCsv(data,
+        let parsed = try CSVParser.parseCsv(data,
                                              forChannel: channel,
                                              listChannelsOnly: listChannels)
 
@@ -149,9 +149,9 @@ struct rigol2spice: ParsableCommand {
             throw Rigol2SpiceErrors.outputFileNotSpecified
         }
 
-        let header = paresed.header
-        let channel = paresed.selectedChannel
-        var points = paresed.points
+        let header = parsed.header
+        let channel = parsed.selectedChannel
+        var points = parsed.points
 
         let verticalUnit: String = {
             let vertUnit = channel!.unit ?? "Volt"
