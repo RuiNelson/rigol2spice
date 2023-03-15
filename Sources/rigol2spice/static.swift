@@ -1,5 +1,3 @@
-// (C) Rui Carneiro
-
 import Foundation
 import SwiftEngineeringNumberFormatter
 

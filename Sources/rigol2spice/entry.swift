@@ -1,5 +1,3 @@
-// (C) Rui Carneiro
-
 import ArgumentParser
 import Foundation
 import Progress

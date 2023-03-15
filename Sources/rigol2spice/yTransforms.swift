@@ -1,5 +1,3 @@
-// (C) Rui Carneiro
-
 import Foundation
 
 func multiplyValueOfPoints(_ points: [Point], factor: Double) -> [Point] {

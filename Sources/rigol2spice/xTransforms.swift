@@ -1,5 +1,3 @@
-// (C) Rui Carneiro
-
 import Foundation
 
 func equal(_ a: Double, _ b: Double, _ c: Double) -> Bool {

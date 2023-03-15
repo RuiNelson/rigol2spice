@@ -1,5 +1,3 @@
-// (C) Rui Carneiro
-
 import Foundation
 
 func parseEngineeringNotation(_ input: String) -> Double? {
