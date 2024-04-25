@@ -32,7 +32,7 @@ let engineeringNF: EngineeringNumberFormatter = {
 let decimalNF: NumberFormatter = {
     let nf = NumberFormatter()
     nf.numberStyle = .decimal
-    nf.hasThousandSeparators = true
+    nf.usesGroupingSeparator = true
     return nf
 }()
 
