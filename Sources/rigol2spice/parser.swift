@@ -1,6 +1,8 @@
 import Foundation
 import Progress
 
+// MARK: - ParseError
+
 public enum ParseError: LocalizedError {
     case invalidFileFormat
     case insufficientLines
@@ -23,6 +25,8 @@ public enum ParseError: LocalizedError {
     }
 }
 
+// MARK: - Point
+
 public struct Point {
     var time: Double
     var value: Double
@@ -33,6 +37,8 @@ public struct Point {
         return [timeString, valueString].joined(separator: "\t")
     }
 }
+
+// MARK: - CSVParser
 
 class CSVParser {
     public struct HeaderInfo {
@@ -60,12 +66,15 @@ class CSVParser {
             if text.lowercased() == "x" {
                 // no matter
                 ()
-            } else if text.lowercased() == "start" {
+            }
+            else if text.lowercased() == "start" {
                 // discard this value
                 ()
-            } else if text.lowercased() == "increment" {
+            }
+            else if text.lowercased() == "increment" {
                 incrementIndex = index
-            } else {
+            }
+            else {
                 // it's a channel!
                 let newChannel = Channel(name: text, row: index, unit: nil)
                 channels.append(newChannel)
@@ -143,12 +152,12 @@ class CSVParser {
         }
         if let increment = headerInfo.increment {
             let incrementStr = engineeringNF.string(increment)
-            
+
             let incrementInverted = 1 / increment
             let incrementInvertedStr = engineeringNF.string(incrementInverted)
             printI(1, "Time Increment: \(incrementStr)s \t (frequency: \(incrementInvertedStr)Hz)")
         }
-        
+
         var progress = ProgressBar(count: lines.count)
         progress.next()
         progress.next()

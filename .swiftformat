@@ -1,0 +1,16 @@
+# format options
+
+--allman false
+--enable acronyms,blankLinesBetweenImports,blockComments,isEmpty,markTypes,wrapEnumCases,wrapSwitchCases,yodaConditions
+--disable wrapMultilineStatementBraces
+--symlinks follow
+--indent 4
+--elseposition next-line
+--guardelse same-line
+--generictypes
+--asynccapturing
+--patternlet hoist
+--redundanttype inferred
+--importgrouping testable-first
+--self init-only
+--maxwidth 120

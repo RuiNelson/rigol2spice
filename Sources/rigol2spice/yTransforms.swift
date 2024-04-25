@@ -27,21 +27,21 @@ func calculateDC(_ points: [Point]) -> Double {
 func clamp(_ points: [Point], lowerLimit: Double?, upperLimit: Double?) -> [Point] {
     func pointTrasform(_ oldPoint: Point) -> Point {
         var newPoint = oldPoint
-        
+
         if let lowerLimit {
             if oldPoint.value < lowerLimit {
                 newPoint.value = lowerLimit
             }
         }
-        
+
         if let upperLimit {
             if oldPoint.value < upperLimit {
                 newPoint.value = upperLimit
             }
         }
-        
+
         return newPoint
     }
-    
+
     return points.map(pointTrasform)
 }

@@ -6,11 +6,14 @@ func printI(_ indent: Int, _ text: String) {
     if indent == 0 {
         print("")
         print("> " + text)
-    } else {
+    }
+    else {
         let spaces = Array(repeating: "    ", count: indent).joined()
         print(spaces + text)
     }
 }
+
+// MARK: - Rigol2SpiceErrors
 
 enum Rigol2SpiceErrors: LocalizedError {
     case outputFileNotSpecified
@@ -44,27 +47,32 @@ enum Rigol2SpiceErrors: LocalizedError {
     }
 }
 
+// MARK: - rigol2spice
+
 @main
 struct rigol2spice: ParsableCommand {
     @Flag(name: .shortAndLong, help: "Only list channels present in the file and quit")
-    var listChannels: Bool = false
+    var listChannels = false
 
     @Option(name: .shortAndLong, help: "The label of the channel to be processed")
-    var channel: String = "CH1"
+    var channel = "CH1"
 
     @Option(name: .long, help: "Clamp the signal to above this value (use N prefix for negative)")
     var clampMin: String?
-    
+
     @Option(name: .long, help: "Clamp the signal to below this value (use N prefix for negative)")
     var clampMax: String?
-    
+
     @Flag(name: [.customLong("dc", withSingleDash: true), .customLong("remove-dc")], help: "Remove DC component")
-    var removeDc: Bool = false
+    var removeDc = false
 
     @Option(name: .shortAndLong, help: "Offset value for signal (use M and P prefixes)")
     var offset: String?
 
-    @Option(name: [.customShort("m"), .customLong("multiply", withSingleDash: false)], help: "Multiplication factor for signal (use N prefix for negative)")
+    @Option(
+        name: [.customShort("m"), .customLong("multiply", withSingleDash: false)],
+        help: "Multiplication factor for signal (use N prefix for negative)"
+    )
     var multiplication: String?
 
     @Option(name: [.customShort("s"), .customLong("shift")], help: "Time-shift seconds (use L and R prefixes)")
@@ -79,25 +87,31 @@ struct rigol2spice: ParsableCommand {
     @Option(name: .shortAndLong, help: "Downsample ratio")
     var downsample: Int?
 
-    @Flag(name: .shortAndLong, help: "Don't remove redundant sample points. Sample points where the signal value maintains (useful for output file post-processing)")
-    var keepAll: Bool = false
+    @Flag(
+        name: .shortAndLong,
+        help: "Don't remove redundant sample points. Sample points where the signal value maintains (useful for output file post-processing)"
+    )
+    var keepAll = false
 
-    @Argument(help: "The filename of the .csv from the oscilloscope to be read", completion: CompletionKind.file(extensions: ["csv"]))
+    @Argument(
+        help: "The filename of the .csv from the oscilloscope to be read",
+        completion: CompletionKind.file(extensions: ["csv"])
+    )
     var inputFile: String
 
     @Argument(help: "The PWL filename to write to", completion: nil)
     var outputFile: String?
 
-    func filenameToUrl(_ filename: String) -> URL {
+    func filenameToURL(_ filename: String) -> URL {
         let ns = NSString(string: filename)
         let expandedNs = ns.expandingTildeInPath
         let expandedStr = String(expandedNs)
 
         let cd = FileManager.default.currentDirectoryPath
-        let cdUrl = URL(fileURLWithPath: cd)
+        let cdURL = URL(fileURLWithPath: cd)
 
-        let fileUrl = URL(fileURLWithPath: expandedStr, relativeTo: cdUrl)
-        return fileUrl
+        let fileURL = URL(fileURLWithPath: expandedStr, relativeTo: cdURL)
+        return fileURL
     }
 
     func nPointsReport(before: Int, after: Int) throws {
@@ -110,7 +124,8 @@ struct rigol2spice: ParsableCommand {
             let afterString = decimalNF.string(for: after)!
 
             printI(1, "From \(beforeString) samples to \(afterString) samples")
-        } else {
+        }
+        else {
             printI(1, "Maintained all the samples")
         }
     }
@@ -123,8 +138,8 @@ struct rigol2spice: ParsableCommand {
 
         // Loading
         printI(0, "Loading input file...")
-        let inputFileUrl = filenameToUrl(inputFile)
-        let data = try Data(contentsOf: inputFileUrl)
+        let inputFileURL = filenameToURL(inputFile)
+        let data = try Data(contentsOf: inputFileURL)
         let numBytesString = memBCF.string(fromByteCount: Int64(data.count))
 
         printI(1, "Read \(numBytesString)")
@@ -134,10 +149,10 @@ struct rigol2spice: ParsableCommand {
         if data.count > 1_000_000 {
             printI(1, "(This might take a while)")
         }
-        
+
         let parsed = try CSVParser.parseCsv(data,
-                                             forChannel: channel,
-                                             listChannelsOnly: listChannels)
+                                            forChannel: channel,
+                                            listChannelsOnly: listChannels)
 
         guard !listChannels else {
             return
@@ -189,60 +204,62 @@ struct rigol2spice: ParsableCommand {
 
         printI(1, "Last sample point: \(lastPointString)s")
         printI(1, "Capture duration: \(sampleDurationString)")
-        
+
         // Clamping
         if clampMin != nil || clampMax != nil {
             // values
             var clampMinDbl: Double?
             var clampMaxDbl: Double?
-            
+
             if let clampMin {
                 clampMinDbl = parseEngineeringNotation(clampMin)
                 guard clampMinDbl != nil else {
                     throw Rigol2SpiceErrors.invalidClampValue(value: clampMin)
                 }
             }
-            
+
             if let clampMax {
                 clampMaxDbl = parseEngineeringNotation(clampMax)
                 guard clampMaxDbl != nil else {
                     throw Rigol2SpiceErrors.invalidClampValue(value: clampMax)
                 }
             }
-            
+
             // sanity check
             if let clampMinDbl, let clampMaxDbl {
                 guard clampMaxDbl > clampMinDbl else {
                     throw Rigol2SpiceErrors.clampMinIsGreaterOrEqualToClampMax
                 }
             }
-            
+
             // present information to the user
             var print = "Clamping the signal "
-            
+
             var clampMinStr: String?
             var clampMaxStr: String?
-            
+
             if let clampMinDbl {
                 clampMinStr = engineeringNF.string(clampMinDbl) + verticalUnit
             }
-            
+
             if let clampMaxDbl {
                 clampMaxStr = engineeringNF.string(clampMaxDbl) + verticalUnit
             }
-            
+
             if let clampMinStr, let clampMaxStr {
                 print = print + ["between", clampMinStr, "and", clampMaxStr]
-            } else if let clampMinStr {
+            }
+            else if let clampMinStr {
                 print = print + ["above", clampMinStr]
-            } else if let clampMaxStr {
+            }
+            else if let clampMaxStr {
                 print = print + ["below", clampMaxStr]
             }
-            
+
             print += "..."
-            
+
             printI(0, print)
-            
+
             // operation
             points = clamp(points, lowerLimit: clampMinDbl, upperLimit: clampMaxDbl)
         }
@@ -282,7 +299,10 @@ struct rigol2spice: ParsableCommand {
 
             let multiplicationFactorStr = engineeringNF.string(multiplicationFactor)
 
-            printI(0, "Multiplying the signal by a factor of \(multiplicationFactorStr)\(verticalUnit)/\(verticalUnit)...")
+            printI(
+                0,
+                "Multiplying the signal by a factor of \(multiplicationFactorStr)\(verticalUnit)/\(verticalUnit)..."
+            )
 
             points = multiplyValueOfPoints(points, factor: multiplicationFactor)
         }
@@ -394,11 +414,11 @@ struct rigol2spice: ParsableCommand {
         printI(1, "Capture duration: \(captureDurationString)s")
         printI(1, "Saving file: \(fileSizeStr)...")
 
-        let outputFileUrl = filenameToUrl(outputFile)
-        if FileManager.default.fileExists(atPath: outputFileUrl.path) {
-            try FileManager.default.removeItem(at: outputFileUrl)
+        let outputFileURL = filenameToURL(outputFile)
+        if FileManager.default.fileExists(atPath: outputFileURL.path) {
+            try FileManager.default.removeItem(at: outputFileURL)
         }
-        FileManager.default.createFile(atPath: outputFileUrl.path, contents: outputFileData)
+        FileManager.default.createFile(atPath: outputFileURL.path, contents: outputFileData)
 
         printI(0, "Job complete")
         print("")

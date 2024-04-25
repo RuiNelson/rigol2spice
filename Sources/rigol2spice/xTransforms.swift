@@ -63,7 +63,8 @@ func repeatPoints(_ points: [Point], n: Int) throws -> [Point] {
     for i in 0 ... n {
         if i == 0 {
             newPoints.append(contentsOf: points)
-        } else {
+        }
+        else {
             let start = newPoints.last!.time + increment
             let shifted = timeShiftPoints(points, value: start)
 
