@@ -2,7 +2,7 @@
 
 *A program to convert Rigol oscilloscopes CSV files to a format readable by LTspice.*
 
-This program reads CSV files from Rigol oscillospes and outputs to a time-value format used by LtSpice and other SPICE programs ([PWL data](https://www.analog.com/en/technical-articles/ltspice-importing-exporting-pwl-data.html)). 
+This program reads CSV files from Rigol oscilloscopes and outputs to a time-value format used by LtSpice and other SPICE programs ([PWL data](https://www.analog.com/en/technical-articles/ltspice-importing-exporting-pwl-data.html)). 
 
 [![YouTube video](https://img.youtube.com/vi/AaCvPtJ-cZM/0.jpg)](https://www.youtube.com/watch?v=AaCvPtJ-cZM)
 
@@ -27,7 +27,7 @@ Download the program from [here](https://github.com/RuiCarneiro/rigol2spice/rele
 
 A Rigol CSV file can store captures from multiple channels (including physical channels and math channels), but a PWL file can only have one channel.
 
-You can analyse and list all the channels in your CSV file with the `--list-channels` flag (e.g. `C:\rigol2spice\rigol2spice.exe --list-channels D:\NewFile1.csv`) can produce:
+You can analyze and list all the channels in your CSV file with the `--list-channels` flag (e.g. `C:\rigol2spice\rigol2spice.exe --list-channels D:\NewFile1.csv`) can produce:
 
     Channels:
        - CH1 (unit: Volt)
@@ -43,7 +43,7 @@ By default, `rigol2spice` will use `CH1`. If you want to use channel 2, use the 
 Sometimes is useful to clamp the capture between a lower and/or a upper value. Use the `--clamp-min` and `--clamp-max` flags to apply clamping of the signal. And use the `N` prefix to indicate negative values, e.g.:
 
 * `--clamp-max 5.1` will clamp the upper limit of the signal to 5.1 (vertical unit)
-* `--clamp-min N0.1` will clamp the lower limit of the sigal to -0.1 (vertical unit)
+* `--clamp-min N0.1` will clamp the lower limit of the signal to -0.1 (vertical unit)
 * `--clamp-min 0 --clamp-max 3.3` will clamp the lower limit of the signal to 0 (vertical unit) and 3.3 (vertical unit). 
 
 #### Remove the DC Component
@@ -52,24 +52,24 @@ You can remove the DC component using the `--remove-dc` flag. `rigol2spice` will
 
 #### Apply Vertical Offset
 
-The `--offset` option alllows you to apply a vertical offsset to a signal. In the argument, use the `U` or `D` prefixes for up and down direction then the desired value, e.g.:
+The `--offset` option allows you to apply a vertical offset to a signal. In the argument, use the `U` or `D` prefixes for up and down direction then the desired value, e.g.:
 
 * `--offset U1` will offset the signal 1 (vertical unit) up (positive)
-* `--offset D0.500` will offset the singal negatively (down) by 500m (vertical unit)
+* `--offset D0.500` will offset the signal negatively (down) by 500m (vertical unit)
 
 You can also use SI prefixes, e.g. `D500m` equals `D0.500`.
 
-#### Multiply Verically (Amplify or Attenuate)
+#### Multiply Vertically (Amplify or Attenuate)
 
-If you want to amplify or attenature the signal (for example, if you forgot to change the probe attenuation compensation on the scope), you can use the `--multiply` option. Use the `N` prefix to indicate a negative value, e.g.:
+If you want to amplify or attenuate the signal (for example, if you forgot to change the probe attenuation compensation on the scope), you can use the `--multiply` option. Use the `N` prefix to indicate a negative value, e.g.:
 
 * `--multiply 10` will amplify the signal by 10X
-* `--multiply 0.001` will attenuate the singnal by 1000X
+* `--multiply 0.001` will attenuate the signal by 1000X
 * `--multiply N1` will change the polarity of the signal
 
 #### Combining Vertical Operations
 
-`rigol2spice` will execute vertical orders allways in the following order:
+`rigol2spice` will execute vertical orders always in the following order:
 
 1. Clamping (if specified)
 2. Remove DC (if specified)
@@ -107,19 +107,19 @@ For example `rigol2spice.exe --shift L5ms --cut 7.5ms --repeat 3` will result in
 
 1. Nullify the first 5 milliseconds of the capture, and bring the waveform 5ms to the left
 2. Remove everything after the new 7.5ms mark. (12.5ms in the original waveform), the total width of the waveform is now 7.5ms.
-3. Repeat the same 7.5ms three times, the resulting PWL file is 30ms in lenght
+3. Repeat the same 7.5ms three times, the resulting PWL file is 30ms in length
 
 ### Downsampling and Post-Processing
 
 #### Downsampling
 
-You can reduce the sample rate of the capture with the `--downsample` option. A `--downsample 2` will skip every odd point of the capture and will turn a 100 Megasample/s capture into a 50 Megsample/s capture for example.
+You can reduce the sample rate of the capture with the `--downsample` option. A `--downsample 2` will skip every odd point of the capture and will turn a 100 Megasample/s capture into a 50 Megasample/s capture for example.
 
-#### Deactivating Optimisations
+#### Deactivating Optimizations
 
 To optimize the resulting PWL file, `rigol2spice` will skip sample points where the value maintained from the previous point. This produces smaller PWL files for LtSpice that will save CPU time when simulating (due to less parsing), while producing the exact same results.
 
-But you might want to disable this optimisation, for example, if you are passing the results to another tool for analysis/transformation. Use the `--keep-all` flag if you want this.
+But you might want to disable this optimization, for example, if you are passing the results to another tool for analysis/transformation. Use the `--keep-all` flag if you want this.
 
 ## Usage reference
 
