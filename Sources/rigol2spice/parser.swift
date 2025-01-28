@@ -32,9 +32,10 @@ public struct Point {
     var value: Double
 
     var serialize: String {
-        let timeString = timeNF.string(for: time)!
-        let valueString = valueNF.string(for: value)!
-        return [timeString, valueString].joined(separator: "\t")
+        let time = spiceFormatter.string(for: time)!
+        let value = spiceFormatter.string(for: value)!
+        
+        return [time, "\t", value].joined()
     }
 }
 
@@ -151,10 +152,10 @@ class CSVParser {
             printI(2, " - \(channel.name) (unit: \(channel.unit ?? "none"))")
         }
         if let increment = headerInfo.increment {
-            let incrementStr = engineeringNF.string(increment)
+            let incrementStr = engineeringFormatter.string(increment)
 
             let incrementInverted = 1 / increment
-            let incrementInvertedStr = engineeringNF.string(incrementInverted)
+            let incrementInvertedStr = engineeringFormatter.string(incrementInverted)
             printI(1, "Time Increment: \(incrementStr)s \t (frequency: \(incrementInvertedStr)Hz)")
         }
 

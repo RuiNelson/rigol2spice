@@ -32,7 +32,7 @@ func parseEngineeringNotation(_ input: String) -> Double? {
         }
     }()
 
-    guard let value = engineeringNF.double(numberStr) else {
+    guard let value = engineeringFormatter.double(numberStr) else {
         return nil
     }
 
