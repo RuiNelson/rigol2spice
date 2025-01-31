@@ -50,7 +50,6 @@ class CSVParser {
     public struct Channel {
         var name: String
         var row: Int
-        var unit: String?
     }
 
     private static func parseFirstAndSecondLines(_ line1: String, _ line2: String) throws -> HeaderInfo {
@@ -77,7 +76,7 @@ class CSVParser {
             }
             else {
                 // it's a channel!
-                let newChannel = Channel(name: text, row: index, unit: nil)
+                let newChannel = Channel(name: text, row: index)
                 channels.append(newChannel)
             }
         }
@@ -96,13 +95,6 @@ class CSVParser {
         let incrementString = line2Fields[incrementIndex]
         guard let increment = Double(incrementString) else {
             throw ParseError.invalidIncrementValue(value: String(incrementString))
-        }
-
-        channels = channels.map {
-            var copy = $0
-            let unit = line2Fields[$0.row]
-            copy.unit = String(unit)
-            return copy
         }
 
         return HeaderInfo(channels: channels, increment: increment)
@@ -149,7 +141,7 @@ class CSVParser {
         // print header info:
         printI(1, "Channels:")
         for channel in headerInfo.channels {
-            printI(2, " - \(channel.name) (unit: \(channel.unit ?? "none"))")
+            printI(2, " - \(channel.name)")
         }
         if let increment = headerInfo.increment {
             let incrementStr = engineeringFormatter.string(increment)
