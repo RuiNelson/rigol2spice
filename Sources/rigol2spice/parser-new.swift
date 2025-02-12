@@ -106,6 +106,11 @@ class CentaurusParser {
         
         var progress = ProgressBar(count: pointLines.count)
 
+        // Convert each line into a Point by:
+        // 1. Split line into columns by comma
+        // 2. Extract time from first column and value from selected channel's column
+        // 3. Convert strings to doubles
+        // 4. Create Point with time and value
         var points: [Point] = try pointLines.map { line in
             let lineColumns = line.split(separator: ",")
 
@@ -139,11 +144,12 @@ class CentaurusParser {
             return points
         }
 
+        // Sort points from the latest to the earliest
         points = points.sorted(by: { before, after in
             after.time > before.time
         })
 
-        // Apply time offset
+        // Apply time offset, so the first point is at time 0 seconds.
         let miniumTime = points.first!.time
 
         if miniumTime < 0 {
