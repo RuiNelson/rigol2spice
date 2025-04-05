@@ -65,7 +65,7 @@ enum Rigol2SpiceErrors: LocalizedError {
 struct rigol2spice: ParsableCommand {
     @Flag(
         name: .shortAndLong,
-        help: "Format used by Rigol Centaurus platform."
+        help: "Adopts the format used by the newer Rigol Centaurus platform oscilloscopes."
     )
     var newModels = false
 
@@ -94,8 +94,7 @@ struct rigol2spice: ParsableCommand {
 
     @Flag(
         name: [
-            .customLong("dc", withSingleDash: true),
-            .customLong("remove-dc"),
+            .customLong("removedc"),
         ],
         help: "Remove DC component"
     )
