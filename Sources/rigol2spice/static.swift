@@ -8,7 +8,14 @@ let spiceFormatter: NumberFormatter = {
     nf.locale = usLocale
     nf.numberStyle = .decimal
     nf.minimumSignificantDigits = 1
-    nf.maximumSignificantDigits = 16
+    nf.maximumSignificantDigits = 14
+    return nf
+}()
+
+let numberOfPointsFormatter: NumberFormatter = {
+    let nf = NumberFormatter()
+    nf.numberStyle = .decimal
+    nf.hasThousandSeparators = true
     return nf
 }()
 

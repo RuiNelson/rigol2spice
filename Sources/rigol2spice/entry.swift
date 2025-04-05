@@ -6,8 +6,7 @@ func printI(_ indent: Int, _ text: String) {
     if indent == 0 {
         print("")
         print("> " + text)
-    }
-    else {
+    } else {
         let spaces = Array(repeating: "    ", count: indent).joined()
         print(spaces + text)
     }
@@ -31,18 +30,31 @@ enum Rigol2SpiceErrors: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .outputFileNotSpecified: return "Please specify the output file name after the input file name"
-        case .inputFileContainsNoPoints: return "Input file contains zero samples"
-        case let .invalidOffsetValue(value: v): return "Invalid offset value: \(v)"
-        case let .invalidAmplificationValue(value: v): return "Invalid amplification factor: \(v)"
-        case let .invalidDownsampleValue(value: v): return "Invalid downsample value: \(v)"
-        case let .invalidTimeShiftValue(value: v): return "Invalid time-shift value: \(v)"
-        case let .invalidCutAfterValue(value: v): return "Invalid cut timestamp: \(v)"
-        case let .invalidRepeatCountValue(value: v): return "Invalid repeat count value: \(v)"
-        case let .invalidClampValue(value: v): return "Invalid clamping value: \(v)"
-        case .mustHaveAtLeastTwoPointsToRepeat: return "Must have at least two original samples to repeat capture"
-        case .operationRemovedEveryPoint: return "Operation removed every sample"
-        case .clampMinIsGreaterOrEqualToClampMax: return "`clamp-max` must be greater than `clamp-min`"
+        case .outputFileNotSpecified:
+            return
+                "Please specify the output file name after the input file name"
+        case .inputFileContainsNoPoints:
+            return "Input file contains zero samples"
+        case let .invalidOffsetValue(value: v):
+            return "Invalid offset value: \(v)"
+        case let .invalidAmplificationValue(value: v):
+            return "Invalid amplification factor: \(v)"
+        case let .invalidDownsampleValue(value: v):
+            return "Invalid downsample value: \(v)"
+        case let .invalidTimeShiftValue(value: v):
+            return "Invalid time-shift value: \(v)"
+        case let .invalidCutAfterValue(value: v):
+            return "Invalid cut timestamp: \(v)"
+        case let .invalidRepeatCountValue(value: v):
+            return "Invalid repeat count value: \(v)"
+        case let .invalidClampValue(value: v):
+            return "Invalid clamping value: \(v)"
+        case .mustHaveAtLeastTwoPointsToRepeat:
+            return "Must have at least two original samples to repeat capture"
+        case .operationRemovedEveryPoint:
+            return "Operation removed every sample"
+        case .clampMinIsGreaterOrEqualToClampMax:
+            return "`clamp-max` must be greater than `clamp-min`"
         }
     }
 }
@@ -51,45 +63,92 @@ enum Rigol2SpiceErrors: LocalizedError {
 
 @main
 struct rigol2spice: ParsableCommand {
-    @Flag(name: .shortAndLong, help: "Only list channels present in the file and quit")
+    @Flag(
+        name: .shortAndLong,
+        help: "Adopts the format used by the newer Rigol Centaurus platform oscilloscopes."
+    )
+    var newModels = false
+
+    @Flag(
+        name: .shortAndLong,
+        help: "Only list channels present in the file and quit"
+    )
     var listChannels = false
 
-    @Option(name: .shortAndLong, help: "The label of the channel to be processed")
-    var channel = "CH1"
+    @Option(
+        name: .shortAndLong, help: "The label of the channel to be processed"
+    )
+    var channel: String?
 
-    @Option(name: .long, help: "Clamp the signal to above this value (use N prefix for negative)")
+    @Option(
+        name: .long,
+        help: "Clamp the signal to above this value (use N prefix for negative)"
+    )
     var clampMin: String?
 
-    @Option(name: .long, help: "Clamp the signal to below this value (use N prefix for negative)")
+    @Option(
+        name: .long,
+        help: "Clamp the signal to below this value (use N prefix for negative)"
+    )
     var clampMax: String?
 
-    @Flag(name: [.customLong("dc", withSingleDash: true), .customLong("remove-dc")], help: "Remove DC component")
+    @Flag(
+        name: [
+            .customLong("removedc"),
+        ],
+        help: "Remove DC component"
+    )
     var removeDc = false
 
-    @Option(name: .shortAndLong, help: "Offset value for signal (use M and P prefixes)")
+    @Option(
+        name: .shortAndLong,
+        help: "Offset value for signal (use M and P prefixes)"
+    )
     var offset: String?
 
     @Option(
-        name: [.customShort("m"), .customLong("multiply", withSingleDash: false)],
+        name: [
+            .customShort("m"),
+            .customLong("multiply", withSingleDash: false),
+        ],
         help: "Multiplication factor for signal (use N prefix for negative)"
     )
     var multiplication: String?
 
-    @Option(name: [.customShort("s"), .customLong("shift")], help: "Time-shift seconds (use L and R prefixes)")
+    @Option(
+        name: [
+            .customShort("s"),
+            .customLong("shift"),
+        ],
+        help: "Time-shift seconds (use L and R prefixes)"
+    )
     var timeShift: String?
 
-    @Option(name: [.customShort("x"), .customLong("cut")], help: "Cut signal after timestamp")
+    @Option(
+        name: [.customShort("x"), .customLong("cut")],
+        help: "Cut signal after timestamp"
+    )
     var cut: String?
 
-    @Option(name: [.customShort("r"), .customLong("repeat")], help: "Repeat signal number of times")
+    @Option(
+        name: [
+            .customShort("r"),
+            .customLong("repeat"),
+        ],
+        help: "Repeat signal number of times"
+    )
     var repeatTimes: Int?
 
-    @Option(name: .shortAndLong, help: "Downsample ratio")
+    @Option(
+        name: .shortAndLong,
+        help: "Downsample ratio"
+    )
     var downsample: Int?
 
     @Flag(
         name: .shortAndLong,
-        help: "Don't remove redundant sample points. Sample points where the signal value maintains (useful for output file post-processing)"
+        help:
+            "Don't remove redundant sample points. Sample points where the signal value maintains (useful for output file post-processing)"
     )
     var keepAll = false
 
@@ -120,12 +179,10 @@ struct rigol2spice: ParsableCommand {
         }
 
         if after != before {
-            let beforeString = decimalNF.string(for: before)!
-            let afterString = decimalNF.string(for: after)!
-
-            printI(1, "From \(beforeString) samples to \(afterString) samples")
-        }
-        else {
+            let before = numberOfPointsFormatter.string(for: before)!
+            let after = numberOfPointsFormatter.string(for: after)!
+            printI(1, "From \(before) samples to \(after) samples")
+        } else {
             printI(1, "Maintained all the samples")
         }
     }
@@ -140,7 +197,8 @@ struct rigol2spice: ParsableCommand {
         printI(0, "Loading input file...")
         let inputFileURL = filenameToURL(inputFile)
         let data = try Data(contentsOf: inputFileURL)
-        let numBytesString = memBCF.string(fromByteCount: Int64(data.count))
+        let numBytesString = fileSizeFormatter.string(
+            fromByteCount: Int64(data.count))
 
         printI(1, "Read \(numBytesString)")
 
@@ -150,9 +208,97 @@ struct rigol2spice: ParsableCommand {
             printI(1, "(This might take a while)")
         }
 
-        let parsed = try CSVParser.parseCsv(data,
-                                            forChannel: channel,
-                                            listChannelsOnly: listChannels)
+        func presentNumberOfPoints() {
+            let num = points.count
+            let str = numberOfPointsFormatter.string(for: num)!
+            printI(1, "Samples: \(str)")
+
+            if let last = points.last {
+                let lastTime = engineeringFormatter.string(last.time)
+                printI(1, "Last sample point: \(lastTime)s")
+            }
+        }
+
+        func presentSampleIntervalAndSampleRate(
+            interval: Double, duration: Double, pointsCount: Int
+        ) {
+            let rate = Double(pointsCount) / duration
+
+            let intervalString = engineeringFormatter.string(interval)
+            let rateString = engineeringFormatter.string(rate)
+            let durationString = engineeringFormatter.string(duration)
+
+            printI(1, "Sample Interval : \(intervalString)s")
+            printI(1, "Sample Rate     : \(rateString)sa/s")
+            printI(1, "Capture Duration: \(durationString)s")
+        }
+
+        var points: [Point] = .init()
+        var sampleTimeInterval: Double = .init()
+        var sampleDuration: Double = .init()
+
+        if newModels {
+            points = try CentaurusParser.parseCsv(
+                data,
+                forChannel: channel ?? "CH1",
+                listChannelsOnly: listChannels)
+
+            guard !listChannels else {
+                return
+            }
+
+            guard !points.isEmpty else {
+                throw Rigol2SpiceErrors.inputFileContainsNoPoints
+            }
+
+            presentNumberOfPoints()
+
+            if points.count >= 2 {
+                let lastPointIndex = points.count - 1
+                let penultimatePointIndex = points.count - 2
+
+                sampleTimeInterval =
+                    points[lastPointIndex].time
+                    - points[penultimatePointIndex].time
+
+                sampleDuration =
+                    points[lastPointIndex].time + sampleTimeInterval
+
+                presentSampleIntervalAndSampleRate(
+                    interval: sampleTimeInterval,
+                    duration: sampleDuration,
+                    pointsCount: points.count)
+            }
+
+        } else {
+            let parsed = try CSVParser.parseCsv(
+                data,
+                forChannel: channel ?? "CH1",
+                listChannelsOnly: listChannels)
+            
+            guard !listChannels else {
+                return
+            }
+            
+            points = parsed.points
+
+            guard !points.isEmpty else {
+                throw Rigol2SpiceErrors.inputFileContainsNoPoints
+            }
+
+            presentNumberOfPoints()
+
+            sampleTimeInterval = parsed.header.increment ?? 0.0
+            sampleDuration = points.last!.time + sampleTimeInterval
+
+            // Sample Rate Calculation
+            if points.count >= 2 {
+                presentSampleIntervalAndSampleRate(
+                    interval: sampleTimeInterval,
+                    duration: sampleDuration,
+                    pointsCount: points.count)
+            }
+        }
 
         guard !listChannels else {
             return
@@ -161,49 +307,6 @@ struct rigol2spice: ParsableCommand {
         guard let outputFile = outputFile else {
             throw Rigol2SpiceErrors.outputFileNotSpecified
         }
-
-        let header = parsed.header
-        let channel = parsed.selectedChannel
-        var points = parsed.points
-
-        let verticalUnit: String = {
-            let vertUnit = channel!.unit ?? "Volt"
-
-            switch vertUnit {
-            case "Volt": return "V"
-            case "Ampere": return "A"
-            case "Watt": return "W"
-            default: return vertUnit
-            }
-        }()
-
-        guard !points.isEmpty else {
-            throw Rigol2SpiceErrors.inputFileContainsNoPoints
-        }
-
-        let sampleTimeInterval = header.increment ?? 0
-        let lastPointTime = points.last!.time
-        let sampleDuration = lastPointTime + sampleTimeInterval
-
-        let nPointsString = decimalNF.string(for: points.count)!
-        let lastPointString = engineeringNF.string(lastPointTime)
-        let sampleDurationString = engineeringNF.string(sampleDuration)
-
-        printI(1, "Samples: \(nPointsString)")
-
-        // Sample Rate Calculation
-        if points.count >= 2 {
-            let sampleRate = 1 / sampleTimeInterval
-
-            let timeIntervalString = engineeringNF.string(sampleTimeInterval)
-            let sampleRateString = engineeringNF.string(sampleRate)
-
-            printI(1, "Sample interval: \(timeIntervalString)s")
-            printI(1, "Sample rate: \(sampleRateString)sa/s")
-        }
-
-        printI(1, "Last sample point: \(lastPointString)s")
-        printI(1, "Capture duration: \(sampleDurationString)")
 
         // Clamping
         if clampMin != nil || clampMax != nil {
@@ -239,20 +342,18 @@ struct rigol2spice: ParsableCommand {
             var clampMaxStr: String?
 
             if let clampMinDbl {
-                clampMinStr = engineeringNF.string(clampMinDbl) + verticalUnit
+                clampMinStr = engineeringFormatter.string(clampMinDbl)
             }
 
             if let clampMaxDbl {
-                clampMaxStr = engineeringNF.string(clampMaxDbl) + verticalUnit
+                clampMaxStr = engineeringFormatter.string(clampMaxDbl)
             }
 
             if let clampMinStr, let clampMaxStr {
                 print = print + ["between", clampMinStr, "and", clampMaxStr]
-            }
-            else if let clampMinStr {
+            } else if let clampMinStr {
                 print = print + ["above", clampMinStr]
-            }
-            else if let clampMaxStr {
+            } else if let clampMaxStr {
                 print = print + ["below", clampMaxStr]
             }
 
@@ -261,7 +362,8 @@ struct rigol2spice: ParsableCommand {
             printI(0, print)
 
             // operation
-            points = clamp(points, lowerLimit: clampMinDbl, upperLimit: clampMaxDbl)
+            points = clamp(
+                points, lowerLimit: clampMinDbl, upperLimit: clampMaxDbl)
         }
 
         // Removing DC component
@@ -269,9 +371,10 @@ struct rigol2spice: ParsableCommand {
             printI(0, "Removing DC component...")
 
             let dcComponent = calculateDC(points)
-            let dcComponentStr = engineeringNF.string(dcComponent)
+            let dcComponentStr = engineeringFormatter.string(dcComponent)
 
-            printI(1, "Automatically calculated DC component: \(dcComponentStr)\(verticalUnit)")
+            printI(
+                1, "Automatically calculated DC component: \(dcComponentStr)")
 
             points = offsetPoints(points, offset: 0 - dcComponent)
         }
@@ -282,26 +385,31 @@ struct rigol2spice: ParsableCommand {
                 throw Rigol2SpiceErrors.invalidOffsetValue(value: offset)
             }
 
-            engineeringNF.positiveSign = "+"
-            let offsetValueStr = engineeringNF.string(offsetValue)
-            engineeringNF.positiveSign = ""
+            engineeringFormatter.positiveSign = "+"
+            let offsetValueStr = engineeringFormatter.string(offsetValue)
+            engineeringFormatter.positiveSign = ""
 
-            printI(0, "Offsetting signal by \(offsetValueStr)\(verticalUnit)...")
+            printI(0, "Offsetting signal by \(offsetValueStr)...")
 
             points = offsetPoints(points, offset: offsetValue)
         }
 
         // Multiplication
         if let multiplication = multiplication {
-            guard let multiplicationFactor = parseEngineeringNotation(multiplication) else {
-                throw Rigol2SpiceErrors.invalidAmplificationValue(value: multiplication)
+            guard
+                let multiplicationFactor = parseEngineeringNotation(
+                    multiplication)
+            else {
+                throw Rigol2SpiceErrors.invalidAmplificationValue(
+                    value: multiplication)
             }
 
-            let multiplicationFactorStr = engineeringNF.string(multiplicationFactor)
+            let multiplicationFactorStr = engineeringFormatter.string(
+                multiplicationFactor)
 
             printI(
                 0,
-                "Multiplying the signal by a factor of \(multiplicationFactorStr)\(verticalUnit)/\(verticalUnit)..."
+                "Multiplying the signal by a factor of \(multiplicationFactorStr)..."
             )
 
             points = multiplyValueOfPoints(points, factor: multiplicationFactor)
@@ -309,11 +417,13 @@ struct rigol2spice: ParsableCommand {
 
         // Time-shift
         if let timeShift = timeShift {
-            guard let timeShiftValue = parseEngineeringNotation(timeShift) else {
+            guard let timeShiftValue = parseEngineeringNotation(timeShift)
+            else {
                 throw Rigol2SpiceErrors.invalidTimeShiftValue(value: timeShift)
             }
 
-            let timeShiftValueString = engineeringNF.string(timeShiftValue)
+            let timeShiftValueString = engineeringFormatter.string(
+                timeShiftValue)
 
             printI(0, "Shifting signal for \(timeShiftValueString)s...")
 
@@ -326,11 +436,12 @@ struct rigol2spice: ParsableCommand {
 
         // Cut
         if let cut = cut {
-            guard let cutValue = parseEngineeringNotation(cut), cutValue > 0 else {
+            guard let cutValue = parseEngineeringNotation(cut), cutValue > 0
+            else {
                 throw Rigol2SpiceErrors.invalidCutAfterValue(value: cut)
             }
 
-            let cutValueString = engineeringNF.string(cutValue)
+            let cutValueString = engineeringFormatter.string(cutValue)
 
             printI(0, "Cutting signal after \(cutValueString)s...")
 
@@ -344,7 +455,8 @@ struct rigol2spice: ParsableCommand {
         // Repeat
         if let repeatTimes = repeatTimes {
             guard repeatTimes > 0 else {
-                throw Rigol2SpiceErrors.invalidRepeatCountValue(value: repeatTimes)
+                throw Rigol2SpiceErrors.invalidRepeatCountValue(
+                    value: repeatTimes)
             }
 
             printI(0, "Repeating capture for \(repeatTimes) times...")
@@ -389,10 +501,10 @@ struct rigol2spice: ParsableCommand {
         let newLastPointTime = points.last!.time
         let captureDuration = newLastPointTime + sampleTimeInterval
 
-        let nSamplesString = decimalNF.string(for: nPoints)!
-        let firstSampleString = engineeringNF.string(newFirstPointTime)
-        let lastSampleString = engineeringNF.string(newLastPointTime)
-        let captureDurationString = engineeringNF.string(captureDuration)
+        let nSamplesString = numberOfPointsFormatter.string(for: nPoints)!
+        let firstSampleString = engineeringFormatter.string(newFirstPointTime)
+        let lastSampleString = engineeringFormatter.string(newLastPointTime)
+        let captureDurationString = engineeringFormatter.string(captureDuration)
 
         printI(1, "Number of sample points: \(nSamplesString)")
 
@@ -407,7 +519,8 @@ struct rigol2spice: ParsableCommand {
             outputFileProgressBar.next()
         }
 
-        let fileSizeStr = memBCF.string(fromByteCount: Int64(outputFileData.count))
+        let fileSizeStr = fileSizeFormatter.string(
+            fromByteCount: Int64(outputFileData.count))
 
         printI(1, "First sample: \(firstSampleString)s")
         printI(1, "Last sample: \(lastSampleString)s")
@@ -418,7 +531,8 @@ struct rigol2spice: ParsableCommand {
         if FileManager.default.fileExists(atPath: outputFileURL.path) {
             try FileManager.default.removeItem(at: outputFileURL)
         }
-        FileManager.default.createFile(atPath: outputFileURL.path, contents: outputFileData)
+        FileManager.default.createFile(
+            atPath: outputFileURL.path, contents: outputFileData)
 
         printI(0, "Job complete")
         print("")
