@@ -71,12 +71,12 @@ Values accept engineering notation: `5ms`, `100us`, `3.3ns`, `5E-3s`.
 ## Example: Extract One Period and Repeat
 
 ```
-rigol2spice --shift L5ms --cut 7.5ms --repeat 3 input.csv output.txt
+rigol2spice --shift L5ms --cut 7.5ms --repeat 2 input.csv output.txt
 ```
 
-1. Shift waveform 5 ms left
-2. Cut at 7.5 ms (keeping one clean period)
-3. Repeat 3x -- output is 30 ms of periodic signal
+1. Shift waveform 5 ms left (removes first 5 ms, time starts at 0)
+2. Cut at 7.5 ms (keeps only 0 -- 7.5 ms of the shifted waveform)
+3. Repeat 2 times (creates 3 total copies -- original + 2 repetitions = 22.5 ms total)
 
 ## Full Usage Reference
 
