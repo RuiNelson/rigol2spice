@@ -235,6 +235,8 @@ struct Rigol2SpiceApplication {
             Console.section("Shifting signal for \(engineeringFormatter.string(value))s...")
         case let .cutAfter(value):
             Console.section("Cutting signal after \(engineeringFormatter.string(value))s...")
+        case let .cutBefore(value):
+            Console.section("Cutting signal before \(engineeringFormatter.string(value))s...")
         case let .repeat(amount):
             Console.section("Repeating capture for \(engineeringFormatter.string(amount)) times...")
         case let .lowPass(cutoff):

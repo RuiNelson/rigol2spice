@@ -261,6 +261,17 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `cut before discards samples before the timestamp`() throws {
+        #expect(try Transformation.parseList("CutBefore 2") == [.cutBefore(2)])
+
+        let points = (0 ... 4).map { Point(time: Double($0), value: Double($0)) }
+        let result = try Transformation.cutBefore(2).applying(to: points)
+
+        #expect(result.map(\.time) == [2, 3, 4])
+        #expect(result.map(\.value) == [2, 3, 4])
+    }
+
+    @Test
     func `vertical transforms preserve times and transform values`() {
         let points = [Point(time: 0, value: -1), Point(time: 1, value: 2), Point(time: 2, value: 5)]
 

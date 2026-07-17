@@ -91,6 +91,18 @@ func cutPointsAfter(_ points: [Point], after: Double) -> [Point] {
     return Array(points[..<endIndex])
 }
 
+/// Discard samples strictly before `before`; keep times unchanged.
+func cutPointsBefore(_ points: [Point], before: Double) -> [Point] {
+    let startIndex = firstPointIndex(atOrAfter: before, in: points)
+    guard startIndex > 0 else {
+        return points
+    }
+    guard startIndex < points.count else {
+        return []
+    }
+    return Array(points[startIndex...])
+}
+
 func repeatPoints(_ points: [Point], amount: Double) throws -> [Point] {
     guard points.count >= 2 else {
         throw Rigol2SpiceError.mustHaveAtLeastTwoPointsToRepeat

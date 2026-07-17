@@ -48,6 +48,7 @@ enum Transformation: Equatable {
     case dbW(level: Double, resistance: Double)
     case timeShift(Double)
     case cutAfter(Double)
+    case cutBefore(Double)
     case `repeat`(Double)
     case lowPass(Double)
     case highPass(Double)
@@ -205,6 +206,8 @@ enum Transformation: Equatable {
                     throw TransformationParseError.invalidPositiveScalar(operation: operation, value: arguments[0])
                 }
                 return .cutAfter(value)
+            case "cutbefore":
+                return try .cutBefore(scalar())
             case "repeat":
                 let value = try scalar()
                 guard value > 0, value < Double(Int.max) else {
@@ -231,6 +234,7 @@ enum Transformation: Equatable {
         switch self {
         case .timeShift,
              .cutAfter,
+             .cutBefore,
              .repeat:
             true
         default:
@@ -289,6 +293,8 @@ enum Transformation: Equatable {
             return timeShiftPoints(points, value: value)
         case let .cutAfter(value):
             return cutPointsAfter(points, after: value)
+        case let .cutBefore(value):
+            return cutPointsBefore(points, before: value)
         case let .repeat(amount):
             return try repeatPoints(points, amount: amount)
         case let .lowPass(cutoff):

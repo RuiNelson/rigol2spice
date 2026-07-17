@@ -67,6 +67,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `dBW` | `dBW 0` · `dBW -30` | Same as `dBmW` but relative to 1 W (0 dBW = 30 dBm ≈ 7.07 V @ 50 Ω)³ |
 | `TimeShift` | `TimeShift -5m` | Shift timestamps; negative values shift left |
 | `CutAfter` | `CutAfter 10u` | Discard samples at or after the timestamp |
+| `CutBefore` | `CutBefore 5m` | Discard samples before the timestamp |
 | `Repeat` | `Repeat 2.5` | Append two copies and the first 50% of another |
 | `LowPass` | `LowPass 1k` | Apply a low-pass filter² |
 | `HighPass` | `HighPass 100` | Apply a high-pass filter² |
