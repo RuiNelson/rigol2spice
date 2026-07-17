@@ -1,5 +1,4 @@
 import Foundation
-import Progress
 
 // MARK: - Rigol2SpiceError
 
@@ -221,10 +220,7 @@ struct Rigol2SpiceApplication {
         console.section("Writing output file...")
         console.detail("Number of sample points: \(numberOfPointsFormatter.string(for: points.count)!)")
 
-        var progressBar = ProgressBar(count: points.count)
-        let byteCount = try PWLWriter().write(points, to: fileURL(for: outputFile)) { _ in
-            progressBar.next()
-        }
+        let byteCount = try PWLWriter().write(points, to: fileURL(for: outputFile))
 
         let firstTime = points[0].time
         let lastTime = points[points.count - 1].time

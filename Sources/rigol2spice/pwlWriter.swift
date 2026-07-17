@@ -18,7 +18,6 @@ struct PWLWriter {
     func write(
         _ points: [Point],
         to outputURL: URL,
-        progress: ((Int) -> Void)? = nil,
     ) throws -> Int {
         var data = Data()
         let (estimatedCapacity, overflow) = points.count.multipliedReportingOverflow(by: 32)
@@ -26,13 +25,12 @@ struct PWLWriter {
             data.reserveCapacity(estimatedCapacity)
         }
 
-        for (index, point) in points.enumerated() {
+        for point in points {
             guard let pointData = point.serialize.data(using: .ascii) else {
                 throw PWLWriterError.nonASCIIOutput
             }
             data.append(pointData)
             data.append(Self.newline)
-            progress?(index + 1)
         }
 
         try data.write(to: outputURL, options: .atomic)
