@@ -226,6 +226,10 @@ struct Rigol2SpiceApplication {
             Console.section("Integrating the signal...")
         case let .deadZone(value):
             Console.section("Applying dead zone of ±\(engineeringFormatter.string(value))...")
+        case let .limit(lower, upper):
+            Console.section(
+                "Limiting the signal between \(engineeringFormatter.string(lower)) and \(engineeringFormatter.string(upper))...",
+            )
         case let .db(value):
             let sign = value >= 0 ? "+" : ""
             Console.section("Scaling the signal by \(sign)\(engineeringFormatter.string(value))dB...")

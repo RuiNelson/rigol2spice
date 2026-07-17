@@ -10,6 +10,7 @@ enum TransformationParseError: LocalizedError, Equatable {
     case invalidPositiveScalar(operation: String, value: String)
     case invalidFrequencyBand(operation: String, low: String, high: String)
     case invalidTimeRange(operation: String, start: String, end: String)
+    case invalidRange(operation: String, low: String, high: String)
 
     var errorDescription: String? {
         switch self {
@@ -27,6 +28,8 @@ enum TransformationParseError: LocalizedError, Equatable {
             "\(operation) requires 0 < f1 < f2, but received \(low) and \(high)"
         case let .invalidTimeRange(operation, start, end):
             "\(operation) requires start < end, but received \(start) and \(end)"
+        case let .invalidRange(operation, low, high):
+            "\(operation) requires low < high, but received \(low) and \(high)"
         }
     }
 }
@@ -50,6 +53,7 @@ enum Transformation: Equatable {
     case diff
     case integrate
     case deadZone(Double)
+    case limit(lower: Double, upper: Double)
     case db(Double)
     case dbmW(level: Double, resistance: Double)
     case dbW(level: Double, resistance: Double)
@@ -224,6 +228,18 @@ enum Transformation: Equatable {
                     )
                 }
                 return .deadZone(value)
+            case "limit":
+                try requireArgumentCount(2)
+                let lower = try parseScalarArgument(arguments[0])
+                let upper = try parseScalarArgument(arguments[1])
+                guard lower < upper else {
+                    throw TransformationParseError.invalidRange(
+                        operation: operation,
+                        low: arguments[0],
+                        high: arguments[1],
+                    )
+                }
+                return .limit(lower: lower, upper: upper)
             case "db":
                 return try .db(scalar())
             case "dbmw", "dbm":
@@ -338,6 +354,8 @@ enum Transformation: Equatable {
             return integratePoints(points)
         case let .deadZone(value):
             return deadZonePoints(points, threshold: value)
+        case let .limit(lower, upper):
+            return clamp(points, lowerLimit: lower, upperLimit: upper)
         case let .db(value):
             return multiplyValueOfPoints(points, factor: pow(10, value / 20))
         case let .dbmW(level, resistance):

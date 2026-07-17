@@ -444,6 +444,20 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `limit clamps between lower and upper bounds`() throws {
+        #expect(try Transformation.parseList("Limit -0.7, 0.7") == [.limit(lower: -0.7, upper: 0.7)])
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("Limit 1, 0")
+        }
+
+        let points = [Point(time: 0, value: -1), Point(time: 1, value: 0), Point(time: 2, value: 2)]
+        let result = try Transformation.limit(lower: -0.7, upper: 0.7).applying(to: points)
+
+        #expect(result.map(\.value) == [-0.7, 0, 0.7])
+        #expect(result.map(\.time) == [0, 1, 2])
+    }
+
+    @Test
     func `legacy parser reads a real oscilloscope capture`() throws {
         let capture = try LegacyCSVParser().parse(sampleData(named: "Legacy"), channel: "ch2")
 
