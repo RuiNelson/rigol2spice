@@ -336,6 +336,10 @@ struct Rigol2SpiceApplication {
                     "Extending signal to \(engineeringFormatter.string(endTime))s (hold last value)...",
                 )
             }
+        case let .resample(interval):
+            Console.section(
+                "Resampling to a \(engineeringFormatter.string(interval))s interval...",
+            )
         case let .cutAfter(value):
             Console.section("Cutting signal after \(engineeringFormatter.string(value))s...")
         case let .cutBefore(value):

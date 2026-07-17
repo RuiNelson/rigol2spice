@@ -97,6 +97,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `Seamless` | `Seamless` · `Seamless 100n` | Force last value = first (or append a ramp of the given duration); alias `MatchEnds` |
 | `Pad` | `Pad 5m` · `Pad 5m, 0` | Extend by a duration, holding the last value (or a given level); alias `HoldLast` |
 | `ExtendTo` | `ExtendTo 10m` · `ExtendTo 10m, 0` | Extend to an absolute end time, holding the last value (or a given level) |
+| `Resample` | `Resample 1n` | Linearly interpolate onto a uniform sample interval |
 | `CutBefore` | `CutBefore 5m` | Discard samples before the timestamp |
 | `CutAfter` | `CutAfter 10u` | Discard samples at or after the timestamp |
 | `Trim` | `Trim 1m, 10m` | Keep samples with start ≤ t < end |

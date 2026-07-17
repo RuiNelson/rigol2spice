@@ -254,6 +254,23 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `resample interpolates onto a uniform grid`() throws {
+        #expect(try Transformation.parseList("Resample 0.5") == [.resample(0.5)])
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("Resample 0")
+        }
+
+        let points = [
+            Point(time: 0, value: 0),
+            Point(time: 1, value: 10),
+            Point(time: 2, value: 20),
+        ]
+        let result = try Transformation.resample(0.5).applying(to: points)
+        #expect(result.map(\.time) == [0, 0.5, 1, 1.5, 2])
+        #expect(result.map(\.value) == [0, 5, 10, 15, 20])
+    }
+
+    @Test
     func `pad and extendTo lengthen the capture`() throws {
         #expect(try Transformation.parseList("Pad 5") == [.pad(duration: 5, value: nil)])
         #expect(try Transformation.parseList("HoldLast 2, 0") == [.pad(duration: 2, value: 0)])

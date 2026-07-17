@@ -125,6 +125,60 @@ func alignEdgePoints(
     throw Rigol2SpiceError.edgeNotFound(rising: rising, threshold: threshold)
 }
 
+/// Linearly interpolate onto a uniform grid with the given sample interval.
+func resamplePoints(_ points: [Point], interval: Double) throws -> [Point] {
+    guard interval > 0, interval.isFinite else {
+        throw TransformationParseError.invalidPositiveScalar(
+            operation: "Resample",
+            value: String(interval),
+        )
+    }
+    guard points.count >= 2 else {
+        return points
+    }
+
+    let start = points[0].time
+    let end = points[points.count - 1].time
+    guard end > start else {
+        return points
+    }
+
+    let duration = end - start
+    let stepCount = Int((duration / interval).rounded(.down))
+    var output: [Point] = []
+    output.reserveCapacity(stepCount + 2)
+
+    var sourceIndex = 0
+    var time = start
+    var steps = 0
+    while time < end - interval * 1e-12 {
+        while sourceIndex + 1 < points.count, points[sourceIndex + 1].time < time {
+            sourceIndex += 1
+        }
+        let before = points[sourceIndex]
+        let afterIndex = min(sourceIndex + 1, points.count - 1)
+        let after = points[afterIndex]
+        let value: Double
+        if after.time == before.time {
+            value = before.value
+        }
+        else {
+            let progress = (time - before.time) / (after.time - before.time)
+            value = before.value + (after.value - before.value) * progress
+        }
+        output.append(Point(time: time, value: value))
+        steps += 1
+        time = start + Double(steps) * interval
+        // Safety against huge allocations
+        if steps > 100_000_000 {
+            break
+        }
+    }
+    // Always include the original end sample
+    output.append(points[points.count - 1])
+    return output
+}
+
 /// Extend the capture by `duration` past the last sample, holding `value` (or the last value).
 func padPoints(_ points: [Point], duration: Double, value: Double?) -> [Point] {
     guard !points.isEmpty, duration > 0 else {

@@ -68,6 +68,7 @@ enum Transformation: Equatable {
     case seamless(rampDuration: Double?)
     case pad(duration: Double, value: Double?)
     case extendTo(endTime: Double, value: Double?)
+    case resample(Double)
     case cutAfter(Double)
     case cutBefore(Double)
     case trim(start: Double, end: Double)
@@ -447,6 +448,15 @@ enum Transformation: Equatable {
                     holdValue = nil
                 }
                 return .extendTo(endTime: endTime, value: holdValue)
+            case "resample":
+                let value = try scalar()
+                guard value > 0 else {
+                    throw TransformationParseError.invalidPositiveScalar(
+                        operation: operation,
+                        value: arguments[0],
+                    )
+                }
+                return .resample(value)
             case "cutafter":
                 let value = try scalar()
                 guard value > 0 else {
@@ -496,6 +506,7 @@ enum Transformation: Equatable {
              .seamless,
              .pad,
              .extendTo,
+             .resample,
              .cutAfter,
              .cutBefore,
              .trim,
@@ -591,6 +602,8 @@ enum Transformation: Equatable {
             return padPoints(points, duration: duration, value: value)
         case let .extendTo(endTime, value):
             return extendPoints(to: endTime, points: points, value: value)
+        case let .resample(interval):
+            return try resamplePoints(points, interval: interval)
         case let .cutAfter(value):
             return cutPointsAfter(points, after: value)
         case let .cutBefore(value):
