@@ -1,0 +1,370 @@
+name: Windows
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Windows ${{ matrix.arch }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            triple: x86_64-unknown-windows-msvc
+            pe_machine: "8664" # IMAGE_FILE_MACHINE_AMD64
+            native: true
+          - arch: arm64
+            triple: aarch64-unknown-windows-msvc
+            pe_machine: "AA64" # IMAGE_FILE_MACHINE_ARM64
+            native: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Swift 6.2
+        uses: compnerd/gha-setup-swift@main
+        with:
+          swift-version: swift-6.2.4-release
+          swift-build: 6.2.4-RELEASE
+          build_arch: amd64
+          update-sdk-modules: true
+          cache: true
+
+      - name: Build release (static stdlib)
+        shell: pwsh
+        env:
+          TRIPLE: ${{ matrix.triple }}
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          if (-not $env:SDKROOT) {
+            throw "SDKROOT is not set after Swift installation"
+          }
+
+          $experimentalSdk = Join-Path (Split-Path -Path $env:SDKROOT -Parent) "WindowsExperimental.sdk"
+          $triple = $env:TRIPLE
+          $common = @(
+            "build",
+            "--triple", $triple,
+            "-c", "release",
+            "-debug-info-format", "none",
+            "--product", "rigol2spice"
+          )
+
+          if (Test-Path $experimentalSdk) {
+            Write-Host "Using experimental static SDK: $experimentalSdk"
+            Write-Host "Target triple: $triple"
+            & swift @common `
+              -Xswiftc -sdk -Xswiftc $experimentalSdk `
+              -Xswiftc -static-stdlib
+          } else {
+            Write-Host "Experimental SDK not found; building with --static-swift-stdlib"
+            Write-Host "Target triple: $triple"
+            & swift @common --static-swift-stdlib
+          }
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "swift build failed with exit code $LASTEXITCODE"
+          }
+
+      - name: Package minimal runtime
+        shell: pwsh
+        env:
+          ARCH: ${{ matrix.arch }}
+          TRIPLE: ${{ matrix.triple }}
+          PE_MACHINE: ${{ matrix.pe_machine }}
+          IS_NATIVE: ${{ matrix.native }}
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $arch = $env:ARCH
+          $triple = $env:TRIPLE
+          $expectedMachine = [Convert]::ToUInt16($env:PE_MACHINE, 16)
+          $isNative = $env:IS_NATIVE -eq "true"
+
+          $exeName = "rigol2spice.exe"
+          $candidates = @(
+            (Join-Path $PWD ".build\$triple\release\$exeName"),
+            (Join-Path $PWD ".build\release\$exeName")
+          )
+          $exePath = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $exePath) {
+            throw "Built executable not found under .build for triple $triple"
+          }
+          $buildDir = Split-Path -Path $exePath -Parent
+
+          $dist = Join-Path $PWD "dist\windows-$arch"
+          if (Test-Path $dist) { Remove-Item -Recurse -Force $dist }
+          New-Item -ItemType Directory -Force -Path $dist | Out-Null
+          Copy-Item -Force $exePath (Join-Path $dist $exeName)
+
+          function Get-PEMachine([string]$Binary) {
+            $bytes = [System.IO.File]::ReadAllBytes($Binary)
+            if ($bytes.Length -lt 0x40) { return 0 }
+            $peOffset = [BitConverter]::ToInt32($bytes, 0x3C)
+            if ($peOffset -le 0 -or ($peOffset + 6) -ge $bytes.Length) { return 0 }
+            if ([BitConverter]::ToUInt32($bytes, $peOffset) -ne 0x00004550) { return 0 }
+            return [BitConverter]::ToUInt16($bytes, $peOffset + 4)
+          }
+
+          $exeMachine = Get-PEMachine (Join-Path $dist $exeName)
+          if ($exeMachine -ne $expectedMachine) {
+            throw ("Executable PE machine 0x{0:X4} does not match expected 0x{1:X4} for {2}" -f $exeMachine, $expectedMachine, $arch)
+          }
+          Write-Host ("Executable PE machine OK: 0x{0:X4} ({1})" -f $exeMachine, $arch)
+
+          function Test-SystemDll([string]$Name) {
+            $n = $Name.ToLowerInvariant()
+            if ($n -match '^(api-ms-win-|ext-ms-)') { return $true }
+            $system = @(
+              "kernel32.dll", "kernelbase.dll", "ntdll.dll", "user32.dll", "gdi32.dll",
+              "advapi32.dll", "shell32.dll", "ole32.dll", "oleaut32.dll", "rpcrt4.dll",
+              "sechost.dll", "combase.dll", "shlwapi.dll", "ws2_32.dll", "bcrypt.dll",
+              "bcryptprimitives.dll", "crypt32.dll", "cryptbase.dll", "iphlpapi.dll",
+              "mswsock.dll", "secur32.dll", "sspicli.dll", "userenv.dll", "version.dll",
+              "winmm.dll", "wldap32.dll", "normaliz.dll", "msvcrt.dll", "ucrtbase.dll",
+              "imm32.dll", "setupapi.dll", "cfgmgr32.dll", "powrprof.dll", "profapi.dll",
+              "dwmapi.dll", "dbghelp.dll", "psapi.dll", "winhttp.dll", "wininet.dll"
+            )
+            if ($system -contains $n) { return $true }
+            if ($n -match '^vcruntime\d') { return $true }
+            if ($n -match '^msvcp\d') { return $true }
+            if ($n -match '^concrt\d') { return $true }
+            if ($n -match '^vccorlib\d') { return $true }
+            return $false
+          }
+
+          function Get-Dumpbin {
+            $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+            if (-not (Test-Path $vswhere)) { return $null }
+            $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+            if (-not $vs) { return $null }
+            $candidate = Get-ChildItem -Path (Join-Path $vs "VC\Tools\MSVC") -Recurse -Filter dumpbin.exe -ErrorAction SilentlyContinue |
+              Where-Object { $_.FullName -match '\\Hostx64\\x64\\dumpbin\.exe$' } |
+              Select-Object -First 1
+            if ($candidate) { return $candidate.FullName }
+            return $null
+          }
+
+          function Get-PEImports([string]$Binary, [string]$Dumpbin) {
+            if ($Dumpbin) {
+              $output = & $Dumpbin /dependents $Binary 2>$null
+              return @(
+                $output |
+                  ForEach-Object { $_.Trim() } |
+                  Where-Object { $_ -match '(?i)\.dll$' }
+              )
+            }
+
+            $bytes = [System.IO.File]::ReadAllBytes($Binary)
+            if ($bytes.Length -lt 0x40) { return @() }
+            $peOffset = [BitConverter]::ToInt32($bytes, 0x3C)
+            if ($peOffset -le 0 -or ($peOffset + 24) -ge $bytes.Length) { return @() }
+            if ([BitConverter]::ToUInt32($bytes, $peOffset) -ne 0x00004550) { return @() }
+
+            $numberOfSections = [BitConverter]::ToUInt16($bytes, $peOffset + 6)
+            $sizeOfOptionalHeader = [BitConverter]::ToUInt16($bytes, $peOffset + 20)
+            $optHeaderOffset = $peOffset + 24
+            $magic = [BitConverter]::ToUInt16($bytes, $optHeaderOffset)
+            $importDirRvaOffset = if ($magic -eq 0x20B) { $optHeaderOffset + 120 } else { $optHeaderOffset + 104 }
+            if (($importDirRvaOffset + 4) -gt $bytes.Length) { return @() }
+
+            $importRva = [BitConverter]::ToUInt32($bytes, $importDirRvaOffset)
+            if ($importRva -eq 0) { return @() }
+
+            $sectionsOffset = $optHeaderOffset + $sizeOfOptionalHeader
+
+            $rvaToOffset = {
+              param([uint32]$Rva)
+              for ($i = 0; $i -lt $numberOfSections; $i++) {
+                $sec = $sectionsOffset + ($i * 40)
+                if (($sec + 24) -gt $bytes.Length) { break }
+                $virtSize = [BitConverter]::ToUInt32($bytes, $sec + 8)
+                $virtAddr = [BitConverter]::ToUInt32($bytes, $sec + 12)
+                $rawSize = [BitConverter]::ToUInt32($bytes, $sec + 16)
+                $rawPtr = [BitConverter]::ToUInt32($bytes, $sec + 20)
+                $span = [Math]::Max($virtSize, $rawSize)
+                if ($Rva -ge $virtAddr -and $Rva -lt ($virtAddr + $span)) {
+                  return [int]($rawPtr + ($Rva - $virtAddr))
+                }
+              }
+              return -1
+            }
+
+            $imports = New-Object System.Collections.Generic.List[string]
+            $descOffset = & $rvaToOffset $importRva
+            if ($descOffset -lt 0) { return @() }
+
+            while (($descOffset + 20) -le $bytes.Length) {
+              $nameRva = [BitConverter]::ToUInt32($bytes, $descOffset + 12)
+              $origFirstThunk = [BitConverter]::ToUInt32($bytes, $descOffset)
+              $firstThunk = [BitConverter]::ToUInt32($bytes, $descOffset + 16)
+              if ($nameRva -eq 0 -and $origFirstThunk -eq 0 -and $firstThunk -eq 0) { break }
+
+              $nameOffset = & $rvaToOffset $nameRva
+              if ($nameOffset -ge 0) {
+                $end = $nameOffset
+                while ($end -lt $bytes.Length -and $bytes[$end] -ne 0) { $end++ }
+                $name = [System.Text.Encoding]::ASCII.GetString($bytes, $nameOffset, $end - $nameOffset)
+                if ($name) { [void]$imports.Add($name) }
+              }
+              $descOffset += 20
+            }
+            return $imports.ToArray()
+          }
+
+          function Find-Dll([string]$DllName, [string[]]$SearchRoots, [uint16]$ExpectedMachine) {
+            $hits = New-Object System.Collections.Generic.List[string]
+
+            foreach ($root in $SearchRoots) {
+              if (-not $root -or -not (Test-Path $root)) { continue }
+              $direct = Join-Path $root $DllName
+              if (Test-Path $direct) { [void]$hits.Add((Resolve-Path $direct).Path) }
+              Get-ChildItem -Path $root -Filter $DllName -Recurse -ErrorAction SilentlyContinue |
+                ForEach-Object { [void]$hits.Add($_.FullName) }
+            }
+            foreach ($dir in ($env:Path -split ";")) {
+              if (-not $dir) { continue }
+              $candidate = Join-Path $dir $DllName
+              if (Test-Path $candidate) { [void]$hits.Add((Resolve-Path $candidate).Path) }
+            }
+
+            $unique = $hits | Select-Object -Unique
+            foreach ($path in $unique) {
+              $machine = Get-PEMachine $path
+              if ($machine -eq $ExpectedMachine) { return $path }
+            }
+            # Prefer arch-named path segments if machine could not be read.
+            foreach ($path in $unique) {
+              $lower = $path.ToLowerInvariant()
+              if ($ExpectedMachine -eq 0xAA64 -and ($lower -match 'aarch64|arm64')) { return $path }
+              if ($ExpectedMachine -eq 0x8664 -and ($lower -match 'x86_64|amd64|[\\/]x64([\\/]|$)')) { return $path }
+            }
+            return $null
+          }
+
+          $dumpbin = Get-Dumpbin
+          if ($dumpbin) {
+            Write-Host "Using dumpbin: $dumpbin"
+          } else {
+            Write-Host "dumpbin not found; using built-in PE import parser"
+          }
+
+          $swiftBin = Split-Path -Path (Get-Command swift).Source -Parent
+          $searchRoots = @(
+            $buildDir,
+            $env:SDKROOT,
+            (Split-Path -Path $env:SDKROOT -Parent),
+            $swiftBin,
+            (Split-Path -Path $swiftBin -Parent)
+          ) | Where-Object { $_ } | Select-Object -Unique
+
+          $queue = [System.Collections.Generic.Queue[string]]::new()
+          $queue.Enqueue((Join-Path $dist $exeName))
+          $seen = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+          $copied = New-Object System.Collections.Generic.List[string]
+
+          while ($queue.Count -gt 0) {
+            $current = $queue.Dequeue()
+            foreach ($dep in (Get-PEImports -Binary $current -Dumpbin $dumpbin)) {
+              $base = [IO.Path]::GetFileName($dep)
+              if (-not $base) { continue }
+              if (Test-SystemDll $base) { continue }
+              if (-not $seen.Add($base)) { continue }
+
+              $dest = Join-Path $dist $base
+              if (Test-Path $dest) {
+                $queue.Enqueue($dest)
+                continue
+              }
+
+              $source = Find-Dll -DllName $base -SearchRoots $searchRoots -ExpectedMachine $expectedMachine
+              if (-not $source) {
+                Write-Host "::warning::Could not locate matching $arch dependency: $base"
+                continue
+              }
+
+              Copy-Item -Force $source $dest
+              [void]$copied.Add($base)
+              $queue.Enqueue($dest)
+              Write-Host "Bundled $base from $source"
+            }
+          }
+
+          Write-Host "---- Package contents (windows-$arch) ----"
+          Get-ChildItem $dist | Sort-Object Name | ForEach-Object {
+            "{0,-40} {1,12:N0} bytes" -f $_.Name, $_.Length
+          }
+          Write-Host "Bundled non-system DLL count: $($copied.Count)"
+
+          if (-not $isNative) {
+            Write-Host "Skipping smoke test for cross-compiled $arch binary on this runner"
+            return
+          }
+
+          # Smoke-test without the toolchain on PATH so missing DLLs fail loudly.
+          $cleanPath = ($env:Path -split ";" | Where-Object {
+            $_ -and
+            ($_ -ne $swiftBin) -and
+            ($_ -notmatch '(?i)[\\/]Swift([\\/]|$)') -and
+            ($_ -notmatch '(?i)Toolchains') -and
+            ($_ -notmatch '(?i)Windows\.platform')
+          }) -join ";"
+
+          $psi = New-Object System.Diagnostics.ProcessStartInfo
+          $psi.FileName = Join-Path $dist $exeName
+          $psi.Arguments = "--help"
+          $psi.WorkingDirectory = $dist
+          $psi.UseShellExecute = $false
+          $psi.RedirectStandardOutput = $true
+          $psi.RedirectStandardError = $true
+          $psi.CreateNoWindow = $true
+          if ($psi.Environment.ContainsKey("Path")) {
+            $psi.Environment["Path"] = $cleanPath
+          } elseif ($psi.Environment.ContainsKey("PATH")) {
+            $psi.Environment["PATH"] = $cleanPath
+          } else {
+            $psi.Environment.Add("Path", $cleanPath)
+          }
+
+          $proc = [System.Diagnostics.Process]::Start($psi)
+          $stdout = $proc.StandardOutput.ReadToEnd()
+          $stderr = $proc.StandardError.ReadToEnd()
+          $proc.WaitForExit()
+          if ($proc.ExitCode -ne 0) {
+            Write-Host $stdout
+            Write-Host $stderr
+            throw "Packaged executable failed smoke test (exit $($proc.ExitCode))"
+          }
+          Write-Host "Smoke test OK (rigol2spice --help)"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rigol2spice-windows-${{ matrix.arch }}
+          path: dist/windows-${{ matrix.arch }}/
+          if-no-files-found: error
+
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $arch = $env:ARCH
+          $zip = "rigol2spice-windows-$arch.zip"
+          if (Test-Path $zip) { Remove-Item $zip }
+          Compress-Archive -Path "dist\windows-$arch\*" -DestinationPath $zip
+          gh release upload "${{ github.ref_name }}" $zip --clobber
