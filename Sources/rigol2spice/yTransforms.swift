@@ -28,14 +28,6 @@ func offsetPoints(_ points: [Point], offset: Double) -> [Point] {
     return output
 }
 
-func calculateDC(_ points: [Point]) -> Double {
-    var sum = 0.0
-    for point in points {
-        sum += point.value
-    }
-    return sum / Double(points.count)
-}
-
 func clamp(_ points: [Point], lowerLimit: Double?, upperLimit: Double?) -> [Point] {
     guard lowerLimit != nil || upperLimit != nil else {
         return points

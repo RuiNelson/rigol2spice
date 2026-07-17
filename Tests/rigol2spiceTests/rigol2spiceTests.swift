@@ -179,7 +179,6 @@ struct Rigol2spiceTests {
 
         #expect(multiplyValueOfPoints(points, factor: 2).map(\.value) == [-2, 4, 10])
         #expect(offsetPoints(points, offset: 0.5).map(\.value) == [-0.5, 2.5, 5.5])
-        #expect(calculateDC(points) == 2)
         #expect(clamp(points, lowerLimit: 0, upperLimit: 3).map(\.value) == [0, 2, 3])
         #expect(offsetPoints(points, offset: 1).map(\.time) == [0, 1, 2])
     }

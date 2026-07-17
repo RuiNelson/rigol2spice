@@ -133,9 +133,16 @@ struct Rigol2SpiceApplication {
         var points = source
 
         for transformation in transformations {
-            reportTransformation(transformation, points: points)
             let countBefore = points.count
-            points = try transformation.applying(to: points)
+            if case .removeDC = transformation {
+                let estimate = estimateDC(points)
+                reportTransformation(transformation, points: points, dcEstimate: estimate)
+                points = offsetPoints(points, offset: -estimate.value)
+            }
+            else {
+                reportTransformation(transformation, points: points)
+                points = try transformation.applying(to: points)
+            }
 
             if transformation.reportsPointCount {
                 try reportPointCount(before: countBefore, after: points.count)
@@ -159,11 +166,20 @@ struct Rigol2SpiceApplication {
         return points
     }
 
-    private func reportTransformation(_ transformation: Transformation, points: [Point]) {
+    private func reportTransformation(
+        _ transformation: Transformation,
+        points: [Point],
+        dcEstimate: DCEstimate? = nil,
+    ) {
         switch transformation {
         case .removeDC:
+            let estimate = dcEstimate ?? estimateDC(points)
             console.section("Removing DC component...")
-            console.detail("Automatically calculated DC component: \(engineeringFormatter.string(calculateDC(points)))")
+            console.detail("Automatically calculated DC component: \(engineeringFormatter.string(estimate.value))")
+            let centroids = estimate.centroids
+                .map { engineeringFormatter.string($0) }
+                .joined(separator: ", ")
+            console.detail("K-means centroids: \(centroids) (\(estimate.iterations) iterations)")
         case let .clampMin(value):
             console.section("Clamping the signal above \(engineeringFormatter.string(value))...")
         case let .clampMax(value):

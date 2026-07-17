@@ -50,7 +50,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 
 | Operation | Example | Effect |
 |---|---|---|
-| `RemoveDC` | `RemoveDC` | Subtract the DC average |
+| `RemoveDC` | `RemoveDC` | Estimate and subtract the DC component¹ |
 | `ClampMin` | `ClampMin 0` | Clamp values below the scalar |
 | `ClampMax` | `ClampMax 3.3` | Clamp values above the scalar |
 | `Offset` | `Offset -1.5` | Add the scalar to every value |
@@ -60,6 +60,8 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `Repeat` | `Repeat 2.5` | Append two copies and the first 50% of another |
 
 Scalars accept decimal (`0.7`), engineering (`3n`, `10u`), and scientific (`5e-3`) notation. Use `-` for negative values. `Repeat` requires a value greater than zero and accepts fractional repetitions; its final point is interpolated when needed. Transformations run strictly from left to right.
+
+¹ `RemoveDC` estimates the DC component from the capture by applying one-dimensional k-means clustering with `k = 3` to all finite sample values. Several deterministic initializations are evaluated and the clustering with the smallest squared error is selected. The DC estimate is the midpoint between the lower and upper centroids.
 
 ### Post-processing Options
 
