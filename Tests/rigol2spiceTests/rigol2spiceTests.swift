@@ -134,7 +134,7 @@ struct Rigol2spiceTests {
         #expect(abs(plusSix[0].value - sixFactor) < 1e-12)
         #expect(abs(plusSix[1].value - (-2 * sixFactor)) < 1e-12)
         #expect(abs(minusTwenty[0].value - 0.1) < 1e-12)
-        #expect(abs(minusTwenty[1].value - (-0.2)) < 1e-12)
+        #expect(abs(minusTwenty[1].value - -0.2) < 1e-12)
         #expect(unity.map(\.value) == [1, -2])
     }
 
@@ -355,7 +355,7 @@ struct Rigol2spiceTests {
         let points = [Point(time: 0, value: -2), Point(time: 1, value: 1)]
         let result = try Transformation.peakTo(3.3).applying(to: points)
 
-        #expect(abs(result[0].value - (-3.3)) < 1e-12)
+        #expect(abs(result[0].value - -3.3) < 1e-12)
         #expect(abs(result[1].value - 1.65) < 1e-12)
     }
 

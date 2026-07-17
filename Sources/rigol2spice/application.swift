@@ -109,7 +109,7 @@ struct Rigol2SpiceApplication {
 
     private func reportCapture(_ capture: Capture) {
         if let selectedChannel = capture.selectedChannel {
-            Console.detail("Selected channel: \(selectedChannel)")
+            Console.detail("Selected channel / expression: \(selectedChannel)")
         }
 
         Console.detail("Samples: \(numberOfPointsFormatter.string(for: capture.points.count)!)")

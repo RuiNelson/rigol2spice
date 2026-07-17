@@ -38,6 +38,14 @@ Select a specific channel (default is `CH1`):
 rigol2spice --channel CH2 input.csv output.txt
 ```
 
+Combine channels with `+`, `-`, `*`, and `/` (standard precedence; parentheses allowed). Only channel names are allowed — no numeric literals. Transformations then apply to the result:
+
+```
+rigol2spice -c 'CH1+CH2' input.csv output.txt
+rigol2spice -c '(CH1-CH2)/CH3' input.csv output.txt
+rigol2spice -c 'CH1-CH2' -t 'RemoveDC' input.csv output.txt
+```
+
 ## Transformations
 
 Pass an ordered list of transformation commands with `-t` or `--transformations`. Separate commands with semicolons and quote the complete string for the shell:
@@ -112,7 +120,7 @@ USAGE: rigol2spice [<options>] <input-file> [<output-file>]
 OPTIONS:
   -n,  --new-models               Newer Rigol Centaurus platform format
   -l,  --list-channels            List channels and exit
-  -c,  --channel <channel>        Channel to process (default: CH1)
+  -c,  --channel <channel>        Channel or math expression (default: CH1)
   -t,  --transformations <value>  Ordered transformations separated by semicolons
   -d,  --downsample <ratio>       Downsample ratio
   -k,  --keep-all                 Keep all sample points

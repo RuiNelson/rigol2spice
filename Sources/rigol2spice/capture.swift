@@ -7,6 +7,8 @@ enum ParseError: LocalizedError, Equatable {
     case insufficientLines
     case noChannelsDetected
     case channelNotFound(channelLabel: String)
+    case invalidChannelExpression(String)
+    case divisionByZero
     case incrementNotFound
     case invalidIncrementValue(value: String)
     case invalidLine(line: String)
@@ -17,6 +19,8 @@ enum ParseError: LocalizedError, Equatable {
         case .insufficientLines: "No header or values found"
         case .noChannelsDetected: "No channels found"
         case let .channelNotFound(channelLabel): "Specified channel \"\(channelLabel)\" not found in file"
+        case let .invalidChannelExpression(detail): "Invalid channel expression: \(detail)"
+        case .divisionByZero: "Division by zero in channel expression"
         case .incrementNotFound: "Time increment not found"
         case let .invalidIncrementValue(value): "Time increment value is not valid: \(value)"
         case let .invalidLine(line): "Invalid line: \(line)"

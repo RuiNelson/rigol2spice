@@ -16,7 +16,10 @@ struct Rigol2SpiceCommand: ParsableCommand {
     @Flag(name: .shortAndLong, help: "Only list channels present in the file and quit.")
     var listChannels = false
 
-    @Option(name: .shortAndLong, help: "The label of the channel to process.")
+    @Option(
+        name: .shortAndLong,
+        help: "Channel or math expression to process (e.g. CH1, CH1+CH2, (CH1-CH2)/CH3).",
+    )
     var channel = "CH1"
 
     @Option(name: .shortAndLong, help: "Ordered transformations separated by semicolons.")

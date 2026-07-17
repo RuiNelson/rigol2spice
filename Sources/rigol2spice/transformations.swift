@@ -232,7 +232,8 @@ enum Transformation: Equatable {
                 return .limit(lower: lower, upper: upper)
             case "db":
                 return try .db(scalar())
-            case "dbmw", "dbm":
+            case "dbmw",
+                 "dbm":
                 let power = try powerLevelWithResistance()
                 return .dbmW(level: power.level, resistance: power.resistance)
             case "dbw":

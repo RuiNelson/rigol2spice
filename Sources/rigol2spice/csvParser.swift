@@ -118,19 +118,45 @@ extension CSVFormatParser {
             )
         }
 
-        guard let selectedChannel = selectChannel(named: requestedChannel, from: header.channels) else {
-            throw ParseError.channelNotFound(channelLabel: requestedChannel)
+        let expression: ChannelExpression
+        do {
+            expression = try parseChannelExpression(requestedChannel)
+        }
+        catch let error as ChannelExpressionError {
+            throw ParseError.invalidChannelExpression(error.errorDescription ?? String(describing: error))
+        }
+
+        var resolvedChannels: [String: CSVChannel] = [:]
+        for name in expression.channelNames {
+            guard let channel = selectChannel(named: name, from: header.channels) else {
+                throw ParseError.channelNotFound(channelLabel: name)
+            }
+            resolvedChannels[name] = channel
+        }
+
+        let selectedLabel: String = if case let .channel(name) = expression, let only = resolvedChannels[name] {
+            only.name
+        }
+        else {
+            requestedChannel.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
         var points: [Point] = []
         while let line = try reader.nextLine() {
-            try points.append(parsePoint(line, channel: selectedChannel, header: header))
+            try points.append(
+                parsePoint(
+                    line,
+                    expression: expression,
+                    channels: resolvedChannels,
+                    header: header,
+                ),
+            )
         }
         normalize(&points)
 
         return Capture(
             channels: channelNames,
-            selectedChannel: selectedChannel.name,
+            selectedChannel: selectedLabel,
             points: points,
             sampleInterval: sampleInterval(from: header, points: points),
         )
@@ -157,12 +183,36 @@ extension CSVFormatParser {
             }
     }
 
-    private func parsePoint(_ line: String, channel: CSVChannel, header: CSVHeader) throws -> Point {
+    private func parsePoint(
+        _ line: String,
+        expression: ChannelExpression,
+        channels: [String: CSVChannel],
+        header: CSVHeader,
+    ) throws -> Point {
         let columns = csvFields(in: line)
         guard columns.indices.contains(0),
-              columns.indices.contains(channel.columnIndex),
-              let rawTime = Double(columns[0]),
-              let value = Double(columns[channel.columnIndex]) else {
+              let rawTime = Double(columns[0]) else {
+            throw ParseError.invalidLine(line: line)
+        }
+
+        var values: [String: Double] = [:]
+        values.reserveCapacity(channels.count)
+        for (name, channel) in channels {
+            guard columns.indices.contains(channel.columnIndex),
+                  let value = Double(columns[channel.columnIndex]) else {
+                throw ParseError.invalidLine(line: line)
+            }
+            values[name] = value
+        }
+
+        let value: Double
+        do {
+            value = try expression.evaluate(channels: values)
+        }
+        catch ChannelExpressionError.divisionByZero {
+            throw ParseError.divisionByZero
+        }
+        catch {
             throw ParseError.invalidLine(line: line)
         }
 
