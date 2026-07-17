@@ -83,6 +83,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `DeadZone` | `DeadZone 0.1` | Zero values inside ±threshold; keep the rest |
 | `Digitize` | `Digitize 0.8` · `Digitize 0.8, 0, 3.3` · `Digitize 1.2, 0.8, 0, 3.3` | Two-level digital output (threshold; low/high out; optional Schmitt hysteresis); alias `Threshold` |
 | `SlewLimit` | `SlewLimit 100meg` | Limit |dv/dt| to the given rate (V/s) |
+| `SoftClip` | `SoftClip -0.7, 0.7` | Soft-clip into [low, high] via tanh; alias `TanhLimit` |
 | `Abs` | `Abs` | Replace every value with its absolute value |
 | `Rectify` | `Rectify` | Half-wave rectify (keep values ≥ 0, zero the rest) |
 

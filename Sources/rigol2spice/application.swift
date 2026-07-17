@@ -268,6 +268,10 @@ struct Rigol2SpiceApplication {
             }
         case let .slewLimit(value):
             Console.section("Limiting slew rate to \(engineeringFormatter.string(value)) V/s...")
+        case let .softClip(lower, upper):
+            Console.section(
+                "Soft-clipping the signal between \(engineeringFormatter.string(lower)) and \(engineeringFormatter.string(upper))...",
+            )
         case let .limit(lower, upper):
             Console.section(
                 "Limiting the signal between \(engineeringFormatter.string(lower)) and \(engineeringFormatter.string(upper))...",

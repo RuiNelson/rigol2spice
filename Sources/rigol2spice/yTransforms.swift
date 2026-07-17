@@ -264,6 +264,25 @@ func integratePoints(_ points: [Point]) -> [Point] {
     return output
 }
 
+/// Soft clip into [lower, upper] using a scaled tanh.
+/// At the bounds the slope is gentle; the asymptotic limits are lower/upper.
+func softClipPoints(_ points: [Point], lower: Double, upper: Double) -> [Point] {
+    let center = 0.5 * (lower + upper)
+    let half = 0.5 * (upper - lower)
+    guard half > 0 else {
+        return points
+    }
+
+    var output = points
+    output.withUnsafeMutableBufferPointer { buffer in
+        for index in buffer.indices {
+            let normalized = (buffer[index].value - center) / half
+            buffer[index].value = center + half * tanh(normalized)
+        }
+    }
+    return output
+}
+
 /// Limit |dv/dt| to `maxSlew` (V/s). Walks forward from the first sample.
 func slewLimitPoints(_ points: [Point], maxSlew: Double) -> [Point] {
     guard points.count >= 2, maxSlew > 0 else {

@@ -597,6 +597,28 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `soft clip approaches bounds without hard corners`() throws {
+        #expect(try Transformation.parseList("SoftClip -1, 1") == [.softClip(lower: -1, upper: 1)])
+        #expect(try Transformation.parseList("TanhLimit -0.7, 0.7") == [.softClip(lower: -0.7, upper: 0.7)])
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("SoftClip 1, 0")
+        }
+
+        let points = [
+            Point(time: 0, value: 0),
+            Point(time: 1, value: 1),
+            Point(time: 2, value: 10),
+            Point(time: 3, value: -10),
+        ]
+        let result = try Transformation.softClip(lower: -1, upper: 1).applying(to: points)
+        #expect(abs(result[0].value) < 1e-12)
+        #expect(abs(result[1].value - tanh(1.0)) < 1e-12)
+        #expect(result[2].value < 1 && result[2].value > 0.99)
+        #expect(result[3].value > -1 && result[3].value < -0.99)
+        #expect(result.map(\.time) == [0, 1, 2, 3])
+    }
+
+    @Test
     func `slew limit caps the rate of change`() throws {
         #expect(try Transformation.parseList("SlewLimit 1") == [.slewLimit(1)])
         #expect(throws: (any Error).self) {

@@ -57,6 +57,7 @@ enum Transformation: Equatable {
     case deadZone(Double)
     case digitize(lowThreshold: Double, highThreshold: Double, lowOut: Double, highOut: Double)
     case slewLimit(Double)
+    case softClip(lower: Double, upper: Double)
     case limit(lower: Double, upper: Double)
     case db(Double)
     case dbmW(level: Double, resistance: Double)
@@ -266,6 +267,19 @@ enum Transformation: Equatable {
                     )
                 }
                 return .slewLimit(value)
+            case "softclip",
+                 "tanhlimit":
+                try requireArgumentCount(2)
+                let lower = try parseScalarArgument(arguments[0])
+                let upper = try parseScalarArgument(arguments[1])
+                guard lower < upper else {
+                    throw TransformationParseError.invalidRange(
+                        operation: operation,
+                        low: arguments[0],
+                        high: arguments[1],
+                    )
+                }
+                return .softClip(lower: lower, upper: upper)
             case "digitize",
                  "threshold":
                 // Digitize threshold
@@ -555,6 +569,8 @@ enum Transformation: Equatable {
             )
         case let .slewLimit(value):
             return slewLimitPoints(points, maxSlew: value)
+        case let .softClip(lower, upper):
+            return softClipPoints(points, lower: lower, upper: upper)
         case let .limit(lower, upper):
             return clamp(points, lowerLimit: lower, upperLimit: upper)
         case let .db(value):
