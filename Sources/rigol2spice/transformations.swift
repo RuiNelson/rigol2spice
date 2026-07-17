@@ -60,6 +60,8 @@ enum Transformation: Equatable {
     case timeScale(Double)
     case alignEdge(rising: Bool, threshold: Double, after: Double?)
     case seamless(rampDuration: Double?)
+    case pad(duration: Double, value: Double?)
+    case extendTo(endTime: Double, value: Double?)
     case cutAfter(Double)
     case cutBefore(Double)
     case trim(start: Double, end: Double)
@@ -305,6 +307,47 @@ enum Transformation: Equatable {
                     )
                 }
                 return .seamless(rampDuration: duration)
+            case "pad",
+                 "holdlast":
+                guard arguments.count == 1 || arguments.count == 2 else {
+                    throw TransformationParseError.invalidArgumentCount(
+                        operation: operation,
+                        expected: 1,
+                        actual: arguments.count,
+                    )
+                }
+                let duration = try parseScalarArgument(arguments[0])
+                guard duration > 0 else {
+                    throw TransformationParseError.invalidPositiveScalar(
+                        operation: operation,
+                        value: arguments[0],
+                    )
+                }
+                let holdValue: Double?
+                if arguments.count == 2 {
+                    holdValue = try parseScalarArgument(arguments[1])
+                }
+                else {
+                    holdValue = nil
+                }
+                return .pad(duration: duration, value: holdValue)
+            case "extendto":
+                guard arguments.count == 1 || arguments.count == 2 else {
+                    throw TransformationParseError.invalidArgumentCount(
+                        operation: operation,
+                        expected: 1,
+                        actual: arguments.count,
+                    )
+                }
+                let endTime = try parseScalarArgument(arguments[0])
+                let holdValue: Double?
+                if arguments.count == 2 {
+                    holdValue = try parseScalarArgument(arguments[1])
+                }
+                else {
+                    holdValue = nil
+                }
+                return .extendTo(endTime: endTime, value: holdValue)
             case "cutafter":
                 let value = try scalar()
                 guard value > 0 else {
@@ -352,6 +395,8 @@ enum Transformation: Equatable {
         case .timeShift,
              .alignEdge,
              .seamless,
+             .pad,
+             .extendTo,
              .cutAfter,
              .cutBefore,
              .trim,
@@ -425,6 +470,10 @@ enum Transformation: Equatable {
             return try alignEdgePoints(points, rising: rising, threshold: threshold, after: after)
         case let .seamless(rampDuration):
             return seamlessPoints(points, rampDuration: rampDuration)
+        case let .pad(duration, value):
+            return padPoints(points, duration: duration, value: value)
+        case let .extendTo(endTime, value):
+            return extendPoints(to: endTime, points: points, value: value)
         case let .cutAfter(value):
             return cutPointsAfter(points, after: value)
         case let .cutBefore(value):

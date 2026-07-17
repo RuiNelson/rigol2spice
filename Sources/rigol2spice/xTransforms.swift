@@ -125,6 +125,31 @@ func alignEdgePoints(
     throw Rigol2SpiceError.edgeNotFound(rising: rising, threshold: threshold)
 }
 
+/// Extend the capture by `duration` past the last sample, holding `value` (or the last value).
+func padPoints(_ points: [Point], duration: Double, value: Double?) -> [Point] {
+    guard !points.isEmpty, duration > 0 else {
+        return points
+    }
+    let last = points[points.count - 1]
+    var output = points
+    output.append(Point(time: last.time + duration, value: value ?? last.value))
+    return output
+}
+
+/// Extend the capture so the last sample is at `endTime` (no-op if already at or past endTime).
+func extendPoints(to endTime: Double, points: [Point], value: Double?) -> [Point] {
+    guard !points.isEmpty else {
+        return points
+    }
+    let last = points[points.count - 1]
+    guard endTime > last.time else {
+        return points
+    }
+    var output = points
+    output.append(Point(time: endTime, value: value ?? last.value))
+    return output
+}
+
 /// Make the capture loopable: force the last value to match the first.
 /// When `rampDuration` is positive, append a linear ramp of that length from the
 /// current last value to the first value instead of overwriting the last sample.

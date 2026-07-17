@@ -254,6 +254,31 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `pad and extendTo lengthen the capture`() throws {
+        #expect(try Transformation.parseList("Pad 5") == [.pad(duration: 5, value: nil)])
+        #expect(try Transformation.parseList("HoldLast 2, 0") == [.pad(duration: 2, value: 0)])
+        #expect(try Transformation.parseList("ExtendTo 10") == [.extendTo(endTime: 10, value: nil)])
+        #expect(try Transformation.parseList("ExtendTo 10, -1") == [.extendTo(endTime: 10, value: -1)])
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("Pad 0")
+        }
+
+        let points = [Point(time: 0, value: 1), Point(time: 2, value: 3)]
+        let padded = try Transformation.pad(duration: 1.5, value: nil).applying(to: points)
+        #expect(padded.last == Point(time: 3.5, value: 3))
+        #expect(padded.count == 3)
+
+        let paddedZero = try Transformation.pad(duration: 1, value: 0).applying(to: points)
+        #expect(paddedZero.last == Point(time: 3, value: 0))
+
+        let extended = try Transformation.extendTo(endTime: 10, value: nil).applying(to: points)
+        #expect(extended.last == Point(time: 10, value: 3))
+
+        let alreadyPast = try Transformation.extendTo(endTime: 1, value: nil).applying(to: points)
+        #expect(alreadyPast == points)
+    }
+
+    @Test
     func `seamless matches ends for looping with Repeat`() throws {
         #expect(try Transformation.parseList("Seamless") == [.seamless(rampDuration: nil)])
         #expect(try Transformation.parseList("MatchEnds 0.5") == [.seamless(rampDuration: 0.5)])

@@ -291,6 +291,28 @@ struct Rigol2SpiceApplication {
             else {
                 Console.section("Making last sample match the first (seamless loop)...")
             }
+        case let .pad(duration, value):
+            if let value {
+                Console.section(
+                    "Padding signal by \(engineeringFormatter.string(duration))s at \(engineeringFormatter.string(value))...",
+                )
+            }
+            else {
+                Console.section(
+                    "Padding signal by \(engineeringFormatter.string(duration))s (hold last value)...",
+                )
+            }
+        case let .extendTo(endTime, value):
+            if let value {
+                Console.section(
+                    "Extending signal to \(engineeringFormatter.string(endTime))s at \(engineeringFormatter.string(value))...",
+                )
+            }
+            else {
+                Console.section(
+                    "Extending signal to \(engineeringFormatter.string(endTime))s (hold last value)...",
+                )
+            }
         case let .cutAfter(value):
             Console.section("Cutting signal after \(engineeringFormatter.string(value))s...")
         case let .cutBefore(value):
