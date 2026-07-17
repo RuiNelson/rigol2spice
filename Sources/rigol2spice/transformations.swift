@@ -57,6 +57,7 @@ enum Transformation: Equatable {
     case dbmW(level: Double, resistance: Double)
     case dbW(level: Double, resistance: Double)
     case timeShift(Double)
+    case timeScale(Double)
     case alignEdge(rising: Bool, threshold: Double, after: Double?)
     case cutAfter(Double)
     case cutBefore(Double)
@@ -242,6 +243,16 @@ enum Transformation: Equatable {
                 return .dbW(level: power.level, resistance: power.resistance)
             case "timeshift":
                 return try .timeShift(scalar())
+            case "timescale",
+                 "stretch":
+                let value = try scalar()
+                guard value > 0 else {
+                    throw TransformationParseError.invalidPositiveScalar(
+                        operation: operation,
+                        value: arguments[0],
+                    )
+                }
+                return .timeScale(value)
             case "alignedge",
                  "triggerat":
                 guard arguments.count == 2 || arguments.count == 3 else {
@@ -386,6 +397,8 @@ enum Transformation: Equatable {
             return multiplyValueOfPoints(points, factor: voltageFromDBW(level, resistance: resistance))
         case let .timeShift(value):
             return timeShiftPoints(points, value: value)
+        case let .timeScale(value):
+            return timeScalePoints(points, factor: value)
         case let .alignEdge(rising, threshold, after):
             return try alignEdgePoints(points, rising: rising, threshold: threshold, after: after)
         case let .cutAfter(value):

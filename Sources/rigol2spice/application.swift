@@ -268,6 +268,8 @@ struct Rigol2SpiceApplication {
             )
         case let .timeShift(value):
             Console.section("Shifting signal for \(engineeringFormatter.string(value))s...")
+        case let .timeScale(value):
+            Console.section("Scaling time axis by \(engineeringFormatter.string(value))...")
         case let .alignEdge(rising, threshold, after):
             let direction = rising ? "rising" : "falling"
             if let after {

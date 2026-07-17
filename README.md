@@ -87,6 +87,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | Operation | Example | Effect |
 |---|---|---|
 | `TimeShift` | `TimeShift -5m` | Shift timestamps; negative values shift left |
+| `TimeScale` | `TimeScale 2` · `TimeScale 0.5` | Scale the time axis (preserve start time); alias `Stretch` |
 | `AlignEdge` | `AlignEdge rising, 0.5` · `AlignEdge falling, 1.5, 2m` | Shift so the first rising/falling crossing of the threshold is at t=0 (optional search-after time); alias `TriggerAt` |
 | `CutBefore` | `CutBefore 5m` | Discard samples before the timestamp |
 | `CutAfter` | `CutAfter 10u` | Discard samples at or after the timestamp |

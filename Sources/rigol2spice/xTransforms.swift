@@ -125,6 +125,18 @@ func alignEdgePoints(
     throw Rigol2SpiceError.edgeNotFound(rising: rising, threshold: threshold)
 }
 
+/// Scale the time axis by `factor` (> 0), preserving the first sample's timestamp.
+func timeScalePoints(_ points: [Point], factor: Double) -> [Point] {
+    guard factor != 1, !points.isEmpty else {
+        return points
+    }
+
+    let origin = points[0].time
+    return points.map { point in
+        Point(time: origin + (point.time - origin) * factor, value: point.value)
+    }
+}
+
 func timeShiftPoints(_ points: [Point], value: Double) -> [Point] {
     guard !points.isEmpty else {
         return points

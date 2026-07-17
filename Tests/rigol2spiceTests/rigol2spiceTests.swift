@@ -254,6 +254,30 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `time scale stretches timestamps from the first sample`() throws {
+        #expect(try Transformation.parseList("TimeScale 2") == [.timeScale(2)])
+        #expect(try Transformation.parseList("Stretch 0.5") == [.timeScale(0.5)])
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("TimeScale 0")
+        }
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("TimeScale -1")
+        }
+
+        let points = [
+            Point(time: 1, value: 10),
+            Point(time: 2, value: 20),
+            Point(time: 3, value: 30),
+        ]
+        let stretched = try Transformation.timeScale(2).applying(to: points)
+        #expect(stretched.map(\.time) == [1, 3, 5])
+        #expect(stretched.map(\.value) == [10, 20, 30])
+
+        let compressed = try Transformation.timeScale(0.5).applying(to: points)
+        #expect(compressed.map(\.time) == [1, 1.5, 2])
+    }
+
+    @Test
     func `align edge shifts the first threshold crossing to t zero`() throws {
         #expect(
             try Transformation.parseList("AlignEdge rising, 0.5")
