@@ -59,6 +59,7 @@ enum Transformation: Equatable {
     case slewLimit(Double)
     case softClip(lower: Double, upper: Double)
     case fade(inDuration: Double, outDuration: Double)
+    case quantize(bits: Int, lower: Double, upper: Double)
     case limit(lower: Double, upper: Double)
     case db(Double)
     case dbmW(level: Double, resistance: Double)
@@ -310,6 +311,46 @@ enum Transformation: Equatable {
                     )
                 }
                 return .fade(inDuration: 0, outDuration: duration)
+            case "quantize":
+                // Quantize bits, fullScale  → [0, fullScale]
+                // Quantize bits, lower, upper
+                guard arguments.count == 2 || arguments.count == 3 else {
+                    throw TransformationParseError.invalidArgumentCount(
+                        operation: operation,
+                        expected: 2,
+                        actual: arguments.count,
+                    )
+                }
+                let bitsValue = try parseScalarArgument(arguments[0])
+                guard bitsValue >= 1,
+                      bitsValue <= 32,
+                      bitsValue == bitsValue.rounded(.towardZero) else {
+                    throw TransformationParseError.invalidPositiveScalar(
+                        operation: operation,
+                        value: arguments[0],
+                    )
+                }
+                let bits = Int(bitsValue)
+                if arguments.count == 2 {
+                    let fullScale = try parseScalarArgument(arguments[1])
+                    guard fullScale > 0 else {
+                        throw TransformationParseError.invalidPositiveScalar(
+                            operation: operation,
+                            value: arguments[1],
+                        )
+                    }
+                    return .quantize(bits: bits, lower: 0, upper: fullScale)
+                }
+                let lower = try parseScalarArgument(arguments[1])
+                let upper = try parseScalarArgument(arguments[2])
+                guard lower < upper else {
+                    throw TransformationParseError.invalidRange(
+                        operation: operation,
+                        low: arguments[1],
+                        high: arguments[2],
+                    )
+                }
+                return .quantize(bits: bits, lower: lower, upper: upper)
             case "digitize",
                  "threshold":
                 // Digitize threshold
@@ -626,6 +667,8 @@ enum Transformation: Equatable {
             return softClipPoints(points, lower: lower, upper: upper)
         case let .fade(inDuration, outDuration):
             return fadePoints(points, fadeIn: inDuration, fadeOut: outDuration)
+        case let .quantize(bits, lower, upper):
+            return quantizePoints(points, bits: bits, lower: lower, upper: upper)
         case let .limit(lower, upper):
             return clamp(points, lowerLimit: lower, upperLimit: upper)
         case let .db(value):

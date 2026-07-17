@@ -264,6 +264,26 @@ func integratePoints(_ points: [Point]) -> [Point] {
     return output
 }
 
+/// Quantize to `bits` levels spanning [lower, upper] (mid-tread / round-to-nearest).
+func quantizePoints(_ points: [Point], bits: Int, lower: Double, upper: Double) -> [Point] {
+    guard bits >= 1, upper > lower else {
+        return points
+    }
+
+    let levels = (1 << bits) - 1 // 2^bits - 1 steps between endpoints
+    let span = upper - lower
+    var output = points
+    output.withUnsafeMutableBufferPointer { buffer in
+        for index in buffer.indices {
+            let clamped = min(max(buffer[index].value, lower), upper)
+            let code = ((clamped - lower) / span * Double(levels)).rounded()
+            let limitedCode = min(max(code, 0), Double(levels))
+            buffer[index].value = lower + limitedCode * span / Double(levels)
+        }
+    }
+    return output
+}
+
 /// Linear amplitude fade at the start and/or end of the capture.
 func fadePoints(
     _ points: [Point],

@@ -87,6 +87,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `Fade` | `Fade 100n` | Linear fade-in and fade-out over the given duration |
 | `FadeIn` | `FadeIn 50n` | Linear fade-in only |
 | `FadeOut` | `FadeOut 50n` | Linear fade-out only |
+| `Quantize` | `Quantize 8, 3.3` · `Quantize 8, -1, 1` | Round to N-bit levels over [0, full-scale] or [low, high] |
 | `Abs` | `Abs` | Replace every value with its absolute value |
 | `Rectify` | `Rectify` | Half-wave rectify (keep values ≥ 0, zero the rest) |
 

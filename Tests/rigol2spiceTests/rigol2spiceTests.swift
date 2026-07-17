@@ -650,6 +650,29 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `quantize rounds to discrete levels`() throws {
+        #expect(try Transformation.parseList("Quantize 2, 3") == [.quantize(bits: 2, lower: 0, upper: 3)])
+        #expect(try Transformation.parseList("Quantize 3, -1, 1") == [.quantize(bits: 3, lower: -1, upper: 1)])
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("Quantize 0, 1")
+        }
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("Quantize 8, 1, 0")
+        }
+
+        // 2 bits over [0, 3] → levels 0, 1, 2, 3
+        let points = [
+            Point(time: 0, value: -1),
+            Point(time: 1, value: 0.4),
+            Point(time: 2, value: 1.6),
+            Point(time: 3, value: 2.9),
+            Point(time: 4, value: 10),
+        ]
+        let result = try Transformation.quantize(bits: 2, lower: 0, upper: 3).applying(to: points)
+        #expect(result.map(\.value) == [0, 0, 2, 3, 3])
+    }
+
+    @Test
     func `fade scales amplitude at the ends`() throws {
         #expect(try Transformation.parseList("Fade 1") == [.fade(inDuration: 1, outDuration: 1)])
         #expect(try Transformation.parseList("FadeIn 2") == [.fade(inDuration: 2, outDuration: 0)])

@@ -295,6 +295,10 @@ struct Rigol2SpiceApplication {
                     "Fading signal out over \(engineeringFormatter.string(outDuration))s...",
                 )
             }
+        case let .quantize(bits, lower, upper):
+            Console.section(
+                "Quantizing to \(bits) bits between \(engineeringFormatter.string(lower)) and \(engineeringFormatter.string(upper))...",
+            )
         case let .limit(lower, upper):
             Console.section(
                 "Limiting the signal between \(engineeringFormatter.string(lower)) and \(engineeringFormatter.string(upper))...",
