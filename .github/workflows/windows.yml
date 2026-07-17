@@ -13,19 +13,23 @@ permissions:
 jobs:
   build:
     name: Build Windows ${{ matrix.arch }}
-    runs-on: windows-latest
+    # arm64 uses a native runner: cross-compiling WinSDK from x86_64 fails
+    # with "could not build C module 'WinSDK'".
+    runs-on: ${{ matrix.runs_on }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - arch: x86_64
+            runs_on: windows-latest
+            build_arch: amd64
             triple: x86_64-unknown-windows-msvc
             pe_machine: "8664" # IMAGE_FILE_MACHINE_AMD64
-            native: true
           - arch: arm64
+            runs_on: windows-11-arm
+            build_arch: arm64
             triple: aarch64-unknown-windows-msvc
             pe_machine: "AA64" # IMAGE_FILE_MACHINE_ARM64
-            native: false
 
     steps:
       - name: Checkout
@@ -36,7 +40,7 @@ jobs:
         with:
           swift-version: swift-6.2.4-release
           swift-build: 6.2.4-RELEASE
-          build_arch: amd64
+          build_arch: ${{ matrix.build_arch }}
           update-sdk-modules: true
           cache: true
 
@@ -83,14 +87,12 @@ jobs:
           ARCH: ${{ matrix.arch }}
           TRIPLE: ${{ matrix.triple }}
           PE_MACHINE: ${{ matrix.pe_machine }}
-          IS_NATIVE: ${{ matrix.native }}
         run: |
           $ErrorActionPreference = "Stop"
 
           $arch = $env:ARCH
           $triple = $env:TRIPLE
           $expectedMachine = [Convert]::ToUInt16($env:PE_MACHINE, 16)
-          $isNative = $env:IS_NATIVE -eq "true"
 
           $exeName = "rigol2spice.exe"
           $candidates = @(
@@ -146,13 +148,20 @@ jobs:
 
           function Get-Dumpbin {
             $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+            if (-not (Test-Path $vswhere)) {
+              $vswhere = Join-Path ${env:ProgramFiles} "Microsoft Visual Studio\Installer\vswhere.exe"
+            }
             if (-not (Test-Path $vswhere)) { return $null }
-            $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+            $vs = & $vswhere -latest -products * -property installationPath
             if (-not $vs) { return $null }
+            # Prefer host-native dumpbin (x64 runners: Hostx64; arm64 runners: Hostarm64).
             $candidate = Get-ChildItem -Path (Join-Path $vs "VC\Tools\MSVC") -Recurse -Filter dumpbin.exe -ErrorAction SilentlyContinue |
-              Where-Object { $_.FullName -match '\\Hostx64\\x64\\dumpbin\.exe$' } |
+              Where-Object { $_.FullName -match '\\Host(x64|arm64)\\(x64|arm64)\\dumpbin\.exe$' } |
               Select-Object -First 1
             if ($candidate) { return $candidate.FullName }
+            $fallback = Get-ChildItem -Path (Join-Path $vs "VC\Tools\MSVC") -Recurse -Filter dumpbin.exe -ErrorAction SilentlyContinue |
+              Select-Object -First 1
+            if ($fallback) { return $fallback.FullName }
             return $null
           }
 
@@ -306,11 +315,6 @@ jobs:
             "{0,-40} {1,12:N0} bytes" -f $_.Name, $_.Length
           }
           Write-Host "Bundled non-system DLL count: $($copied.Count)"
-
-          if (-not $isNative) {
-            Write-Host "Skipping smoke test for cross-compiled $arch binary on this runner"
-            return
-          }
 
           # Smoke-test without the toolchain on PATH so missing DLLs fail loudly.
           $cleanPath = ($env:Path -split ";" | Where-Object {
