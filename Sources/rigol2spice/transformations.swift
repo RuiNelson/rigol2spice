@@ -34,6 +34,7 @@ enum Transformation: Equatable {
     case removeDC
     case clampMin(Double)
     case clampMax(Double)
+    case gate(Double)
     case offset(Double)
     case multiply(Double)
     case timeShift(Double)
@@ -120,6 +121,8 @@ enum Transformation: Equatable {
                 return try .clampMin(scalar())
             case "clampmax":
                 return try .clampMax(scalar())
+            case "gate":
+                return try .gate(scalar())
             case "offset":
                 return try .offset(scalar())
             case "multiply":
@@ -188,6 +191,8 @@ enum Transformation: Equatable {
             return clamp(points, lowerLimit: value, upperLimit: nil)
         case let .clampMax(value):
             return clamp(points, lowerLimit: nil, upperLimit: value)
+        case let .gate(value):
+            return gatePoints(points, threshold: value)
         case let .offset(value):
             return offsetPoints(points, offset: value)
         case let .multiply(value):

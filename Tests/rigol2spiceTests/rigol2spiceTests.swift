@@ -105,6 +105,22 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `gate zeros values below the threshold`() throws {
+        #expect(try Transformation.parseList("Gate 0.6") == [.gate(0.6)])
+
+        let points = [
+            Point(time: 0, value: 0.5),
+            Point(time: 1, value: 0.6),
+            Point(time: 2, value: 1.2),
+            Point(time: 3, value: -0.1),
+        ]
+        let gated = try Transformation.gate(0.6).applying(to: points)
+
+        #expect(gated.map(\.value) == [0, 0.6, 1.2, 0])
+        #expect(gated.map(\.time) == [0, 1, 2, 3])
+    }
+
+    @Test
     func `fractional repeat appends full and partial copies`() throws {
         let points = [
             Point(time: 0, value: 0),

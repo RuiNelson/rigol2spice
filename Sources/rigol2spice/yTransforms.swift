@@ -60,3 +60,14 @@ func clamp(_ points: [Point], lowerLimit: Double?, upperLimit: Double?) -> [Poin
     }
     return output
 }
+
+/// Zero values strictly below the threshold; keep values at or above it.
+func gatePoints(_ points: [Point], threshold: Double) -> [Point] {
+    var output = points
+    output.withUnsafeMutableBufferPointer { buffer in
+        for index in buffer.indices where buffer[index].value < threshold {
+            buffer[index].value = 0
+        }
+    }
+    return output
+}

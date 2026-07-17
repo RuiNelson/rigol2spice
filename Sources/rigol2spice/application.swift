@@ -199,6 +199,8 @@ struct Rigol2SpiceApplication {
             Console.section("Clamping the signal above \(engineeringFormatter.string(value))...")
         case let .clampMax(value):
             Console.section("Clamping the signal below \(engineeringFormatter.string(value))...")
+        case let .gate(value):
+            Console.section("Gating the signal at \(engineeringFormatter.string(value))...")
         case let .offset(value):
             let sign = value >= 0 ? "+" : ""
             Console.section("Offsetting signal by \(sign)\(engineeringFormatter.string(value))...")

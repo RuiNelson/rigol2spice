@@ -53,6 +53,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `RemoveDC` | `RemoveDC` | Estimate and subtract the DC component¹ |
 | `ClampMin` | `ClampMin 0` | Clamp values below the scalar |
 | `ClampMax` | `ClampMax 3.3` | Clamp values above the scalar |
+| `Gate` | `Gate 0.6` | Zero values below the threshold; keep the rest |
 | `Offset` | `Offset -1.5` | Add the scalar to every value |
 | `Multiply` | `Multiply 10` | Multiply every value by the scalar |
 | `TimeShift` | `TimeShift -5m` | Shift timestamps; negative values shift left |
