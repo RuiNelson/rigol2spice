@@ -3,7 +3,7 @@ import Foundation
 struct PWLWriter {
     func write(
         _ points: [Point],
-        to outputURL: URL
+        to outputURL: URL,
     ) throws -> Int {
         var data = Data()
         let (estimatedCapacity, overflow) = points.count.multipliedReportingOverflow(by: 32)
@@ -16,7 +16,7 @@ struct PWLWriter {
             let pointValueStr = spiceFormatter.string(for: point.value)!
             let pointLine = "\(pointTimeStr)\t\(pointValueStr)\r\n"
             let pointData = pointLine.data(using: .ascii)!
-            
+
             data.append(pointData)
         }
 
@@ -24,4 +24,3 @@ struct PWLWriter {
         return data.count
     }
 }
-

@@ -57,7 +57,11 @@ struct Rigol2SpiceApplication {
         }
 
         reportCapture(capture)
-        let processedPoints = try process(capture.points, transformations: transformations)
+        let processedPoints = try process(
+            capture.points,
+            transformations: transformations,
+            sampleInterval: capture.sampleInterval,
+        )
         try write(processedPoints, sampleInterval: capture.sampleInterval ?? 0)
 
         Console.section("Job complete")
@@ -127,7 +131,11 @@ struct Rigol2SpiceApplication {
         Console.detail("Capture Duration: \(engineeringFormatter.string(duration))s")
     }
 
-    private func process(_ source: [Point], transformations: [Transformation]) throws -> [Point] {
+    private func process(
+        _ source: [Point],
+        transformations: [Transformation],
+        sampleInterval: Double?,
+    ) throws -> [Point] {
         var points = source
 
         for transformation in transformations {
@@ -137,9 +145,18 @@ struct Rigol2SpiceApplication {
                 reportTransformation(transformation, points: points, dcEstimate: estimate)
                 points = offsetPoints(points, offset: -estimate.value)
             }
+            else if let kind = transformation.filterKind {
+                let design = try transformation.designFilter(
+                    kind: kind,
+                    points: points,
+                    sampleInterval: sampleInterval,
+                )
+                reportFilter(design)
+                points = applyFIRFilter(taps: design.taps, to: points)
+            }
             else {
                 reportTransformation(transformation, points: points)
-                points = try transformation.applying(to: points)
+                points = try transformation.applying(to: points, sampleInterval: sampleInterval)
             }
 
             if transformation.reportsPointCount {
@@ -193,7 +210,43 @@ struct Rigol2SpiceApplication {
             Console.section("Cutting signal after \(engineeringFormatter.string(value))s...")
         case let .repeat(amount):
             Console.section("Repeating capture for \(engineeringFormatter.string(amount)) times...")
+        case let .lowPass(cutoff):
+            Console.section("Applying low-pass FIR filter at \(engineeringFormatter.string(cutoff))Hz...")
+        case let .highPass(cutoff):
+            Console.section("Applying high-pass FIR filter at \(engineeringFormatter.string(cutoff))Hz...")
+        case let .bandPass(low, high):
+            Console.section(
+                "Applying band-pass FIR filter from \(engineeringFormatter.string(low))Hz to \(engineeringFormatter.string(high))Hz...",
+            )
+        case let .bandStop(low, high):
+            Console.section(
+                "Applying band-stop FIR filter from \(engineeringFormatter.string(low))Hz to \(engineeringFormatter.string(high))Hz...",
+            )
         }
+    }
+
+    private func reportFilter(_ design: FIRFilterDesign) {
+        switch design.kind {
+        case let .lowPass(cutoff):
+            Console.section("Applying low-pass FIR filter at \(engineeringFormatter.string(cutoff))Hz...")
+        case let .highPass(cutoff):
+            Console.section("Applying high-pass FIR filter at \(engineeringFormatter.string(cutoff))Hz...")
+        case let .bandPass(low, high):
+            Console.section(
+                "Applying band-pass FIR filter from \(engineeringFormatter.string(low))Hz to \(engineeringFormatter.string(high))Hz...",
+            )
+        case let .bandStop(low, high):
+            Console.section(
+                "Applying band-stop FIR filter from \(engineeringFormatter.string(low))Hz to \(engineeringFormatter.string(high))Hz...",
+            )
+        }
+
+        Console.detail("Window: Blackman-Harris (linear phase, group delay removed)")
+        Console.detail("Taps: \(numberOfPointsFormatter.string(for: design.tapCount)!)")
+        Console.detail("Sample rate: \(engineeringFormatter.string(design.sampleRate))sa/s")
+        Console.detail(
+            "Group delay removed: \(design.groupDelaySamples) samples (\(engineeringFormatter.string(design.groupDelaySeconds))s)",
+        )
     }
 
     private func reportPointCount(before: Int, after: Int) throws {
@@ -226,7 +279,8 @@ struct Rigol2SpiceApplication {
         Console.detail("First sample: \(engineeringFormatter.string(firstTime))s")
         Console.detail("Last sample: \(engineeringFormatter.string(lastTime))s")
         Console.detail("Capture duration: \(engineeringFormatter.string(lastTime + sampleInterval))s")
-        Console.detail("Saving file: \(ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))...")
+        Console
+            .detail("Saving file: \(ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))...")
     }
 
     private func fileURL(for filename: String) -> URL {

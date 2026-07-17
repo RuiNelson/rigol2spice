@@ -58,10 +58,16 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `TimeShift` | `TimeShift -5m` | Shift timestamps; negative values shift left |
 | `CutAfter` | `CutAfter 10u` | Discard samples at or after the timestamp |
 | `Repeat` | `Repeat 2.5` | Append two copies and the first 50% of another |
+| `LowPass` | `LowPass 1k` | Apply a low-pass filter² |
+| `HighPass` | `HighPass 100` | Apply a high-pass filter² |
+| `BandPass` | `BandPass 900, 1.1k` | Apply a band-pass filter² |
+| `BandStop` | `BandStop 48, 52` | Apply a band-stop filter² |
 
 Scalars accept decimal (`0.7`), engineering (`3n`, `10u`), and scientific (`5e-3`) notation. Use `-` for negative values. `Repeat` requires a value greater than zero and accepts fractional repetitions; its final point is interpolated when needed. Transformations run strictly from left to right.
 
 ¹ `RemoveDC` estimates the DC component from the capture by applying one-dimensional k-means clustering with `k = 3` to all finite sample values. Several deterministic initializations are evaluated and the clustering with the smallest squared error is selected. The DC estimate is the midpoint between the lower and upper centroids.
+
+² Filters are linear-phase windowed-sinc FIRs (Blackman–Harris). You only supply the cutoff frequency(ies); the sample rate comes from the capture, tap count is chosen automatically, and group delay is removed so event timing stays aligned. Frequencies must be greater than 0 and below Nyquist (`fs/2`). Band filters require `0 < f1 < f2`.
 
 ### Post-processing Options
 

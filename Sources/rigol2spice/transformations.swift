@@ -8,6 +8,7 @@ enum TransformationParseError: LocalizedError, Equatable {
     case invalidArgumentCount(operation: String, expected: Int, actual: Int)
     case invalidScalar(operation: String, value: String)
     case invalidPositiveScalar(operation: String, value: String)
+    case invalidFrequencyBand(operation: String, low: String, high: String)
 
     var errorDescription: String? {
         switch self {
@@ -21,6 +22,8 @@ enum TransformationParseError: LocalizedError, Equatable {
             "Invalid scalar for \(operation): \(value)"
         case let .invalidPositiveScalar(operation, value):
             "\(operation) expects a positive scalar, but received: \(value)"
+        case let .invalidFrequencyBand(operation, low, high):
+            "\(operation) requires 0 < f1 < f2, but received \(low) and \(high)"
         }
     }
 }
@@ -36,6 +39,10 @@ enum Transformation: Equatable {
     case timeShift(Double)
     case cutAfter(Double)
     case `repeat`(Double)
+    case lowPass(Double)
+    case highPass(Double)
+    case bandPass(low: Double, high: Double)
+    case bandStop(low: Double, high: Double)
 
     static func parseList(_ source: String) throws -> [Transformation] {
         let commands = source.split(separator: ";", omittingEmptySubsequences: false)
@@ -67,14 +74,42 @@ enum Transformation: Equatable {
                 }
             }
 
-            func scalar() throws -> Double {
-                try requireArgumentCount(1)
-                let argument = arguments[0]
+            func parseScalarArgument(_ argument: String) throws -> Double {
                 guard !argument.contains(where: \Character.isWhitespace),
                       let value = parseEngineeringNotation(argument), value.isFinite else {
                     throw TransformationParseError.invalidScalar(operation: operation, value: argument)
                 }
                 return value
+            }
+
+            func scalar() throws -> Double {
+                try requireArgumentCount(1)
+                return try parseScalarArgument(arguments[0])
+            }
+
+            func positiveFrequency() throws -> Double {
+                let value = try scalar()
+                guard value > 0 else {
+                    throw TransformationParseError.invalidPositiveScalar(
+                        operation: operation,
+                        value: arguments[0],
+                    )
+                }
+                return value
+            }
+
+            func frequencyBand() throws -> (low: Double, high: Double) {
+                try requireArgumentCount(2)
+                let low = try parseScalarArgument(arguments[0])
+                let high = try parseScalarArgument(arguments[1])
+                guard low > 0, high > 0, low < high else {
+                    throw TransformationParseError.invalidFrequencyBand(
+                        operation: operation,
+                        low: arguments[0],
+                        high: arguments[1],
+                    )
+                }
+                return (low, high)
             }
 
             switch operation.lowercased() {
@@ -103,6 +138,16 @@ enum Transformation: Equatable {
                     throw TransformationParseError.invalidPositiveScalar(operation: operation, value: arguments[0])
                 }
                 return .repeat(value)
+            case "lowpass":
+                return try .lowPass(positiveFrequency())
+            case "highpass":
+                return try .highPass(positiveFrequency())
+            case "bandpass":
+                let band = try frequencyBand()
+                return .bandPass(low: band.low, high: band.high)
+            case "bandstop":
+                let band = try frequencyBand()
+                return .bandStop(low: band.low, high: band.high)
             default:
                 throw TransformationParseError.unknownOperation(name: operation)
             }
@@ -120,24 +165,80 @@ enum Transformation: Equatable {
         }
     }
 
-    func applying(to points: [Point]) throws -> [Point] {
+    var filterKind: FIRFilterKind? {
+        switch self {
+        case let .lowPass(cutoff):
+            .lowPass(cutoff: cutoff)
+        case let .highPass(cutoff):
+            .highPass(cutoff: cutoff)
+        case let .bandPass(low, high):
+            .bandPass(low: low, high: high)
+        case let .bandStop(low, high):
+            .bandStop(low: low, high: high)
+        default:
+            nil
+        }
+    }
+
+    func applying(to points: [Point], sampleInterval: Double? = nil) throws -> [Point] {
         switch self {
         case .removeDC:
-            offsetPoints(points, offset: -calculateDC(points))
+            return offsetPoints(points, offset: -calculateDC(points))
         case let .clampMin(value):
-            clamp(points, lowerLimit: value, upperLimit: nil)
+            return clamp(points, lowerLimit: value, upperLimit: nil)
         case let .clampMax(value):
-            clamp(points, lowerLimit: nil, upperLimit: value)
+            return clamp(points, lowerLimit: nil, upperLimit: value)
         case let .offset(value):
-            offsetPoints(points, offset: value)
+            return offsetPoints(points, offset: value)
         case let .multiply(value):
-            multiplyValueOfPoints(points, factor: value)
+            return multiplyValueOfPoints(points, factor: value)
         case let .timeShift(value):
-            timeShiftPoints(points, value: value)
+            return timeShiftPoints(points, value: value)
         case let .cutAfter(value):
-            cutPointsAfter(points, after: value)
+            return cutPointsAfter(points, after: value)
         case let .repeat(amount):
-            try repeatPoints(points, amount: amount)
+            return try repeatPoints(points, amount: amount)
+        case let .lowPass(cutoff):
+            let design = try designFilter(
+                kind: .lowPass(cutoff: cutoff),
+                points: points,
+                sampleInterval: sampleInterval,
+            )
+            return applyFIRFilter(taps: design.taps, to: points)
+        case let .highPass(cutoff):
+            let design = try designFilter(
+                kind: .highPass(cutoff: cutoff),
+                points: points,
+                sampleInterval: sampleInterval,
+            )
+            return applyFIRFilter(taps: design.taps, to: points)
+        case let .bandPass(low, high):
+            let design = try designFilter(
+                kind: .bandPass(low: low, high: high),
+                points: points,
+                sampleInterval: sampleInterval,
+            )
+            return applyFIRFilter(taps: design.taps, to: points)
+        case let .bandStop(low, high):
+            let design = try designFilter(
+                kind: .bandStop(low: low, high: high),
+                points: points,
+                sampleInterval: sampleInterval,
+            )
+            return applyFIRFilter(taps: design.taps, to: points)
         }
+    }
+
+    func designFilter(
+        kind: FIRFilterKind,
+        points: [Point],
+        sampleInterval: Double?,
+    ) throws -> FIRFilterDesign {
+        let interval = try resolveSampleInterval(sampleInterval, points: points, operation: kind.operationName)
+        return try designFIRFilter(
+            kind: kind,
+            sampleRate: 1 / interval,
+            sampleCount: points.count,
+        )
     }
 }
