@@ -1,6 +1,44 @@
 import ArgumentParser
+import Foundation
+
+// MARK: - Rigol2SpiceEntrypoint
 
 @main
+enum Rigol2SpiceEntrypoint {
+    static func main() {
+        // Allow bare `-p` / `--plot` to mean `--plot plot.svg`.
+        Rigol2SpiceCommand.main(normalizePlotArguments(Array(CommandLine.arguments.dropFirst())))
+    }
+}
+
+/// Inserts the default plot path when `-p` / `--plot` is present without a value.
+func normalizePlotArguments(_ arguments: [String]) -> [String] {
+    var result: [String] = []
+    var index = 0
+    while index < arguments.count {
+        let argument = arguments[index]
+        if argument == "-p" || argument == "--plot" {
+            result.append("--plot")
+            let next = index + 1 < arguments.count ? arguments[index + 1] : nil
+            if let next, !next.hasPrefix("-") {
+                result.append(next)
+                index += 2
+            }
+            else {
+                result.append("plot.svg")
+                index += 1
+            }
+        }
+        else {
+            result.append(argument)
+            index += 1
+        }
+    }
+    return result
+}
+
+// MARK: - Rigol2SpiceCommand
+
 struct Rigol2SpiceCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "rigol2spice",
@@ -31,13 +69,23 @@ struct Rigol2SpiceCommand: ParsableCommand {
     @Flag(name: .shortAndLong, help: "Keep redundant sample points in the output.")
     var keepAll = false
 
+    @Option(
+        name: .shortAndLong,
+        help: "Write an SVG plot of the processed signal (default: plot.svg).",
+        completion: .file(extensions: ["svg"]),
+    )
+    var plot: String?
+
     @Argument(
         help: "The Rigol CSV file to read.",
         completion: .file(extensions: ["csv"]),
     )
     var inputFile: String
 
-    @Argument(help: "The PWL file to write.", completion: nil)
+    @Argument(
+        help: "The PWL file to write (optional with --list-channels or --plot).",
+        completion: nil,
+    )
     var outputFile: String?
 
     mutating func run() throws {
@@ -49,6 +97,7 @@ struct Rigol2SpiceCommand: ParsableCommand {
                 transformations: transformations,
                 downsample: downsample,
                 keepAll: keepAll,
+                plotFile: plot.map { $0.isEmpty ? "plot.svg" : $0 },
                 inputFile: inputFile,
                 outputFile: outputFile,
             ),

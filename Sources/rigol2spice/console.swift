@@ -10,4 +10,12 @@ enum Console {
         let indentation = String(repeating: "    ", count: level)
         print("\(indentation)\(text)")
     }
+
+    static func warning(_ text: String) {
+        print("")
+        print("*** WARNING *******************************************************")
+        print("*** \(text)")
+        print("*******************************************************************")
+        print("")
+    }
 }

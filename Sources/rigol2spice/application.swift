@@ -11,7 +11,8 @@ enum Rigol2SpiceError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .outputFileNotSpecified: "Please specify the output file name after the input file name"
+        case .outputFileNotSpecified:
+            "Please specify a PWL output file, or use --list-channels and/or --plot"
         case .inputFileContainsNoPoints: "Input file contains zero samples"
         case let .invalidDownsampleValue(value): "Invalid downsample value: \(value)"
         case .mustHaveAtLeastTwoPointsToRepeat: "Must have at least two original samples to repeat capture"
@@ -29,6 +30,7 @@ struct ApplicationOptions {
     let transformations: String?
     let downsample: Int?
     let keepAll: Bool
+    let plotFile: String?
     let inputFile: String
     let outputFile: String?
 }
@@ -62,14 +64,38 @@ struct Rigol2SpiceApplication {
             transformations: transformations,
             sampleInterval: capture.sampleInterval,
         )
-        try write(processedPoints, sampleInterval: capture.sampleInterval ?? 0)
+
+        // Plot the dense processed waveform (before collinear optimization).
+        if let plotFile = options.plotFile {
+            try writePlot(
+                processedPoints,
+                to: plotFile,
+                sourceFile: options.inputFile,
+                channel: capture.selectedChannel ?? options.channel,
+            )
+        }
+
+        let outputPoints: [Point]
+        if !options.keepAll, processedPoints.count >= 3 {
+            Console.section("Removing redundant sample points (optimize)...")
+            let countBefore = processedPoints.count
+            outputPoints = removeRedundant(processedPoints)
+            try reportPointCount(before: countBefore, after: outputPoints.count)
+        }
+        else {
+            outputPoints = processedPoints
+        }
+
+        if options.outputFile != nil {
+            try write(outputPoints, sampleInterval: capture.sampleInterval ?? 0)
+        }
 
         Console.section("Job complete")
         print("")
     }
 
     private func validateOptions() throws -> [Transformation] {
-        guard options.listChannels || options.outputFile != nil else {
+        guard options.listChannels || options.outputFile != nil || options.plotFile != nil else {
             throw Rigol2SpiceError.outputFileNotSpecified
         }
 
@@ -168,13 +194,6 @@ struct Rigol2SpiceApplication {
             Console.section("Downsampling at 1/\(interval)...")
             let countBefore = points.count
             points = downsamplePoints(points, interval: interval)
-            try reportPointCount(before: countBefore, after: points.count)
-        }
-
-        if !options.keepAll, points.count >= 3 {
-            Console.section("Removing redundant sample points (optimize)...")
-            let countBefore = points.count
-            points = removeRedundant(points)
             try reportPointCount(before: countBefore, after: points.count)
         }
 
@@ -312,7 +331,7 @@ struct Rigol2SpiceApplication {
             throw Rigol2SpiceError.outputFileNotSpecified
         }
 
-        Console.section("Writing output file...")
+        Console.section("Writing PWL output file...")
         Console.detail("Number of sample points: \(numberOfPointsFormatter.string(for: points.count)!)")
 
         let byteCount = try PWLWriter().write(points, to: fileURL(for: outputFile))
@@ -324,6 +343,39 @@ struct Rigol2SpiceApplication {
         Console.detail("Capture duration: \(engineeringFormatter.string(lastTime + sampleInterval))s")
         Console
             .detail("Saving file: \(ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))...")
+    }
+
+    private func writePlot(
+        _ points: [Point],
+        to filename: String,
+        sourceFile: String,
+        channel: String,
+    ) throws {
+        if points.count > PlotWriter.largePlotPointThreshold {
+            Console.warning(
+                "Plot has \(numberOfPointsFormatter.string(for: points.count)!) points. "
+                    + "Large SVG files may be slow or unstable to open. "
+                    + "Prefer --downsample or Trim/CutAfter/CutBefore to plot a shorter segment.",
+            )
+        }
+
+        Console.section("Writing SVG plot...")
+        Console.detail("File: \(filename)")
+        Console.detail("Source: \(sourceFile)")
+        Console.detail("Channel / expression: \(channel)")
+        Console.detail("Number of sample points: \(numberOfPointsFormatter.string(for: points.count)!)")
+        Console.detail("Plot width: \(points.count)px (1 px per sample)")
+
+        let url = fileURL(for: filename)
+        let byteCount = try PlotWriter.write(
+            points,
+            to: url,
+            sourceFile: sourceFile,
+            channel: channel,
+        )
+        Console.detail(
+            "Saving file: \(ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))...",
+        )
     }
 
     private func fileURL(for filename: String) -> URL {

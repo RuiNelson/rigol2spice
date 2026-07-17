@@ -26,19 +26,19 @@ The output `.txt` file can be loaded directly as a PWL source in LTspice.
 
 ## Channel Selection
 
-List available channels in a CSV:
+List available channels in a CSV with `-l` or `--list-channels`:
 
 ```
-rigol2spice --list-channels input.csv
+rigol2spice -l input.csv
 ```
 
-Select a specific channel (default is `CH1`):
+Select a specific channel (default is `CH1`) with `-c` or `-channel`:
 
 ```
-rigol2spice --channel CH2 input.csv output.txt
+rigol2spice -c CH2 input.csv output.txt
 ```
 
-Combine channels with `+`, `-`, `*`, and `/` (standard precedence; parentheses allowed). Only channel names are allowed — no numeric literals. Transformations then apply to the result:
+Combine channels with `+`, `-`, `*`, and `/` (standard precedence; parentheses allowed). Transformations then apply to the result:
 
 ```
 rigol2spice -c 'CH1+CH2' input.csv output.txt
@@ -99,8 +99,11 @@ Scalars accept decimal (`0.7`), engineering (`3n`, `10u`), and scientific (`5e-3
 
 | Option | Effect |
 |---|---|
-| `--downsample N` | Keep every Nth sample (e.g. `2` halves the sample rate) |
-| `--keep-all` | Disable removal of redundant (collinear) points |
+| `-d, --downsample N` | Keep every Nth sample (e.g. `2` halves the sample rate) |
+| `-k, --keep-all` | Disable removal of redundant (collinear) points |
+| `-p, --plot [file]` | Write an SVG plot of the processed signal (default: `plot.svg`) |
+
+The PWL output file is optional when using `--list-channels` or `--plot`. The plot uses 1 pixel per sample, auto-scaled Y (min / avg / max markers), and decade-spaced X time markers. A console warning is emitted above 10 000 points (prefer downsample or a shorter time window).
 
 ## Example: Extract One Period and Repeat
 
@@ -124,8 +127,11 @@ OPTIONS:
   -t,  --transformations <value>  Ordered transformations separated by semicolons
   -d,  --downsample <ratio>       Downsample ratio
   -k,  --keep-all                 Keep all sample points
+  -p,  --plot [<file>]            Write SVG plot (default: plot.svg)
   -h,  --help                     Show help
 ```
+
+`output-file` if optional with `-l` or `-p`.
 
 ## Building from Source
 
