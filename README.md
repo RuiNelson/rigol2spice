@@ -59,6 +59,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `Invert` | `Invert` | Multiply every value by −1 (alias of `Multiply -1`) |
 | `Abs` | `Abs` | Replace every value with its absolute value |
 | `Rectify` | `Rectify` | Half-wave rectify (keep values ≥ 0, zero the rest) |
+| `Normalize` | `Normalize` | Scale so the peak absolute value is 1 |
 | `dB` | `dB 6` | Scale amplitude by the given voltage dB (×10^(dB/20)) |
 | `dBmW` | `dBmW 10` · `dBmW 0, 75` | × volts for that power into R Ω (e.g. 10 dBm @ 50 Ω ≈ 0.707 V)³ |
 | `dBW` | `dBW 0` · `dBW -30` | Same as `dBmW` but relative to 1 W (0 dBW = 30 dBm ≈ 7.07 V @ 50 Ω)³ |

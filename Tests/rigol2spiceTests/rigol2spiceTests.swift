@@ -309,6 +309,17 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `normalize scales peak absolute value to one`() throws {
+        #expect(try Transformation.parseList("Normalize") == [.normalize])
+
+        let points = [Point(time: 0, value: -2), Point(time: 1, value: 1)]
+        let result = try Transformation.normalize.applying(to: points)
+
+        #expect(result.map(\.value) == [-1, 0.5])
+        #expect(try Transformation.normalize.applying(to: [Point(time: 0, value: 0)]).map(\.value) == [0])
+    }
+
+    @Test
     func `legacy parser reads a real oscilloscope capture`() throws {
         let capture = try LegacyCSVParser().parse(sampleData(named: "Legacy"), channel: "ch2")
 

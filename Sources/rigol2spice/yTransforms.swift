@@ -93,6 +93,26 @@ func rectifyPoints(_ points: [Point]) -> [Point] {
     return output
 }
 
+func peakAbsoluteValue(_ points: [Point]) -> Double {
+    var peak = 0.0
+    for point in points {
+        let magnitude = abs(point.value)
+        if magnitude > peak {
+            peak = magnitude
+        }
+    }
+    return peak
+}
+
+/// Scale so the peak absolute value is 1. Unchanged if the peak is zero.
+func normalizePoints(_ points: [Point]) -> [Point] {
+    let peak = peakAbsoluteValue(points)
+    guard peak > 0 else {
+        return points
+    }
+    return multiplyValueOfPoints(points, factor: 1 / peak)
+}
+
 /// Default impedance when converting absolute power levels (dBmW / dBW) to volts.
 let powerReferenceResistance = 50.0
 
