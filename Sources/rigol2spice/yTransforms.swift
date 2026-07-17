@@ -122,6 +122,31 @@ func scalePeakTo(_ points: [Point], target: Double) -> [Point] {
     return multiplyValueOfPoints(points, factor: target / peak)
 }
 
+/// Centered moving average over `window` samples (window ≥ 1). Edges use a shorter window.
+func movingAveragePoints(_ points: [Point], window: Int) -> [Point] {
+    guard window > 1, points.count > 1 else {
+        return points
+    }
+
+    let count = points.count
+    let half = window / 2
+    var output = points
+    output.withUnsafeMutableBufferPointer { buffer in
+        var prefix = [Double](repeating: 0, count: count + 1)
+        for index in 0 ..< count {
+            prefix[index + 1] = prefix[index] + buffer[index].value
+        }
+
+        for index in 0 ..< count {
+            let lower = max(0, index - half)
+            let upper = min(count - 1, index - half + window - 1)
+            let sampleCount = upper - lower + 1
+            buffer[index].value = (prefix[upper + 1] - prefix[lower]) / Double(sampleCount)
+        }
+    }
+    return output
+}
+
 /// Default impedance when converting absolute power levels (dBmW / dBW) to volts.
 let powerReferenceResistance = 50.0
 

@@ -369,6 +369,28 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `moving average smooths with a centered window`() throws {
+        #expect(try Transformation.parseList("MovingAverage 3") == [.movingAverage(3)])
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("MovingAverage 0")
+        }
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("MovingAverage 1.5")
+        }
+
+        let points = [
+            Point(time: 0, value: 0),
+            Point(time: 1, value: 3),
+            Point(time: 2, value: 6),
+            Point(time: 3, value: 9),
+        ]
+        let result = try Transformation.movingAverage(3).applying(to: points)
+
+        #expect(result.map(\.value) == [1.5, 3, 6, 7.5])
+        #expect(result.map(\.time) == [0, 1, 2, 3])
+    }
+
+    @Test
     func `legacy parser reads a real oscilloscope capture`() throws {
         let capture = try LegacyCSVParser().parse(sampleData(named: "Legacy"), channel: "ch2")
 

@@ -218,6 +218,8 @@ struct Rigol2SpiceApplication {
             Console.section("Scaling peak absolute value to \(engineeringFormatter.string(value))...")
         case let .scaleTo(value):
             Console.section("Scaling peak absolute value to \(engineeringFormatter.string(value))...")
+        case let .movingAverage(window):
+            Console.section("Applying moving average over \(window) samples...")
         case let .db(value):
             let sign = value >= 0 ? "+" : ""
             Console.section("Scaling the signal by \(sign)\(engineeringFormatter.string(value))dB...")

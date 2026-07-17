@@ -46,6 +46,7 @@ enum Transformation: Equatable {
     case normalize
     case peakTo(Double)
     case scaleTo(Double)
+    case movingAverage(Int)
     case db(Double)
     case dbmW(level: Double, resistance: Double)
     case dbW(level: Double, resistance: Double)
@@ -194,6 +195,17 @@ enum Transformation: Equatable {
                     )
                 }
                 return .scaleTo(value)
+            case "movingaverage":
+                let value = try scalar()
+                guard value >= 1,
+                      value < Double(Int.max),
+                      value == value.rounded(.towardZero) else {
+                    throw TransformationParseError.invalidPositiveScalar(
+                        operation: operation,
+                        value: arguments[0],
+                    )
+                }
+                return .movingAverage(Int(value))
             case "db":
                 return try .db(scalar())
             case "dbmw", "dbm":
@@ -300,6 +312,8 @@ enum Transformation: Equatable {
             return scalePeakTo(points, target: value)
         case let .scaleTo(value):
             return scalePeakTo(points, target: value)
+        case let .movingAverage(window):
+            return movingAveragePoints(points, window: window)
         case let .db(value):
             return multiplyValueOfPoints(points, factor: pow(10, value / 20))
         case let .dbmW(level, resistance):
