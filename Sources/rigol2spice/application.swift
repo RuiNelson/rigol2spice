@@ -82,7 +82,7 @@ struct Rigol2SpiceApplication {
     private func loadInput() throws -> Data {
         Console.section("Loading input file...")
         let data = try Data(contentsOf: fileURL(for: options.inputFile))
-        Console.detail("Read \(fileSizeFormatter.string(fromByteCount: Int64(data.count)))")
+        Console.detail("Read \(ByteCountFormatter.string(fromByteCount: Int64(data.count), countStyle: .file))")
         return data
     }
 
@@ -226,7 +226,7 @@ struct Rigol2SpiceApplication {
         Console.detail("First sample: \(engineeringFormatter.string(firstTime))s")
         Console.detail("Last sample: \(engineeringFormatter.string(lastTime))s")
         Console.detail("Capture duration: \(engineeringFormatter.string(lastTime + sampleInterval))s")
-        Console.detail("Saving file: \(fileSizeFormatter.string(fromByteCount: Int64(byteCount)))...")
+        Console.detail("Saving file: \(ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))...")
     }
 
     private func fileURL(for filename: String) -> URL {
