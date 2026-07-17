@@ -254,6 +254,32 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `seamless matches ends for looping with Repeat`() throws {
+        #expect(try Transformation.parseList("Seamless") == [.seamless(rampDuration: nil)])
+        #expect(try Transformation.parseList("MatchEnds 0.5") == [.seamless(rampDuration: 0.5)])
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("Seamless 0")
+        }
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("Seamless 1, 2")
+        }
+
+        let points = [
+            Point(time: 0, value: 1),
+            Point(time: 1, value: 2),
+            Point(time: 2, value: 3),
+        ]
+        let matched = try Transformation.seamless(rampDuration: nil).applying(to: points)
+        #expect(matched.map(\.value) == [1, 2, 1])
+        #expect(matched.map(\.time) == [0, 1, 2])
+
+        let ramped = try Transformation.seamless(rampDuration: 0.5).applying(to: points)
+        #expect(ramped.count == 4)
+        #expect(ramped.last == Point(time: 2.5, value: 1))
+        #expect(ramped.dropLast().map(\.value) == [1, 2, 3])
+    }
+
+    @Test
     func `time scale stretches timestamps from the first sample`() throws {
         #expect(try Transformation.parseList("TimeScale 2") == [.timeScale(2)])
         #expect(try Transformation.parseList("Stretch 0.5") == [.timeScale(0.5)])
@@ -603,3 +629,5 @@ struct Rigol2spiceTests {
         return try Data(contentsOf: url)
     }
 }
+
+// temporary

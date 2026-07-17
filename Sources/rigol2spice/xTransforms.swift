@@ -125,6 +125,28 @@ func alignEdgePoints(
     throw Rigol2SpiceError.edgeNotFound(rising: rising, threshold: threshold)
 }
 
+/// Make the capture loopable: force the last value to match the first.
+/// When `rampDuration` is positive, append a linear ramp of that length from the
+/// current last value to the first value instead of overwriting the last sample.
+func seamlessPoints(_ points: [Point], rampDuration: Double?) -> [Point] {
+    guard points.count >= 2 else {
+        return points
+    }
+
+    let firstValue = points[0].value
+    let last = points[points.count - 1]
+
+    if let rampDuration, rampDuration > 0 {
+        var output = points
+        output.append(Point(time: last.time + rampDuration, value: firstValue))
+        return output
+    }
+
+    var output = points
+    output[output.count - 1].value = firstValue
+    return output
+}
+
 /// Scale the time axis by `factor` (> 0), preserving the first sample's timestamp.
 func timeScalePoints(_ points: [Point], factor: Double) -> [Point] {
     guard factor != 1, !points.isEmpty else {

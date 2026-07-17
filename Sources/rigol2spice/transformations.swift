@@ -59,6 +59,7 @@ enum Transformation: Equatable {
     case timeShift(Double)
     case timeScale(Double)
     case alignEdge(rising: Bool, threshold: Double, after: Double?)
+    case seamless(rampDuration: Double?)
     case cutAfter(Double)
     case cutBefore(Double)
     case trim(start: Double, end: Double)
@@ -284,6 +285,26 @@ enum Transformation: Equatable {
                     after = nil
                 }
                 return .alignEdge(rising: rising, threshold: threshold, after: after)
+            case "seamless",
+                 "matchends":
+                guard arguments.count <= 1 else {
+                    throw TransformationParseError.invalidArgumentCount(
+                        operation: operation,
+                        expected: 0,
+                        actual: arguments.count,
+                    )
+                }
+                if arguments.isEmpty {
+                    return .seamless(rampDuration: nil)
+                }
+                let duration = try parseScalarArgument(arguments[0])
+                guard duration > 0 else {
+                    throw TransformationParseError.invalidPositiveScalar(
+                        operation: operation,
+                        value: arguments[0],
+                    )
+                }
+                return .seamless(rampDuration: duration)
             case "cutafter":
                 let value = try scalar()
                 guard value > 0 else {
@@ -330,6 +351,7 @@ enum Transformation: Equatable {
         switch self {
         case .timeShift,
              .alignEdge,
+             .seamless,
              .cutAfter,
              .cutBefore,
              .trim,
@@ -401,6 +423,8 @@ enum Transformation: Equatable {
             return timeScalePoints(points, factor: value)
         case let .alignEdge(rising, threshold, after):
             return try alignEdgePoints(points, rising: rising, threshold: threshold, after: after)
+        case let .seamless(rampDuration):
+            return seamlessPoints(points, rampDuration: rampDuration)
         case let .cutAfter(value):
             return cutPointsAfter(points, after: value)
         case let .cutBefore(value):

@@ -282,6 +282,15 @@ struct Rigol2SpiceApplication {
                     "Aligning \(direction) edge at \(engineeringFormatter.string(threshold)) to t=0...",
                 )
             }
+        case let .seamless(rampDuration):
+            if let rampDuration {
+                Console.section(
+                    "Making ends match with a \(engineeringFormatter.string(rampDuration))s ramp...",
+                )
+            }
+            else {
+                Console.section("Making last sample match the first (seamless loop)...")
+            }
         case let .cutAfter(value):
             Console.section("Cutting signal after \(engineeringFormatter.string(value))s...")
         case let .cutBefore(value):
