@@ -272,6 +272,29 @@ struct Rigol2SpiceApplication {
             Console.section(
                 "Soft-clipping the signal between \(engineeringFormatter.string(lower)) and \(engineeringFormatter.string(upper))...",
             )
+        case let .fade(inDuration, outDuration):
+            if inDuration > 0, outDuration > 0 {
+                if inDuration == outDuration {
+                    Console.section(
+                        "Fading signal in/out over \(engineeringFormatter.string(inDuration))s...",
+                    )
+                }
+                else {
+                    Console.section(
+                        "Fading signal in over \(engineeringFormatter.string(inDuration))s and out over \(engineeringFormatter.string(outDuration))s...",
+                    )
+                }
+            }
+            else if inDuration > 0 {
+                Console.section(
+                    "Fading signal in over \(engineeringFormatter.string(inDuration))s...",
+                )
+            }
+            else {
+                Console.section(
+                    "Fading signal out over \(engineeringFormatter.string(outDuration))s...",
+                )
+            }
         case let .limit(lower, upper):
             Console.section(
                 "Limiting the signal between \(engineeringFormatter.string(lower)) and \(engineeringFormatter.string(upper))...",

@@ -58,6 +58,7 @@ enum Transformation: Equatable {
     case digitize(lowThreshold: Double, highThreshold: Double, lowOut: Double, highOut: Double)
     case slewLimit(Double)
     case softClip(lower: Double, upper: Double)
+    case fade(inDuration: Double, outDuration: Double)
     case limit(lower: Double, upper: Double)
     case db(Double)
     case dbmW(level: Double, resistance: Double)
@@ -281,6 +282,33 @@ enum Transformation: Equatable {
                     )
                 }
                 return .softClip(lower: lower, upper: upper)
+            case "fade":
+                let duration = try scalar()
+                guard duration > 0 else {
+                    throw TransformationParseError.invalidPositiveScalar(
+                        operation: operation,
+                        value: arguments[0],
+                    )
+                }
+                return .fade(inDuration: duration, outDuration: duration)
+            case "fadein":
+                let duration = try scalar()
+                guard duration > 0 else {
+                    throw TransformationParseError.invalidPositiveScalar(
+                        operation: operation,
+                        value: arguments[0],
+                    )
+                }
+                return .fade(inDuration: duration, outDuration: 0)
+            case "fadeout":
+                let duration = try scalar()
+                guard duration > 0 else {
+                    throw TransformationParseError.invalidPositiveScalar(
+                        operation: operation,
+                        value: arguments[0],
+                    )
+                }
+                return .fade(inDuration: 0, outDuration: duration)
             case "digitize",
                  "threshold":
                 // Digitize threshold
@@ -582,6 +610,8 @@ enum Transformation: Equatable {
             return slewLimitPoints(points, maxSlew: value)
         case let .softClip(lower, upper):
             return softClipPoints(points, lower: lower, upper: upper)
+        case let .fade(inDuration, outDuration):
+            return fadePoints(points, fadeIn: inDuration, fadeOut: outDuration)
         case let .limit(lower, upper):
             return clamp(points, lowerLimit: lower, upperLimit: upper)
         case let .db(value):

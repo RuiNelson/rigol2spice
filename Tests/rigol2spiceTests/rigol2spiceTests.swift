@@ -614,6 +614,29 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `fade scales amplitude at the ends`() throws {
+        #expect(try Transformation.parseList("Fade 1") == [.fade(inDuration: 1, outDuration: 1)])
+        #expect(try Transformation.parseList("FadeIn 2") == [.fade(inDuration: 2, outDuration: 0)])
+        #expect(try Transformation.parseList("FadeOut 0.5") == [.fade(inDuration: 0, outDuration: 0.5)])
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("Fade 0")
+        }
+
+        let points = [
+            Point(time: 0, value: 10),
+            Point(time: 1, value: 10),
+            Point(time: 2, value: 10),
+            Point(time: 3, value: 10),
+            Point(time: 4, value: 10),
+        ]
+        let faded = try Transformation.fade(inDuration: 2, outDuration: 2).applying(to: points)
+        #expect(faded.map(\.value) == [0, 5, 10, 5, 0])
+
+        let fadeInOnly = try Transformation.fade(inDuration: 2, outDuration: 0).applying(to: points)
+        #expect(fadeInOnly.map(\.value) == [0, 5, 10, 10, 10])
+    }
+
+    @Test
     func `soft clip approaches bounds without hard corners`() throws {
         #expect(try Transformation.parseList("SoftClip -1, 1") == [.softClip(lower: -1, upper: 1)])
         #expect(try Transformation.parseList("TanhLimit -0.7, 0.7") == [.softClip(lower: -0.7, upper: 0.7)])

@@ -264,6 +264,40 @@ func integratePoints(_ points: [Point]) -> [Point] {
     return output
 }
 
+/// Linear amplitude fade at the start and/or end of the capture.
+func fadePoints(
+    _ points: [Point],
+    fadeIn: Double,
+    fadeOut: Double,
+) -> [Point] {
+    guard !points.isEmpty else {
+        return points
+    }
+
+    let start = points[0].time
+    let end = points[points.count - 1].time
+    var output = points
+    output.withUnsafeMutableBufferPointer { buffer in
+        for index in buffer.indices {
+            var gain = 1.0
+            if fadeIn > 0 {
+                let elapsed = buffer[index].time - start
+                if elapsed < fadeIn {
+                    gain = min(gain, max(0, elapsed / fadeIn))
+                }
+            }
+            if fadeOut > 0 {
+                let remaining = end - buffer[index].time
+                if remaining < fadeOut {
+                    gain = min(gain, max(0, remaining / fadeOut))
+                }
+            }
+            buffer[index].value *= gain
+        }
+    }
+    return output
+}
+
 /// Soft clip into [lower, upper] using a scaled tanh.
 /// At the bounds the slope is gentle; the asymptotic limits are lower/upper.
 func softClipPoints(_ points: [Point], lower: Double, upper: Double) -> [Point] {
