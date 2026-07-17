@@ -35,7 +35,7 @@ func clamp(_ points: [Point], lowerLimit: Double?, upperLimit: Double?) -> [Poin
         }
 
         if let upperLimit {
-            if oldPoint.value < upperLimit {
+            if oldPoint.value > upperLimit {
                 newPoint.value = upperLimit
             }
         }

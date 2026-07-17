@@ -28,12 +28,10 @@ func removeRedundant(_ source: [Point]) -> [Point] {
 func downsamplePoints(_ source: [Point], interval: Int) -> [Point] {
     var i = (interval - 1)
 
-    let downsampled = source.filter { _ in
+    return source.filter { _ in
         i += 1
         return (i % interval) == 0
     }
-
-    return downsampled
 }
 
 func timeShiftPoints(_ points: [Point], value: Double) -> [Point] {
@@ -43,33 +41,65 @@ func timeShiftPoints(_ points: [Point], value: Double) -> [Point] {
         return shiftedPoint
     }
 
-    let filtered = shifted.filter { $0.time >= 0 }
-
-    return filtered
+    return shifted.filter { $0.time >= 0 }
 }
 
-func cutAfter(_ points: [Point], after: Double) -> [Point] {
+func cutPointsAfter(_ points: [Point], after: Double) -> [Point] {
     points.filter { $0.time < after }
 }
 
-func repeatPoints(_ points: [Point], n: Int) throws -> [Point] {
+func repeatPoints(_ points: [Point], amount: Double) throws -> [Point] {
     guard points.count >= 2 else {
         throw Rigol2SpiceErrors.mustHaveAtLeastTwoPointsToRepeat
     }
 
-    let increment = points[1].time - points[0].time
-    var newPoints = [Point]()
+    guard amount > 0,
+          amount.isFinite,
+          amount < Double(Int.max),
+          let completeRepeats = Int(exactly: amount.rounded(.down)) else {
+        throw TransformationParseError.invalidPositiveScalar(operation: "Repeat", value: String(amount))
+    }
 
-    for i in 0 ... n {
-        if i == 0 {
-            newPoints.append(contentsOf: points)
+    let fractionalRepeat = amount - Double(completeRepeats)
+    let firstPoint = points[0]
+    let increment = points[1].time - points[0].time
+    let periodDuration = points.last!.time - firstPoint.time + increment
+    var newPoints = points
+
+    if completeRepeats > 0 {
+        for copyIndex in 1 ... completeRepeats {
+            let timeShift = Double(copyIndex) * periodDuration
+            newPoints.append(contentsOf: points.map {
+                Point(time: $0.time + timeShift, value: $0.value)
+            })
+        }
+    }
+
+    if fractionalRepeat > 0 {
+        let partialDuration = periodDuration * fractionalRepeat
+        let timeShift = Double(completeRepeats + 1) * periodDuration
+
+        newPoints.append(contentsOf: points.lazy.filter {
+            $0.time - firstPoint.time < partialDuration
+        }.map {
+            Point(time: $0.time + timeShift, value: $0.value)
+        })
+
+        let boundaryTime = firstPoint.time + partialDuration
+        let before = points.last { $0.time <= boundaryTime } ?? firstPoint
+        let after = points.first { $0.time >= boundaryTime }
+            ?? Point(time: firstPoint.time + periodDuration, value: firstPoint.value)
+
+        let boundaryValue: Double
+        if before.time == after.time {
+            boundaryValue = before.value
         }
         else {
-            let start = newPoints.last!.time + increment
-            let shifted = timeShiftPoints(points, value: start)
-
-            newPoints.append(contentsOf: shifted)
+            let progress = (boundaryTime - before.time) / (after.time - before.time)
+            boundaryValue = before.value + (after.value - before.value) * progress
         }
+
+        newPoints.append(Point(time: boundaryTime + timeShift, value: boundaryValue))
     }
 
     return newPoints

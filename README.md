@@ -38,43 +38,43 @@ Select a specific channel (default is `CH1`):
 rigol2spice --channel CH2 input.csv output.txt
 ```
 
-## Signal Processing
+## Transformations
 
-All transforms are applied in the order shown below, letting you chain them predictably.
+Pass an ordered list of transformation commands with `-t` or `--transformations`. Separate commands with semicolons and quote the complete string for the shell:
 
-### Vertical
+```
+rigol2spice input.csv output.txt -t 'RemoveDC; ClampMax 0.7; Offset -1.2'
+```
 
-| Option | Example | Effect |
+Commands use the syntax `OPERATION argument`. Operation names are case-insensitive.
+
+| Operation | Example | Effect |
 |---|---|---|
-| `--clamp-min` / `--clamp-max` | `--clamp-min 0 --clamp-max 3.3` | Clamp signal to 0 V -- 3.3 V |
-| `--removedc` | `--removedc` | Subtract the DC average |
-| `--offset` | `--offset P1.5` | Shift signal +1.5 V (use `M` for minus, `P` for plus) |
-| `--multiply` | `--multiply 10` | Amplify 10x (use `N` prefix for inversion) |
+| `RemoveDC` | `RemoveDC` | Subtract the DC average |
+| `ClampMin` | `ClampMin 0` | Clamp values below the scalar |
+| `ClampMax` | `ClampMax 3.3` | Clamp values above the scalar |
+| `Offset` | `Offset -1.5` | Add the scalar to every value |
+| `Multiply` | `Multiply 10` | Multiply every value by the scalar |
+| `TimeShift` | `TimeShift -5m` | Shift timestamps; negative values shift left |
+| `CutAfter` | `CutAfter 10u` | Discard samples at or after the timestamp |
+| `Repeat` | `Repeat 2.5` | Append two copies and the first 50% of another |
 
-### Horizontal
+Scalars accept decimal (`0.7`), engineering (`3n`, `10u`), and scientific (`5e-3`) notation. Use `-` for negative values. `Repeat` requires a value greater than zero and accepts fractional repetitions; its final point is interpolated when needed. Transformations run strictly from left to right.
 
-| Option | Example | Effect |
-|---|---|---|
-| `--shift` | `--shift L5ms` | Shift 5 ms left (`L`eft / `R`ight) |
-| `--cut` | `--cut 10us` | Discard everything after 10 us |
-| `--repeat` | `--repeat 3` | Repeat the waveform 3 times |
-
-### Post-processing
+### Post-processing Options
 
 | Option | Effect |
 |---|---|
 | `--downsample N` | Keep every Nth sample (e.g. `2` halves the sample rate) |
 | `--keep-all` | Disable removal of redundant (collinear) points |
 
-Values accept engineering notation: `5ms`, `100us`, `3.3ns`, `5E-3s`.
-
 ## Example: Extract One Period and Repeat
 
 ```
-rigol2spice --shift L5ms --cut 7.5ms --repeat 2 input.csv output.txt
+rigol2spice -t 'TimeShift -5m; CutAfter 7.5m; Repeat 2' input.csv output.txt
 ```
 
-1. Shift waveform 5 ms left (removes first 5 ms, time starts at 0)
+1. Shift waveform 5 ms left (removes the first 5 ms, then time starts at 0)
 2. Cut at 7.5 ms (keeps only 0 -- 7.5 ms of the shifted waveform)
 3. Repeat 2 times (creates 3 total copies -- original + 2 repetitions = 22.5 ms total)
 
@@ -87,14 +87,7 @@ OPTIONS:
   -n,  --new-models               Newer Rigol Centaurus platform format
   -l,  --list-channels            List channels and exit
   -c,  --channel <channel>        Channel to process (default: CH1)
-       --clamp-min <value>        Clamp lower bound (N prefix = negative)
-       --clamp-max <value>        Clamp upper bound (N prefix = negative)
-       --removedc                 Remove DC component
-  -o,  --offset <value>           Vertical offset (M/P prefix)
-  -m,  --multiply <value>         Multiply signal (N prefix = negative)
-  -s,  --shift <value>            Time-shift (L/R prefix)
-  -x,  --cut <timestamp>          Cut after timestamp
-  -r,  --repeat <count>           Repeat signal
+  -t,  --transformations <value>  Ordered transformations separated by semicolons
   -d,  --downsample <ratio>       Downsample ratio
   -k,  --keep-all                 Keep all sample points
   -h,  --help                     Show help
