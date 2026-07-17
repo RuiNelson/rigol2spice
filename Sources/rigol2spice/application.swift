@@ -37,7 +37,6 @@ struct ApplicationOptions {
 
 struct Rigol2SpiceApplication {
     private let options: ApplicationOptions
-    private let console = Console()
 
     init(options: ApplicationOptions) {
         self.options = options
@@ -61,7 +60,7 @@ struct Rigol2SpiceApplication {
         let processedPoints = try process(capture.points, transformations: transformations)
         try write(processedPoints, sampleInterval: capture.sampleInterval ?? 0)
 
-        console.section("Job complete")
+        Console.section("Job complete")
         print("")
     }
 
@@ -81,16 +80,16 @@ struct Rigol2SpiceApplication {
     }
 
     private func loadInput() throws -> Data {
-        console.section("Loading input file...")
+        Console.section("Loading input file...")
         let data = try Data(contentsOf: fileURL(for: options.inputFile))
-        console.detail("Read \(fileSizeFormatter.string(fromByteCount: Int64(data.count)))")
+        Console.detail("Read \(fileSizeFormatter.string(fromByteCount: Int64(data.count)))")
         return data
     }
 
     private func parseCapture(_ data: Data) throws -> Capture {
-        console.section("Parsing input file...")
+        Console.section("Parsing input file...")
         if data.count > 1_000_000 {
-            console.detail("(This might take a while)")
+            Console.detail("(This might take a while)")
         }
 
         let requestedChannel = options.listChannels ? nil : options.channel
@@ -98,21 +97,21 @@ struct Rigol2SpiceApplication {
     }
 
     private func reportChannels(_ channels: [String]) {
-        console.detail("Channels:")
+        Console.detail("Channels:")
         for channel in channels {
-            console.detail("- \(channel)", level: 2)
+            Console.detail("- \(channel)", level: 2)
         }
     }
 
     private func reportCapture(_ capture: Capture) {
         if let selectedChannel = capture.selectedChannel {
-            console.detail("Selected channel: \(selectedChannel)")
+            Console.detail("Selected channel: \(selectedChannel)")
         }
 
-        console.detail("Samples: \(numberOfPointsFormatter.string(for: capture.points.count)!)")
+        Console.detail("Samples: \(numberOfPointsFormatter.string(for: capture.points.count)!)")
 
         if let lastPoint = capture.points.last {
-            console.detail("Last sample point: \(engineeringFormatter.string(lastPoint.time))s")
+            Console.detail("Last sample point: \(engineeringFormatter.string(lastPoint.time))s")
         }
 
         guard capture.points.count >= 2,
@@ -123,9 +122,9 @@ struct Rigol2SpiceApplication {
         }
 
         let sampleRate = Double(capture.points.count) / duration
-        console.detail("Sample Interval : \(engineeringFormatter.string(interval))s")
-        console.detail("Sample Rate     : \(engineeringFormatter.string(sampleRate))sa/s")
-        console.detail("Capture Duration: \(engineeringFormatter.string(duration))s")
+        Console.detail("Sample Interval : \(engineeringFormatter.string(interval))s")
+        Console.detail("Sample Rate     : \(engineeringFormatter.string(sampleRate))sa/s")
+        Console.detail("Capture Duration: \(engineeringFormatter.string(duration))s")
     }
 
     private func process(_ source: [Point], transformations: [Transformation]) throws -> [Point] {
@@ -149,14 +148,14 @@ struct Rigol2SpiceApplication {
         }
 
         if let interval = options.downsample {
-            console.section("Downsampling at 1/\(interval)...")
+            Console.section("Downsampling at 1/\(interval)...")
             let countBefore = points.count
             points = downsamplePoints(points, interval: interval)
             try reportPointCount(before: countBefore, after: points.count)
         }
 
         if !options.keepAll, points.count >= 3 {
-            console.section("Removing redundant sample points (optimize)...")
+            Console.section("Removing redundant sample points (optimize)...")
             let countBefore = points.count
             points = removeRedundant(points)
             try reportPointCount(before: countBefore, after: points.count)
@@ -173,27 +172,27 @@ struct Rigol2SpiceApplication {
         switch transformation {
         case .removeDC:
             let estimate = dcEstimate ?? estimateDC(points)
-            console.section("Removing DC component...")
-            console.detail("Automatically calculated DC component: \(engineeringFormatter.string(estimate.value))")
+            Console.section("Removing DC component...")
+            Console.detail("Automatically calculated DC component: \(engineeringFormatter.string(estimate.value))")
             let centroids = estimate.centroids
                 .map { engineeringFormatter.string($0) }
                 .joined(separator: ", ")
-            console.detail("K-means centroids: \(centroids) (\(estimate.iterations) iterations)")
+            Console.detail("K-means centroids: \(centroids) (\(estimate.iterations) iterations)")
         case let .clampMin(value):
-            console.section("Clamping the signal above \(engineeringFormatter.string(value))...")
+            Console.section("Clamping the signal above \(engineeringFormatter.string(value))...")
         case let .clampMax(value):
-            console.section("Clamping the signal below \(engineeringFormatter.string(value))...")
+            Console.section("Clamping the signal below \(engineeringFormatter.string(value))...")
         case let .offset(value):
             let sign = value >= 0 ? "+" : ""
-            console.section("Offsetting signal by \(sign)\(engineeringFormatter.string(value))...")
+            Console.section("Offsetting signal by \(sign)\(engineeringFormatter.string(value))...")
         case let .multiply(value):
-            console.section("Multiplying the signal by a factor of \(engineeringFormatter.string(value))...")
+            Console.section("Multiplying the signal by a factor of \(engineeringFormatter.string(value))...")
         case let .timeShift(value):
-            console.section("Shifting signal for \(engineeringFormatter.string(value))s...")
+            Console.section("Shifting signal for \(engineeringFormatter.string(value))s...")
         case let .cutAfter(value):
-            console.section("Cutting signal after \(engineeringFormatter.string(value))s...")
+            Console.section("Cutting signal after \(engineeringFormatter.string(value))s...")
         case let .repeat(amount):
-            console.section("Repeating capture for \(engineeringFormatter.string(amount)) times...")
+            Console.section("Repeating capture for \(engineeringFormatter.string(amount)) times...")
         }
     }
 
@@ -203,13 +202,13 @@ struct Rigol2SpiceApplication {
         }
 
         guard before != after else {
-            console.detail("Maintained all the samples")
+            Console.detail("Maintained all the samples")
             return
         }
 
         let formattedBefore = numberOfPointsFormatter.string(for: before)!
         let formattedAfter = numberOfPointsFormatter.string(for: after)!
-        console.detail("From \(formattedBefore) samples to \(formattedAfter) samples")
+        Console.detail("From \(formattedBefore) samples to \(formattedAfter) samples")
     }
 
     private func write(_ points: [Point], sampleInterval: Double) throws {
@@ -217,17 +216,17 @@ struct Rigol2SpiceApplication {
             throw Rigol2SpiceError.outputFileNotSpecified
         }
 
-        console.section("Writing output file...")
-        console.detail("Number of sample points: \(numberOfPointsFormatter.string(for: points.count)!)")
+        Console.section("Writing output file...")
+        Console.detail("Number of sample points: \(numberOfPointsFormatter.string(for: points.count)!)")
 
         let byteCount = try PWLWriter().write(points, to: fileURL(for: outputFile))
 
         let firstTime = points[0].time
         let lastTime = points[points.count - 1].time
-        console.detail("First sample: \(engineeringFormatter.string(firstTime))s")
-        console.detail("Last sample: \(engineeringFormatter.string(lastTime))s")
-        console.detail("Capture duration: \(engineeringFormatter.string(lastTime + sampleInterval))s")
-        console.detail("Saving file: \(fileSizeFormatter.string(fromByteCount: Int64(byteCount)))...")
+        Console.detail("First sample: \(engineeringFormatter.string(firstTime))s")
+        Console.detail("Last sample: \(engineeringFormatter.string(lastTime))s")
+        Console.detail("Capture duration: \(engineeringFormatter.string(lastTime + sampleInterval))s")
+        Console.detail("Saving file: \(fileSizeFormatter.string(fromByteCount: Int64(byteCount)))...")
     }
 
     private func fileURL(for filename: String) -> URL {
