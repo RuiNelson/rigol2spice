@@ -47,6 +47,7 @@ enum Transformation: Equatable {
     case peakTo(Double)
     case scaleTo(Double)
     case movingAverage(Int)
+    case diff
     case db(Double)
     case dbmW(level: Double, resistance: Double)
     case dbW(level: Double, resistance: Double)
@@ -206,6 +207,9 @@ enum Transformation: Equatable {
                     )
                 }
                 return .movingAverage(Int(value))
+            case "diff":
+                try requireArgumentCount(0)
+                return .diff
             case "db":
                 return try .db(scalar())
             case "dbmw", "dbm":
@@ -314,6 +318,8 @@ enum Transformation: Equatable {
             return scalePeakTo(points, target: value)
         case let .movingAverage(window):
             return movingAveragePoints(points, window: window)
+        case .diff:
+            return differentiatePoints(points)
         case let .db(value):
             return multiplyValueOfPoints(points, factor: pow(10, value / 20))
         case let .dbmW(level, resistance):

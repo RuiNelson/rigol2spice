@@ -391,6 +391,23 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `diff computes numerical derivative`() throws {
+        #expect(try Transformation.parseList("Diff") == [.diff])
+
+        // v = 2t → dv/dt = 2
+        let points = [
+            Point(time: 0, value: 0),
+            Point(time: 1, value: 2),
+            Point(time: 2, value: 4),
+            Point(time: 3, value: 6),
+        ]
+        let result = try Transformation.diff.applying(to: points)
+
+        #expect(result.map(\.value) == [2, 2, 2, 2])
+        #expect(result.map(\.time) == [0, 1, 2, 3])
+    }
+
+    @Test
     func `legacy parser reads a real oscilloscope capture`() throws {
         let capture = try LegacyCSVParser().parse(sampleData(named: "Legacy"), channel: "ch2")
 

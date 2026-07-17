@@ -147,6 +147,37 @@ func movingAveragePoints(_ points: [Point], window: Int) -> [Point] {
     return output
 }
 
+/// Numerical derivative dv/dt (central difference interior; one-sided at the ends).
+func differentiatePoints(_ points: [Point]) -> [Point] {
+    guard points.count >= 2 else {
+        return points.map { Point(time: $0.time, value: 0) }
+    }
+
+    var output = points
+    let last = points.count - 1
+
+    let firstDt = points[1].time - points[0].time
+    output[0].value = firstDt != 0
+        ? (points[1].value - points[0].value) / firstDt
+        : 0
+
+    if points.count > 2 {
+        for index in 1 ..< last {
+            let dt = points[index + 1].time - points[index - 1].time
+            output[index].value = dt != 0
+                ? (points[index + 1].value - points[index - 1].value) / dt
+                : 0
+        }
+    }
+
+    let lastDt = points[last].time - points[last - 1].time
+    output[last].value = lastDt != 0
+        ? (points[last].value - points[last - 1].value) / lastDt
+        : 0
+
+    return output
+}
+
 /// Default impedance when converting absolute power levels (dBmW / dBW) to volts.
 let powerReferenceResistance = 50.0
 
