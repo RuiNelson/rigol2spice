@@ -334,6 +334,17 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `scaleTo is an alias of peakTo`() throws {
+        #expect(try Transformation.parseList("ScaleTo 2") == [.scaleTo(2)])
+
+        let points = [Point(time: 0, value: -2), Point(time: 1, value: 1)]
+        let peakTo = try Transformation.peakTo(2).applying(to: points)
+        let scaleTo = try Transformation.scaleTo(2).applying(to: points)
+
+        #expect(scaleTo == peakTo)
+    }
+
+    @Test
     func `legacy parser reads a real oscilloscope capture`() throws {
         let capture = try LegacyCSVParser().parse(sampleData(named: "Legacy"), channel: "ch2")
 
