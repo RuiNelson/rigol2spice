@@ -1,51 +1,94 @@
 import Foundation
 
-func equal(_ a: Double, _ b: Double, _ c: Double) -> Bool {
-    a == b && b == c
-}
+private func firstPointIndex(atOrAfter targetTime: Double, in points: [Point]) -> Int {
+    var lowerBound = 0
+    var upperBound = points.count
 
-func removeRedundant(_ source: [Point]) -> [Point] {
-    var output = source
-    var toDelete: Set<Double> = []
-
-    for n in 1 ..< (output.count - 1) {
-        let before = output[n - 1]
-        let now = output[n]
-        let after = output[n + 1]
-
-        if equal(before.value, now.value, after.value) {
-            toDelete.insert(now.time)
+    while lowerBound < upperBound {
+        let middle = lowerBound + (upperBound - lowerBound) / 2
+        if points[middle].time < targetTime {
+            lowerBound = middle + 1
+        }
+        else {
+            upperBound = middle
         }
     }
 
-    if !toDelete.isEmpty {
-        output = output.filter { !toDelete.contains($0.time) }
+    return lowerBound
+}
+
+func removeRedundant(_ source: [Point]) -> [Point] {
+    guard source.count >= 3 else {
+        return source
+    }
+
+    var output: [Point] = []
+    output.reserveCapacity(source.count)
+    output.append(source[0])
+
+    for index in 1 ..< source.count - 1 {
+        let previousValue = source[index - 1].value
+        let value = source[index].value
+        let nextValue = source[index + 1].value
+
+        if previousValue != value || value != nextValue {
+            output.append(source[index])
+        }
+    }
+
+    output.append(source[source.count - 1])
+    return output
+}
+
+func downsamplePoints(_ source: [Point], interval: Int) -> [Point] {
+    guard interval > 1, source.count > 1 else {
+        return source
+    }
+
+    var output: [Point] = []
+    output.reserveCapacity((source.count - 1) / interval + 1)
+
+    var index = 0
+    while index < source.count {
+        output.append(source[index])
+        index += interval
     }
 
     return output
 }
 
-func downsamplePoints(_ source: [Point], interval: Int) -> [Point] {
-    var i = (interval - 1)
-
-    return source.filter { _ in
-        i += 1
-        return (i % interval) == 0
-    }
-}
-
 func timeShiftPoints(_ points: [Point], value: Double) -> [Point] {
-    let shifted: [Point] = points.map { point in
-        var shiftedPoint = point
-        shiftedPoint.time = shiftedPoint.time + value
-        return shiftedPoint
+    guard !points.isEmpty else {
+        return points
     }
 
-    return shifted.filter { $0.time >= 0 }
+    if value == 0, points[0].time >= 0 {
+        return points
+    }
+
+    let firstIndex = firstPointIndex(atOrAfter: -value, in: points)
+    guard firstIndex < points.count else {
+        return []
+    }
+
+    var shifted: [Point] = []
+    shifted.reserveCapacity(points.count - firstIndex)
+
+    for index in firstIndex ..< points.count {
+        let point = points[index]
+        shifted.append(Point(time: point.time + value, value: point.value))
+    }
+
+    return shifted
 }
 
 func cutPointsAfter(_ points: [Point], after: Double) -> [Point] {
-    points.filter { $0.time < after }
+    let endIndex = firstPointIndex(atOrAfter: after, in: points)
+    guard endIndex < points.count else {
+        return points
+    }
+
+    return Array(points[..<endIndex])
 }
 
 func repeatPoints(_ points: [Point], amount: Double) throws -> [Point] {
@@ -62,45 +105,59 @@ func repeatPoints(_ points: [Point], amount: Double) throws -> [Point] {
 
     let fractionalRepeat = amount - Double(completeRepeats)
     let firstPoint = points[0]
-    let increment = points[1].time - points[0].time
-    let periodDuration = points.last!.time - firstPoint.time + increment
-    var newPoints = points
+    let increment = points[1].time - firstPoint.time
+    let periodDuration = points[points.count - 1].time - firstPoint.time + increment
+    let partialDuration = periodDuration * fractionalRepeat
+    let partialEndIndex = fractionalRepeat > 0
+        ? firstPointIndex(atOrAfter: firstPoint.time + partialDuration, in: points)
+        : 0
+
+    var output: [Point] = []
+    let (completePointCount, overflowed) = points.count.multipliedReportingOverflow(by: completeRepeats + 1)
+    if !overflowed {
+        let partialPointCount = fractionalRepeat > 0 ? partialEndIndex + 1 : 0
+        let (capacity, capacityOverflowed) = completePointCount.addingReportingOverflow(partialPointCount)
+        if !capacityOverflowed {
+            output.reserveCapacity(capacity)
+        }
+    }
+
+    output.append(contentsOf: points)
 
     if completeRepeats > 0 {
         for copyIndex in 1 ... completeRepeats {
             let timeShift = Double(copyIndex) * periodDuration
-            newPoints.append(contentsOf: points.map {
-                Point(time: $0.time + timeShift, value: $0.value)
-            })
+            for point in points {
+                output.append(Point(time: point.time + timeShift, value: point.value))
+            }
         }
     }
 
     if fractionalRepeat > 0 {
-        let partialDuration = periodDuration * fractionalRepeat
         let timeShift = Double(completeRepeats + 1) * periodDuration
 
-        newPoints.append(contentsOf: points.lazy.filter {
-            $0.time - firstPoint.time < partialDuration
-        }.map {
-            Point(time: $0.time + timeShift, value: $0.value)
-        })
+        for index in 0 ..< partialEndIndex {
+            let point = points[index]
+            output.append(Point(time: point.time + timeShift, value: point.value))
+        }
 
         let boundaryTime = firstPoint.time + partialDuration
-        let before = points.last { $0.time <= boundaryTime } ?? firstPoint
-        let after = points.first { $0.time >= boundaryTime }
-            ?? Point(time: firstPoint.time + periodDuration, value: firstPoint.value)
+        let before = partialEndIndex > 0 ? points[partialEndIndex - 1] : firstPoint
+        let after = partialEndIndex < points.count
+            ? points[partialEndIndex]
+            : Point(time: firstPoint.time + periodDuration, value: firstPoint.value)
 
         let boundaryValue: Double
-        if before.time == after.time {
-            boundaryValue = before.value
+        if boundaryTime == after.time {
+            boundaryValue = after.value
         }
         else {
             let progress = (boundaryTime - before.time) / (after.time - before.time)
             boundaryValue = before.value + (after.value - before.value) * progress
         }
 
-        newPoints.append(Point(time: boundaryTime + timeShift, value: boundaryValue))
+        output.append(Point(time: boundaryTime + timeShift, value: boundaryValue))
     }
 
-    return newPoints
+    return output
 }

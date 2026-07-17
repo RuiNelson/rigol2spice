@@ -95,7 +95,7 @@ OPTIONS:
 
 ## Building from Source
 
-Requires Swift 5.6+.
+Requires Swift 6.3+.
 
 ```
 swift build

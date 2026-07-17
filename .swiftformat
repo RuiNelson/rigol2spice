@@ -1,5 +1,7 @@
 # format options
 
+--swift-version 6.3
+--language-mode 6
 --allman false
 --enable acronyms,blankLinesBetweenImports,blockComments,isEmpty,markTypes,wrapEnumCases,wrapSwitchCases,yodaConditions
 --disable wrapMultilineStatementBraces

@@ -12,15 +12,15 @@ enum TransformationParseError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case let .emptyCommand(index):
-            return "Transformation command \(index) is empty"
+            "Transformation command \(index) is empty"
         case let .unknownOperation(name):
-            return "Unknown transformation operation: \(name)"
+            "Unknown transformation operation: \(name)"
         case let .invalidArgumentCount(operation, expected, actual):
-            return "\(operation) expects \(expected) argument(s), but received \(actual)"
+            "\(operation) expects \(expected) argument(s), but received \(actual)"
         case let .invalidScalar(operation, value):
-            return "Invalid scalar for \(operation): \(value)"
+            "Invalid scalar for \(operation): \(value)"
         case let .invalidPositiveScalar(operation, value):
-            return "\(operation) expects a positive scalar, but received: \(value)"
+            "\(operation) expects a positive scalar, but received: \(value)"
         }
     }
 }
@@ -62,7 +62,7 @@ enum Transformation: Equatable {
                     throw TransformationParseError.invalidArgumentCount(
                         operation: operation,
                         expected: expected,
-                        actual: arguments.count
+                        actual: arguments.count,
                     )
                 }
             }
@@ -114,30 +114,30 @@ enum Transformation: Equatable {
         case .timeShift,
              .cutAfter,
              .repeat:
-            return true
+            true
         default:
-            return false
+            false
         }
     }
 
     func applying(to points: [Point]) throws -> [Point] {
         switch self {
         case .removeDC:
-            return offsetPoints(points, offset: -calculateDC(points))
+            offsetPoints(points, offset: -calculateDC(points))
         case let .clampMin(value):
-            return clamp(points, lowerLimit: value, upperLimit: nil)
+            clamp(points, lowerLimit: value, upperLimit: nil)
         case let .clampMax(value):
-            return clamp(points, lowerLimit: nil, upperLimit: value)
+            clamp(points, lowerLimit: nil, upperLimit: value)
         case let .offset(value):
-            return offsetPoints(points, offset: value)
+            offsetPoints(points, offset: value)
         case let .multiply(value):
-            return multiplyValueOfPoints(points, factor: value)
+            multiplyValueOfPoints(points, factor: value)
         case let .timeShift(value):
-            return timeShiftPoints(points, value: value)
+            timeShiftPoints(points, value: value)
         case let .cutAfter(value):
-            return cutPointsAfter(points, after: value)
+            cutPointsAfter(points, after: value)
         case let .repeat(amount):
-            return try repeatPoints(points, amount: amount)
+            try repeatPoints(points, amount: amount)
         }
     }
 }

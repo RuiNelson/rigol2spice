@@ -25,16 +25,15 @@ enum Rigol2SpiceErrors: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .outputFileNotSpecified:
-            return
-                "Please specify the output file name after the input file name"
+            "Please specify the output file name after the input file name"
         case .inputFileContainsNoPoints:
-            return "Input file contains zero samples"
+            "Input file contains zero samples"
         case let .invalidDownsampleValue(value: v):
-            return "Invalid downsample value: \(v)"
+            "Invalid downsample value: \(v)"
         case .mustHaveAtLeastTwoPointsToRepeat:
-            return "Must have at least two original samples to repeat capture"
+            "Must have at least two original samples to repeat capture"
         case .operationRemovedEveryPoint:
-            return "Operation removed every sample"
+            "Operation removed every sample"
         }
     }
 }
@@ -45,43 +44,43 @@ enum Rigol2SpiceErrors: LocalizedError {
 struct rigol2spice: ParsableCommand {
     @Flag(
         name: .shortAndLong,
-        help: "Adopts the format used by the newer Rigol Centaurus platform oscilloscopes."
+        help: "Adopts the format used by the newer Rigol Centaurus platform oscilloscopes.",
     )
     var newModels = false
 
     @Flag(
         name: .shortAndLong,
-        help: "Only list channels present in the file and quit"
+        help: "Only list channels present in the file and quit",
     )
     var listChannels = false
 
     @Option(
-        name: .shortAndLong, help: "The label of the channel to be processed"
+        name: .shortAndLong, help: "The label of the channel to be processed",
     )
     var channel: String?
 
     @Option(
         name: .shortAndLong,
-        help: "Ordered transformations separated by semicolons"
+        help: "Ordered transformations separated by semicolons",
     )
     var transformations: String?
 
     @Option(
         name: .shortAndLong,
-        help: "Downsample ratio"
+        help: "Downsample ratio",
     )
     var downsample: Int?
 
     @Flag(
         name: .shortAndLong,
         help:
-        "Don't remove redundant sample points. Sample points where the signal value maintains (useful for output file post-processing)"
+        "Don't remove redundant sample points. Sample points where the signal value maintains (useful for output file post-processing)",
     )
     var keepAll = false
 
     @Argument(
         help: "The filename of the .csv from the oscilloscope to be read",
-        completion: CompletionKind.file(extensions: ["csv"])
+        completion: CompletionKind.file(extensions: ["csv"]),
     )
     var inputFile: String
 
@@ -120,12 +119,11 @@ struct rigol2spice: ParsableCommand {
             throw Rigol2SpiceErrors.outputFileNotSpecified
         }
 
-        let parsedTransformations: [Transformation]
-        if let transformations {
-            parsedTransformations = try Transformation.parseList(transformations)
+        let parsedTransformations: [Transformation] = if let transformations {
+            try Transformation.parseList(transformations)
         }
         else {
-            parsedTransformations = []
+            []
         }
 
         // Loading
@@ -133,7 +131,7 @@ struct rigol2spice: ParsableCommand {
         let inputFileURL = filenameToURL(inputFile)
         let data = try Data(contentsOf: inputFileURL)
         let numBytesString = fileSizeFormatter.string(
-            fromByteCount: Int64(data.count)
+            fromByteCount: Int64(data.count),
         )
 
         printI(1, "Read \(numBytesString)")
@@ -156,7 +154,7 @@ struct rigol2spice: ParsableCommand {
         }
 
         func presentSampleIntervalAndSampleRate(
-            interval: Double, duration: Double, pointsCount: Int
+            interval: Double, duration: Double, pointsCount: Int,
         ) {
             let rate = Double(pointsCount) / duration
 
@@ -177,7 +175,7 @@ struct rigol2spice: ParsableCommand {
             points = try CentaurusParser.parseCsv(
                 data,
                 forChannel: channel ?? "CH1",
-                listChannelsOnly: listChannels
+                listChannelsOnly: listChannels,
             )
 
             guard !listChannels else {
@@ -204,7 +202,7 @@ struct rigol2spice: ParsableCommand {
                 presentSampleIntervalAndSampleRate(
                     interval: sampleTimeInterval,
                     duration: sampleDuration,
-                    pointsCount: points.count
+                    pointsCount: points.count,
                 )
             }
         }
@@ -212,7 +210,7 @@ struct rigol2spice: ParsableCommand {
             let parsed = try CSVParser.parseCsv(
                 data,
                 forChannel: channel ?? "CH1",
-                listChannelsOnly: listChannels
+                listChannelsOnly: listChannels,
             )
 
             guard !listChannels else {
@@ -235,7 +233,7 @@ struct rigol2spice: ParsableCommand {
                 presentSampleIntervalAndSampleRate(
                     interval: sampleTimeInterval,
                     duration: sampleDuration,
-                    pointsCount: points.count
+                    pointsCount: points.count,
                 )
             }
         }
@@ -244,7 +242,7 @@ struct rigol2spice: ParsableCommand {
             return
         }
 
-        guard let outputFile = outputFile else {
+        guard let outputFile else {
             throw Rigol2SpiceErrors.outputFileNotSpecified
         }
 
@@ -333,7 +331,7 @@ struct rigol2spice: ParsableCommand {
         }
 
         let fileSizeStr = fileSizeFormatter.string(
-            fromByteCount: Int64(outputFileData.count)
+            fromByteCount: Int64(outputFileData.count),
         )
 
         printI(1, "First sample: \(firstSampleString)s")
@@ -346,7 +344,7 @@ struct rigol2spice: ParsableCommand {
             try FileManager.default.removeItem(at: outputFileURL)
         }
         FileManager.default.createFile(
-            atPath: outputFileURL.path, contents: outputFileData
+            atPath: outputFileURL.path, contents: outputFileData,
         )
 
         printI(0, "Job complete")

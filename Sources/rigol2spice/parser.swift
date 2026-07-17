@@ -14,13 +14,13 @@ public enum ParseError: LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .invalidFileFormat: return "Invalid file format"
-        case .insufficientLines: return "No header or values found"
-        case .noChannelsDetected: return "No channels found"
-        case let .channelNotFound(channelLabel: channel): return "Specified channel \"\(channel)\" not found in file"
-        case .incrementNotFound: return "Time increment not found"
-        case let .invalidIncrementValue(value: valueStr): return "Time increment value is not valid: \(valueStr)"
-        case let .invalidLine(line: line): return "Invalid line: \(line)"
+        case .invalidFileFormat: "Invalid file format"
+        case .insufficientLines: "No header or values found"
+        case .noChannelsDetected: "No channels found"
+        case let .channelNotFound(channelLabel: channel): "Specified channel \"\(channel)\" not found in file"
+        case .incrementNotFound: "Time increment not found"
+        case let .invalidIncrementValue(value: valueStr): "Time increment value is not valid: \(valueStr)"
+        case let .invalidLine(line: line): "Invalid line: \(line)"
         }
     }
 }
@@ -34,7 +34,7 @@ public struct Point {
     var serialize: String {
         let time = spiceFormatter.string(for: time)!
         let value = spiceFormatter.string(for: value)!
-        
+
         return [time, "\t", value].joined()
     }
 }
@@ -42,12 +42,12 @@ public struct Point {
 // MARK: - CSVParser
 
 class CSVParser {
-    public struct HeaderInfo {
+    struct HeaderInfo {
         var channels: [Channel]
         var increment: Double?
     }
 
-    public struct Channel {
+    struct Channel {
         var name: String
         var row: Int
     }
@@ -85,7 +85,7 @@ class CSVParser {
             throw ParseError.noChannelsDetected
         }
 
-        guard let incrementIndex = incrementIndex else {
+        guard let incrementIndex else {
             throw ParseError.incrementNotFound
         }
 
@@ -112,11 +112,11 @@ class CSVParser {
         return Point(time: timeDiscrete * incrementTime, value: value)
     }
 
-    public static func parseCsv(_ data: Data,
-                                forChannel channelLabel: String,
-                                listChannelsOnly: Bool) throws -> (header: HeaderInfo,
-                                                                   selectedChannel: Channel?,
-                                                                   points: [Point]) {
+    static func parseCsv(_ data: Data,
+                         forChannel channelLabel: String,
+                         listChannelsOnly: Bool) throws -> (header: HeaderInfo,
+                                                            selectedChannel: Channel?,
+                                                            points: [Point]) {
         // Convert to string
         guard let input = String(data: data, encoding: .ascii) else {
             throw ParseError.invalidFileFormat
@@ -163,7 +163,7 @@ class CSVParser {
         let timeIncrement = headerInfo.increment
         let channels = headerInfo.channels
 
-        guard let timeIncrement = timeIncrement else {
+        guard let timeIncrement else {
             throw ParseError.incrementNotFound
         }
 
@@ -178,7 +178,7 @@ class CSVParser {
             })
         }
 
-        guard let selectedChannel = selectedChannel else {
+        guard let selectedChannel else {
             throw ParseError.channelNotFound(channelLabel: channelLabel)
         }
 

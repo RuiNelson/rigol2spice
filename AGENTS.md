@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repository is a Swift Package Manager command-line application. `Package.swift` defines the `rigol2spice` executable and its pinned dependencies. Production code lives in `Sources/rigol2spice/`: `entry.swift` owns argument parsing and the processing pipeline, `transformations.swift` parses ordered transformations, `parser.swift` and `parser-new.swift` read legacy and Centaurus CSV formats, and `xTransforms.swift`/`yTransforms.swift` apply signal transforms. XCTest code belongs in `Tests/rigol2spiceTests/`. Keep generated `.build/`, `.swiftpm/`, and `Package.resolved` files untracked as specified by `.gitignore`.
+This repository is a Swift Package Manager command-line application. `Package.swift` defines the `rigol2spice` executable and its pinned dependencies. Production code lives in `Sources/rigol2spice/`: `entry.swift` owns argument parsing and the processing pipeline, `transformations.swift` parses ordered transformations, `parser.swift` and `parser-new.swift` read legacy and Centaurus CSV formats, and `xTransforms.swift`/`yTransforms.swift` apply signal transforms. Swift Testing code belongs in `Tests/rigol2spiceTests/`. Keep generated `.build/`, `.swiftpm/`, and `Package.resolved` files untracked as specified by `.gitignore`.
 
 ## Build, Test, and Development Commands
 
@@ -10,7 +10,7 @@ This repository is a Swift Package Manager command-line application. `Package.sw
 - `swift build -c release` — create an optimized binary under `.build/release/`.
 - `swift run rigol2spice --help` — run the CLI locally and inspect supported options.
 - `swift run rigol2spice input.csv output.txt` — exercise a legacy CSV conversion; add `-n` for Centaurus-format captures.
-- `swift test` — build and execute the XCTest target.
+- `swift test` — build and execute the Swift Testing target.
 - `swiftformat .` — format all Swift source and test files.
 
 ## Coding Style & Naming Conventions
@@ -19,7 +19,7 @@ Run `swiftformat .` before submitting changes. Follow Swift naming conventions: 
 
 ## Testing Guidelines
 
-Write XCTest cases named `testBehaviorUnderCondition()` in `rigol2spiceTests.swift` or focused sibling test files. Cover parser variants, engineering notation, transform edge cases, CLI exit status, and exact PWL output. Use temporary directories for generated output and keep any CSV fixtures small. There is no formal coverage threshold, but each behavior change should include a regression test.
+Write tests with Swift Testing's `@Test`, `#expect`, and `#require` APIs in `rigol2spiceTests.swift` or focused sibling test files. Cover parser variants, engineering notation, transform edge cases, CLI exit status, and exact PWL output. Use temporary directories for generated output and keep any CSV fixtures small. There is no formal coverage threshold, but each behavior change should include a regression test.
 
 ## Commit & Pull Request Guidelines
 

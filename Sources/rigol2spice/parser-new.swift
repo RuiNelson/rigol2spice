@@ -9,11 +9,13 @@ extension String {
     }
 }
 
+// MARK: - CentaurusParser
+
 class CentaurusParser {
-    public static func parseCsv(
+    static func parseCsv(
         _ data: Data,
         forChannel channelLabel: String,
-        listChannelsOnly: Bool
+        listChannelsOnly: Bool,
     ) throws -> [Point] {
         // ---- Data preparation
         guard let string = String(data: data, encoding: .isoLatin1) else {
@@ -70,28 +72,28 @@ class CentaurusParser {
         // 3. case-sensitive correspondence removing last letter
         // 4.  "  -insensitive       "          "     "     "
 
-        /* 1 */
+        // 1
         columnIndexOfSelectedChannel = headerColumns.firstIndex {
             $0 == channelLabel
         }
 
         let chanenelLabelLowercased = channelLabel.lowercased()
 
-        /* 2 */
+        // 2
         if columnIndexOfSelectedChannel == nil {
             columnIndexOfSelectedChannel = headerColumns.firstIndex {
                 $0.lowercased() == chanenelLabelLowercased
             }
         }
 
-        /* 3 */
+        // 3
         if columnIndexOfSelectedChannel == nil {
             columnIndexOfSelectedChannel = headerColumns.firstIndex {
                 $0.withoutLastCharacter == channelLabel
             }
         }
 
-        /* 4 */
+        // 4
         if columnIndexOfSelectedChannel == nil {
             columnIndexOfSelectedChannel = headerColumns.firstIndex {
                 $0.withoutLastCharacter.lowercased() == chanenelLabelLowercased
@@ -103,7 +105,7 @@ class CentaurusParser {
         }
 
         // ---- Extract points
-        
+
         var progress = ProgressBar(count: pointLines.count)
 
         // Convert each line into a Point by:
@@ -130,7 +132,7 @@ class CentaurusParser {
             guard let timeDouble, let valueDouble else {
                 throw ParseError.invalidFileFormat
             }
-            
+
             progress.next()
 
             return Point(time: timeDouble, value: valueDouble)
