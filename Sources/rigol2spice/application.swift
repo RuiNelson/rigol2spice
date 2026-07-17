@@ -210,6 +210,8 @@ struct Rigol2SpiceApplication {
             Console.section("Inverting the signal...")
         case .abs:
             Console.section("Taking the absolute value of the signal...")
+        case .rectify:
+            Console.section("Half-wave rectifying the signal...")
         case let .db(value):
             let sign = value >= 0 ? "+" : ""
             Console.section("Scaling the signal by \(sign)\(engineeringFormatter.string(value))dB...")

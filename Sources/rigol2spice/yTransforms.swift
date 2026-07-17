@@ -82,6 +82,17 @@ func absPoints(_ points: [Point]) -> [Point] {
     return output
 }
 
+/// Half-wave rectify: keep non-negative values, zero the rest.
+func rectifyPoints(_ points: [Point]) -> [Point] {
+    var output = points
+    output.withUnsafeMutableBufferPointer { buffer in
+        for index in buffer.indices where buffer[index].value < 0 {
+            buffer[index].value = 0
+        }
+    }
+    return output
+}
+
 /// Default impedance when converting absolute power levels (dBmW / dBW) to volts.
 let powerReferenceResistance = 50.0
 

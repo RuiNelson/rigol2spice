@@ -39,6 +39,7 @@ enum Transformation: Equatable {
     case multiply(Double)
     case invert
     case abs
+    case rectify
     case db(Double)
     case dbmW(level: Double, resistance: Double)
     case dbW(level: Double, resistance: Double)
@@ -161,6 +162,9 @@ enum Transformation: Equatable {
             case "abs":
                 try requireArgumentCount(0)
                 return .abs
+            case "rectify":
+                try requireArgumentCount(0)
+                return .rectify
             case "db":
                 return try .db(scalar())
             case "dbmw", "dbm":
@@ -243,6 +247,8 @@ enum Transformation: Equatable {
             return multiplyValueOfPoints(points, factor: -1)
         case .abs:
             return absPoints(points)
+        case .rectify:
+            return rectifyPoints(points)
         case let .db(value):
             return multiplyValueOfPoints(points, factor: pow(10, value / 20))
         case let .dbmW(level, resistance):

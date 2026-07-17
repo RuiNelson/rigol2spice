@@ -298,6 +298,17 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `rectify zeros negative samples`() throws {
+        #expect(try Transformation.parseList("Rectify") == [.rectify])
+
+        let points = [Point(time: 0, value: -1.5), Point(time: 1, value: 2), Point(time: 2, value: 0)]
+        let result = try Transformation.rectify.applying(to: points)
+
+        #expect(result.map(\.value) == [0, 2, 0])
+        #expect(result.map(\.time) == [0, 1, 2])
+    }
+
+    @Test
     func `legacy parser reads a real oscilloscope capture`() throws {
         let capture = try LegacyCSVParser().parse(sampleData(named: "Legacy"), channel: "ch2")
 
