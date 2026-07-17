@@ -9,6 +9,7 @@ enum TransformationParseError: LocalizedError, Equatable {
     case invalidScalar(operation: String, value: String)
     case invalidPositiveScalar(operation: String, value: String)
     case invalidFrequencyBand(operation: String, low: String, high: String)
+    case invalidTimeRange(operation: String, start: String, end: String)
 
     var errorDescription: String? {
         switch self {
@@ -24,6 +25,8 @@ enum TransformationParseError: LocalizedError, Equatable {
             "\(operation) expects a positive scalar, but received: \(value)"
         case let .invalidFrequencyBand(operation, low, high):
             "\(operation) requires 0 < f1 < f2, but received \(low) and \(high)"
+        case let .invalidTimeRange(operation, start, end):
+            "\(operation) requires start < end, but received \(start) and \(end)"
         }
     }
 }
@@ -49,6 +52,7 @@ enum Transformation: Equatable {
     case timeShift(Double)
     case cutAfter(Double)
     case cutBefore(Double)
+    case trim(start: Double, end: Double)
     case `repeat`(Double)
     case lowPass(Double)
     case highPass(Double)
@@ -208,6 +212,18 @@ enum Transformation: Equatable {
                 return .cutAfter(value)
             case "cutbefore":
                 return try .cutBefore(scalar())
+            case "trim":
+                try requireArgumentCount(2)
+                let start = try parseScalarArgument(arguments[0])
+                let end = try parseScalarArgument(arguments[1])
+                guard start < end else {
+                    throw TransformationParseError.invalidTimeRange(
+                        operation: operation,
+                        start: arguments[0],
+                        end: arguments[1],
+                    )
+                }
+                return .trim(start: start, end: end)
             case "repeat":
                 let value = try scalar()
                 guard value > 0, value < Double(Int.max) else {
@@ -235,6 +251,7 @@ enum Transformation: Equatable {
         case .timeShift,
              .cutAfter,
              .cutBefore,
+             .trim,
              .repeat:
             true
         default:
@@ -295,6 +312,8 @@ enum Transformation: Equatable {
             return cutPointsAfter(points, after: value)
         case let .cutBefore(value):
             return cutPointsBefore(points, before: value)
+        case let .trim(start, end):
+            return trimPoints(points, start: start, end: end)
         case let .repeat(amount):
             return try repeatPoints(points, amount: amount)
         case let .lowPass(cutoff):

@@ -272,6 +272,19 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `trim keeps samples inside the half open window`() throws {
+        #expect(try Transformation.parseList("Trim 1m, 10m") == [.trim(start: 1e-3, end: 10e-3)])
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("Trim 2, 1")
+        }
+
+        let points = (0 ... 5).map { Point(time: Double($0), value: Double($0)) }
+        let result = try Transformation.trim(start: 2, end: 5).applying(to: points)
+
+        #expect(result.map(\.time) == [2, 3, 4])
+    }
+
+    @Test
     func `vertical transforms preserve times and transform values`() {
         let points = [Point(time: 0, value: -1), Point(time: 1, value: 2), Point(time: 2, value: 5)]
 

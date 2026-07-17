@@ -103,6 +103,11 @@ func cutPointsBefore(_ points: [Point], before: Double) -> [Point] {
     return Array(points[startIndex...])
 }
 
+/// Keep samples with `start <= time < end`; times unchanged.
+func trimPoints(_ points: [Point], start: Double, end: Double) -> [Point] {
+    cutPointsAfter(cutPointsBefore(points, before: start), after: end)
+}
+
 func repeatPoints(_ points: [Point], amount: Double) throws -> [Point] {
     guard points.count >= 2 else {
         throw Rigol2SpiceError.mustHaveAtLeastTwoPointsToRepeat

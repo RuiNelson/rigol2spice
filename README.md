@@ -68,6 +68,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `TimeShift` | `TimeShift -5m` | Shift timestamps; negative values shift left |
 | `CutAfter` | `CutAfter 10u` | Discard samples at or after the timestamp |
 | `CutBefore` | `CutBefore 5m` | Discard samples before the timestamp |
+| `Trim` | `Trim 1m, 10m` | Keep samples with start ≤ t < end |
 | `Repeat` | `Repeat 2.5` | Append two copies and the first 50% of another |
 | `LowPass` | `LowPass 1k` | Apply a low-pass filter² |
 | `HighPass` | `HighPass 100` | Apply a high-pass filter² |
