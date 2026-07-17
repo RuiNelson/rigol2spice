@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repository is a Swift Package Manager command-line application. `Package.swift` defines the `rigol2spice` executable and its pinned dependencies. Production code lives in `Sources/rigol2spice/`: `entry.swift` declares the CLI, `application.swift` coordinates the workflow, and `capture.swift` defines the shared parser model. `parser.swift` and `parser-new.swift` implement the legacy and Centaurus formats; `transformations.swift`, `xTransforms.swift`, and `yTransforms.swift` process captures; `pwlWriter.swift` serializes output. Swift Testing code belongs in `Tests/rigol2spiceTests/`. Keep generated `.build/`, `.swiftpm/`, and `Package.resolved` files untracked as specified by `.gitignore`.
+This repository is a Swift Package Manager command-line application. `Package.swift` defines the `rigol2spice` executable and its pinned dependencies. Production code lives in `Sources/rigol2spice/`: `entry.swift` declares the CLI, `application.swift` coordinates the workflow, and `capture.swift` defines the shared parser model. `csvParser.swift` contains the common byte-wise CSV pipeline, while `parser.swift` and `parser-new.swift` define the legacy and Centaurus differences; `transformations.swift`, `xTransforms.swift`, and `yTransforms.swift` process captures; `pwlWriter.swift` serializes output. Swift Testing code belongs in `Tests/rigol2spiceTests/`. Keep generated `.build/`, `.swiftpm/`, and `Package.resolved` files untracked as specified by `.gitignore`.
 
 ## Build, Test, and Development Commands
 
@@ -19,7 +19,7 @@ Run `swiftformat .` before submitting changes. Follow Swift naming conventions: 
 
 ## Testing Guidelines
 
-Write tests with Swift Testing's `@Test`, `#expect`, and `#require` APIs in `rigol2spiceTests.swift` or focused sibling test files. Cover parser variants, engineering notation, transform edge cases, CLI exit status, and exact PWL output. Use temporary directories for generated output and keep any CSV fixtures small. There is no formal coverage threshold, but each behavior change should include a regression test.
+Write tests with Swift Testing's `@Test`, `#expect`, and `#require` APIs in `rigol2spiceTests.swift` or focused sibling test files. Cover parser variants, engineering notation, transform edge cases, CLI exit status, and exact PWL output. Use the real captures in `Tests/rigol2spiceTests/SampleFiles/` for parser tests and temporary directories for generated output. There is no formal coverage threshold, but each behavior change should include a regression test.
 
 ## Commit & Pull Request Guidelines
 

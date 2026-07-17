@@ -198,7 +198,7 @@ struct Rigol2spiceTests {
     }
 
     @Test
-    func `legacy parser can inspect channels without loading points`() throws {
+    func `legacy parser can inspect channels without parsing points`() throws {
         let capture = try LegacyCSVParser().parse(sampleData(named: "Legacy"), channel: nil)
 
         #expect(capture.channels == ["CH1", "CH2"])
