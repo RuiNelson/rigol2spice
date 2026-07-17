@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repository is a Swift Package Manager command-line application. `Package.swift` defines the `rigol2spice` executable and its pinned dependencies. Production code lives in `Sources/rigol2spice/`: `entry.swift` owns argument parsing and the processing pipeline, `transformations.swift` parses ordered transformations, `parser.swift` and `parser-new.swift` read legacy and Centaurus CSV formats, and `xTransforms.swift`/`yTransforms.swift` apply signal transforms. Swift Testing code belongs in `Tests/rigol2spiceTests/`. Keep generated `.build/`, `.swiftpm/`, and `Package.resolved` files untracked as specified by `.gitignore`.
+This repository is a Swift Package Manager command-line application. `Package.swift` defines the `rigol2spice` executable and its pinned dependencies. Production code lives in `Sources/rigol2spice/`: `entry.swift` declares the CLI, `application.swift` coordinates the workflow, and `capture.swift` defines the shared parser model. `parser.swift` and `parser-new.swift` implement the legacy and Centaurus formats; `transformations.swift`, `xTransforms.swift`, and `yTransforms.swift` process captures; `pwlWriter.swift` serializes output. Swift Testing code belongs in `Tests/rigol2spiceTests/`. Keep generated `.build/`, `.swiftpm/`, and `Package.resolved` files untracked as specified by `.gitignore`.
 
 ## Build, Test, and Development Commands
 

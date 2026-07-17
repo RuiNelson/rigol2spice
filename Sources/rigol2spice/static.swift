@@ -45,8 +45,3 @@ let engineeringFormatter = EngineeringNumberFormatter(
 )
 
 let fileSizeFormatter = LockedByteCountFormatter()
-
-// static
-let newlineBytes = "\r\n".data(using: .ascii)!
-let cd = FileManager.default.currentDirectoryPath
-let cdURL = URL(fileURLWithPath: cd)

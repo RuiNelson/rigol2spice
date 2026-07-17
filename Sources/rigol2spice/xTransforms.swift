@@ -93,7 +93,7 @@ func cutPointsAfter(_ points: [Point], after: Double) -> [Point] {
 
 func repeatPoints(_ points: [Point], amount: Double) throws -> [Point] {
     guard points.count >= 2 else {
-        throw Rigol2SpiceErrors.mustHaveAtLeastTwoPointsToRepeat
+        throw Rigol2SpiceError.mustHaveAtLeastTwoPointsToRepeat
     }
 
     guard amount > 0,

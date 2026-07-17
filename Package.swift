@@ -24,6 +24,9 @@ let package = Package(
         .testTarget(
             name: "rigol2spiceTests",
             dependencies: ["rigol2spice"],
+            resources: [
+                .copy("SampleFiles"),
+            ],
         ),
     ],
 )

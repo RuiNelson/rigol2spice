@@ -1,4 +1,5 @@
 @testable import rigol2spice
+import Foundation
 import Testing
 
 struct Rigol2spiceTests {
@@ -181,5 +182,76 @@ struct Rigol2spiceTests {
         #expect(calculateDC(points) == 2)
         #expect(clamp(points, lowerLimit: 0, upperLimit: 3).map(\.value) == [0, 2, 3])
         #expect(offsetPoints(points, offset: 1).map(\.time) == [0, 1, 2])
+    }
+
+    @Test
+    func `legacy parser reads a real oscilloscope capture`() throws {
+        let capture = try LegacyCSVParser().parse(sampleData(named: "Legacy"), channel: "ch2")
+
+        #expect(capture.channels == ["CH1", "CH2"])
+        #expect(capture.selectedChannel == "CH2")
+        #expect(capture.sampleInterval == 2e-06)
+        #expect(capture.points.count == 1200)
+        #expect(capture.points.first == Point(time: 0, value: 7.6e-03))
+        #expect(abs((capture.points.last?.time ?? 0) - 2.398e-03) < 1e-15)
+        #expect(capture.points.last?.value == -1.2e-03)
+    }
+
+    @Test
+    func `legacy parser can inspect channels without loading points`() throws {
+        let capture = try LegacyCSVParser().parse(sampleData(named: "Legacy"), channel: nil)
+
+        #expect(capture.channels == ["CH1", "CH2"])
+        #expect(capture.selectedChannel == nil)
+        #expect(capture.points.isEmpty)
+    }
+
+    @Test
+    func `centaurus parser reads a real oscilloscope capture`() throws {
+        let capture = try CentaurusCSVParser().parse(sampleData(named: "Centaurus"), channel: "ch4")
+
+        #expect(capture.channels == ["CH4V"])
+        #expect(capture.selectedChannel == "CH4V")
+        #expect(capture.points.count == 1000)
+        #expect(capture.points.first?.time == 0)
+        #expect(abs((capture.points.last?.time ?? 0) - 0.999) < 1e-12)
+        #expect(abs((capture.sampleInterval ?? 0) - 0.001) < 1e-12)
+        #expect(capture.points.first?.value == -9.733333e-03)
+        #expect(capture.points.last?.value == 5.2e-02)
+    }
+
+    @Test
+    func `parsers report missing channels consistently`() {
+        #expect(throws: ParseError.channelNotFound(channelLabel: "CH9")) {
+            try LegacyCSVParser().parse(sampleData(named: "Legacy"), channel: "CH9")
+        }
+        #expect(throws: ParseError.channelNotFound(channelLabel: "CH9")) {
+            try CentaurusCSVParser().parse(sampleData(named: "Centaurus"), channel: "CH9")
+        }
+    }
+
+    @Test
+    func `PWL writer serializes points atomically`() throws {
+        let outputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rigol2spice-\(UUID().uuidString).txt")
+        defer { try? FileManager.default.removeItem(at: outputURL) }
+
+        let points = [Point(time: 0, value: 1), Point(time: 0.5, value: -2)]
+        let byteCount = try PWLWriter().write(points, to: outputURL)
+        let data = try Data(contentsOf: outputURL)
+
+        #expect(byteCount == data.count)
+        #expect(String(data: data, encoding: .ascii) == "0\t1\r\n0.5\t-2\r\n")
+    }
+
+    private func sampleData(named name: String) throws -> Data {
+        let url = try #require(
+            Bundle.module.url(
+                forResource: name,
+                withExtension: "csv",
+                subdirectory: "SampleFiles",
+            ),
+        )
+        return try Data(contentsOf: url)
     }
 }
