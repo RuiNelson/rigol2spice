@@ -41,6 +41,7 @@ enum Transformation: Equatable {
     case abs
     case rectify
     case normalize
+    case peakTo(Double)
     case db(Double)
     case dbmW(level: Double, resistance: Double)
     case dbW(level: Double, resistance: Double)
@@ -169,6 +170,15 @@ enum Transformation: Equatable {
             case "normalize":
                 try requireArgumentCount(0)
                 return .normalize
+            case "peakto":
+                let value = try scalar()
+                guard value > 0 else {
+                    throw TransformationParseError.invalidPositiveScalar(
+                        operation: operation,
+                        value: arguments[0],
+                    )
+                }
+                return .peakTo(value)
             case "db":
                 return try .db(scalar())
             case "dbmw", "dbm":
@@ -255,6 +265,8 @@ enum Transformation: Equatable {
             return rectifyPoints(points)
         case .normalize:
             return normalizePoints(points)
+        case let .peakTo(value):
+            return scalePeakTo(points, target: value)
         case let .db(value):
             return multiplyValueOfPoints(points, factor: pow(10, value / 20))
         case let .dbmW(level, resistance):

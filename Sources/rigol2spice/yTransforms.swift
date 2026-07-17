@@ -113,6 +113,15 @@ func normalizePoints(_ points: [Point]) -> [Point] {
     return multiplyValueOfPoints(points, factor: 1 / peak)
 }
 
+/// Scale so the peak absolute value equals `target`. Unchanged if the peak is zero.
+func scalePeakTo(_ points: [Point], target: Double) -> [Point] {
+    let peak = peakAbsoluteValue(points)
+    guard peak > 0 else {
+        return points
+    }
+    return multiplyValueOfPoints(points, factor: target / peak)
+}
+
 /// Default impedance when converting absolute power levels (dBmW / dBW) to volts.
 let powerReferenceResistance = 50.0
 

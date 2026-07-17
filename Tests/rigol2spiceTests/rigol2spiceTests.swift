@@ -320,6 +320,20 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `peakTo scales peak absolute value to the target`() throws {
+        #expect(try Transformation.parseList("PeakTo 3.3") == [.peakTo(3.3)])
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("PeakTo 0")
+        }
+
+        let points = [Point(time: 0, value: -2), Point(time: 1, value: 1)]
+        let result = try Transformation.peakTo(3.3).applying(to: points)
+
+        #expect(abs(result[0].value - (-3.3)) < 1e-12)
+        #expect(abs(result[1].value - 1.65) < 1e-12)
+    }
+
+    @Test
     func `legacy parser reads a real oscilloscope capture`() throws {
         let capture = try LegacyCSVParser().parse(sampleData(named: "Legacy"), channel: "ch2")
 
