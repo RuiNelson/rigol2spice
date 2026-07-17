@@ -57,6 +57,7 @@ enum Transformation: Equatable {
     case dbmW(level: Double, resistance: Double)
     case dbW(level: Double, resistance: Double)
     case timeShift(Double)
+    case alignEdge(rising: Bool, threshold: Double, after: Double?)
     case cutAfter(Double)
     case cutBefore(Double)
     case trim(start: Double, end: Double)
@@ -241,6 +242,37 @@ enum Transformation: Equatable {
                 return .dbW(level: power.level, resistance: power.resistance)
             case "timeshift":
                 return try .timeShift(scalar())
+            case "alignedge",
+                 "triggerat":
+                guard arguments.count == 2 || arguments.count == 3 else {
+                    throw TransformationParseError.invalidArgumentCount(
+                        operation: operation,
+                        expected: 2,
+                        actual: arguments.count,
+                    )
+                }
+                let direction = arguments[0].lowercased()
+                let rising: Bool
+                switch direction {
+                case "rising", "rise", "up":
+                    rising = true
+                case "falling", "fall", "down":
+                    rising = false
+                default:
+                    throw TransformationParseError.invalidScalar(
+                        operation: operation,
+                        value: arguments[0],
+                    )
+                }
+                let threshold = try parseScalarArgument(arguments[1])
+                let after: Double?
+                if arguments.count == 3 {
+                    after = try parseScalarArgument(arguments[2])
+                }
+                else {
+                    after = nil
+                }
+                return .alignEdge(rising: rising, threshold: threshold, after: after)
             case "cutafter":
                 let value = try scalar()
                 guard value > 0 else {
@@ -286,6 +318,7 @@ enum Transformation: Equatable {
     var reportsPointCount: Bool {
         switch self {
         case .timeShift,
+             .alignEdge,
              .cutAfter,
              .cutBefore,
              .trim,
@@ -353,6 +386,8 @@ enum Transformation: Equatable {
             return multiplyValueOfPoints(points, factor: voltageFromDBW(level, resistance: resistance))
         case let .timeShift(value):
             return timeShiftPoints(points, value: value)
+        case let .alignEdge(rising, threshold, after):
+            return try alignEdgePoints(points, rising: rising, threshold: threshold, after: after)
         case let .cutAfter(value):
             return cutPointsAfter(points, after: value)
         case let .cutBefore(value):

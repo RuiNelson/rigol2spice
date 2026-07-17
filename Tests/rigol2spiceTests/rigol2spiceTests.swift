@@ -254,6 +254,66 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `align edge shifts the first threshold crossing to t zero`() throws {
+        #expect(
+            try Transformation.parseList("AlignEdge rising, 0.5")
+                == [.alignEdge(rising: true, threshold: 0.5, after: nil)],
+        )
+        #expect(
+            try Transformation.parseList("TriggerAt falling, 1.5, 2m")
+                == [.alignEdge(rising: false, threshold: 1.5, after: 2e-3)],
+        )
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("AlignEdge sideways, 0.5")
+        }
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("AlignEdge rising")
+        }
+
+        // Sample exactly on the threshold at t=1
+        let risingPoints = [
+            Point(time: 0, value: 0),
+            Point(time: 1, value: 0.5),
+            Point(time: 2, value: 1),
+            Point(time: 3, value: 1),
+        ]
+        let aligned = try Transformation.alignEdge(rising: true, threshold: 0.5, after: nil)
+            .applying(to: risingPoints)
+        #expect(aligned.map(\.time) == [0, 1, 2])
+        #expect(aligned.map(\.value) == [0.5, 1, 1])
+
+        // Falling edges at ~t=0.5 and ~t=3.5; after=2 selects the second
+        let fallingPoints = [
+            Point(time: 0, value: 1),
+            Point(time: 1, value: 0),
+            Point(time: 2, value: 1),
+            Point(time: 3, value: 1),
+            Point(time: 4, value: 0),
+            Point(time: 5, value: 0),
+        ]
+        let secondFall = try Transformation.alignEdge(rising: false, threshold: 0.5, after: 2)
+            .applying(to: fallingPoints)
+        #expect(secondFall.first == Point(time: 0, value: 0.5))
+        #expect(secondFall.map(\.value) == [0.5, 0, 0])
+        #expect(secondFall.map(\.time) == [0, 0.5, 1.5])
+
+        // Interpolated rising edge at t=1 between samples at 0 and 2
+        let smooth = [
+            Point(time: 0, value: 0),
+            Point(time: 2, value: 1),
+            Point(time: 4, value: 1),
+        ]
+        let interp = try alignEdgePoints(smooth, rising: true, threshold: 0.5)
+        #expect(interp.first == Point(time: 0, value: 0.5))
+        #expect(interp.map(\.time) == [0, 1, 3])
+        #expect(interp.map(\.value) == [0.5, 1, 1])
+
+        #expect(throws: Rigol2SpiceError.edgeNotFound(rising: true, threshold: 10)) {
+            try alignEdgePoints(risingPoints, rising: true, threshold: 10)
+        }
+    }
+
+    @Test
     func `cut after excludes the boundary`() {
         let points = (0 ... 4).map { Point(time: Double($0), value: Double($0)) }
 

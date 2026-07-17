@@ -57,6 +57,74 @@ func downsamplePoints(_ source: [Point], interval: Int) -> [Point] {
     return output
 }
 
+/// Find the first rising or falling crossing of `threshold` and shift that instant to t = 0.
+/// Optional `after` restricts the search to edges at or after that time.
+func alignEdgePoints(
+    _ points: [Point],
+    rising: Bool,
+    threshold: Double,
+    after: Double? = nil,
+) throws -> [Point] {
+    guard points.count >= 2 else {
+        throw Rigol2SpiceError.edgeNotFound(rising: rising, threshold: threshold)
+    }
+
+    let searchStart: Int
+    if let after {
+        searchStart = firstPointIndex(atOrAfter: after, in: points)
+    }
+    else {
+        searchStart = 0
+    }
+
+    guard searchStart < points.count else {
+        throw Rigol2SpiceError.edgeNotFound(rising: rising, threshold: threshold)
+    }
+
+    // Walk consecutive pairs; start from the first pair that ends at or after searchStart.
+    let pairStart = max(1, searchStart)
+    for index in pairStart ..< points.count {
+        let previous = points[index - 1]
+        let current = points[index]
+        let crossed: Bool
+        if rising {
+            crossed = previous.value < threshold && current.value >= threshold
+        }
+        else {
+            crossed = previous.value > threshold && current.value <= threshold
+        }
+        guard crossed else {
+            continue
+        }
+
+        let delta = current.value - previous.value
+        let edgeTime: Double
+        if delta == 0 {
+            edgeTime = current.time
+        }
+        else {
+            let fraction = (threshold - previous.value) / delta
+            edgeTime = previous.time + fraction * (current.time - previous.time)
+        }
+
+        if let after, edgeTime < after {
+            continue
+        }
+
+        var shifted = timeShiftPoints(points, value: -edgeTime)
+        // Crossing may fall between samples; ensure a point at t = 0 with the threshold value.
+        if shifted.isEmpty || shifted[0].time > 0 {
+            shifted.insert(Point(time: 0, value: threshold), at: 0)
+        }
+        else {
+            shifted[0].time = 0
+        }
+        return shifted
+    }
+
+    throw Rigol2SpiceError.edgeNotFound(rising: rising, threshold: threshold)
+}
+
 func timeShiftPoints(_ points: [Point], value: Double) -> [Point] {
     guard !points.isEmpty else {
         return points

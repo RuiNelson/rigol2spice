@@ -2,12 +2,14 @@ import Foundation
 
 // MARK: - Rigol2SpiceError
 
-enum Rigol2SpiceError: LocalizedError {
+enum Rigol2SpiceError: LocalizedError, Equatable {
     case outputFileNotSpecified
     case inputFileContainsNoPoints
     case invalidDownsampleValue(value: Int)
     case mustHaveAtLeastTwoPointsToRepeat
     case operationRemovedEveryPoint
+    case edgeNotFound(rising: Bool, threshold: Double)
+    case periodNotDetected
 
     var errorDescription: String? {
         switch self {
@@ -17,6 +19,10 @@ enum Rigol2SpiceError: LocalizedError {
         case let .invalidDownsampleValue(value): "Invalid downsample value: \(value)"
         case .mustHaveAtLeastTwoPointsToRepeat: "Must have at least two original samples to repeat capture"
         case .operationRemovedEveryPoint: "Operation removed every sample"
+        case let .edgeNotFound(rising, threshold):
+            "No \(rising ? "rising" : "falling") edge found at threshold \(threshold)"
+        case .periodNotDetected:
+            "Could not detect a repeating period in the capture"
         }
     }
 }
@@ -262,6 +268,18 @@ struct Rigol2SpiceApplication {
             )
         case let .timeShift(value):
             Console.section("Shifting signal for \(engineeringFormatter.string(value))s...")
+        case let .alignEdge(rising, threshold, after):
+            let direction = rising ? "rising" : "falling"
+            if let after {
+                Console.section(
+                    "Aligning \(direction) edge at \(engineeringFormatter.string(threshold)) (search after \(engineeringFormatter.string(after))s) to t=0...",
+                )
+            }
+            else {
+                Console.section(
+                    "Aligning \(direction) edge at \(engineeringFormatter.string(threshold)) to t=0...",
+                )
+            }
         case let .cutAfter(value):
             Console.section("Cutting signal after \(engineeringFormatter.string(value))s...")
         case let .cutBefore(value):
