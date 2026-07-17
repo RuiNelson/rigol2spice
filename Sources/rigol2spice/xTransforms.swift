@@ -125,6 +125,79 @@ func alignEdgePoints(
     throw Rigol2SpiceError.edgeNotFound(rising: rising, threshold: threshold)
 }
 
+/// Detect one fundamental period via rising threshold crossings and keep it.
+/// Default threshold is the midpoint of min/max. Result is shifted so t starts at 0.
+func extractPeriodPoints(_ points: [Point], threshold: Double?) throws -> [Point] {
+    guard points.count >= 3 else {
+        throw Rigol2SpiceError.periodNotDetected
+    }
+
+    let thresh: Double
+    if let threshold {
+        thresh = threshold
+    }
+    else {
+        var minimum = points[0].value
+        var maximum = points[0].value
+        for point in points {
+            minimum = min(minimum, point.value)
+            maximum = max(maximum, point.value)
+        }
+        guard maximum > minimum else {
+            throw Rigol2SpiceError.periodNotDetected
+        }
+        thresh = 0.5 * (minimum + maximum)
+    }
+
+    var crossings: [Double] = []
+    for index in 1 ..< points.count {
+        let previous = points[index - 1]
+        let current = points[index]
+        guard previous.value < thresh, current.value >= thresh else {
+            continue
+        }
+        let delta = current.value - previous.value
+        if delta == 0 {
+            crossings.append(current.time)
+        }
+        else {
+            let fraction = (thresh - previous.value) / delta
+            crossings.append(previous.time + fraction * (current.time - previous.time))
+        }
+    }
+
+    guard crossings.count >= 2 else {
+        throw Rigol2SpiceError.periodNotDetected
+    }
+
+    var intervals = [Double]()
+    intervals.reserveCapacity(crossings.count - 1)
+    for index in 1 ..< crossings.count {
+        intervals.append(crossings[index] - crossings[index - 1])
+    }
+    intervals.sort()
+    let period = intervals[intervals.count / 2]
+    guard period > 0, period.isFinite else {
+        throw Rigol2SpiceError.periodNotDetected
+    }
+
+    let start = crossings[0]
+    let end = start + period
+    let trimmed = trimPoints(points, start: start, end: end)
+    guard trimmed.count >= 2 else {
+        throw Rigol2SpiceError.periodNotDetected
+    }
+
+    var shifted = timeShiftPoints(trimmed, value: -start)
+    if shifted.isEmpty || shifted[0].time > 0 {
+        shifted.insert(Point(time: 0, value: thresh), at: 0)
+    }
+    else {
+        shifted[0].time = 0
+    }
+    return shifted
+}
+
 /// Linearly interpolate onto a uniform grid with the given sample interval.
 func resamplePoints(_ points: [Point], interval: Double) throws -> [Point] {
     guard interval > 0, interval.isFinite else {

@@ -254,6 +254,42 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `extract period keeps one cycle from rising crossings`() throws {
+        #expect(try Transformation.parseList("ExtractPeriod") == [.extractPeriod(threshold: nil)])
+        #expect(try Transformation.parseList("ExtractPeriod 0") == [.extractPeriod(threshold: 0)])
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("ExtractPeriod 1, 2")
+        }
+
+        // Square wave period 4: high for 2 samples, low for 2. Rising 3→4 and 7→8.
+        let points = [
+            Point(time: 0, value: 1),
+            Point(time: 1, value: 1),
+            Point(time: 2, value: -1),
+            Point(time: 3, value: -1),
+            Point(time: 4, value: 1),
+            Point(time: 5, value: 1),
+            Point(time: 6, value: -1),
+            Point(time: 7, value: -1),
+            Point(time: 8, value: 1),
+            Point(time: 9, value: 1),
+        ]
+        let extracted = try Transformation.extractPeriod(threshold: 0).applying(to: points)
+        // Crossing times 3.5 and 7.5 → period 4; keep [3.5, 7.5) → samples at 4,5,6,7
+        #expect(extracted.first == Point(time: 0, value: 0))
+        #expect(extracted.map(\.time) == [0, 0.5, 1.5, 2.5, 3.5])
+        #expect(extracted.map(\.value) == [0, 1, 1, -1, -1])
+
+        // Auto threshold uses midpoint of min/max (= 0 for ±1)
+        let auto = try Transformation.extractPeriod(threshold: nil).applying(to: points)
+        #expect(auto.map(\.value) == extracted.map(\.value))
+
+        #expect(throws: Rigol2SpiceError.periodNotDetected) {
+            try extractPeriodPoints([Point(time: 0, value: 1), Point(time: 1, value: 1)], threshold: nil)
+        }
+    }
+
+    @Test
     func `resample interpolates onto a uniform grid`() throws {
         #expect(try Transformation.parseList("Resample 0.5") == [.resample(0.5)])
         #expect(throws: (any Error).self) {

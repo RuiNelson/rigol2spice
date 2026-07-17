@@ -363,6 +363,15 @@ struct Rigol2SpiceApplication {
             Console.section(
                 "Resampling to a \(engineeringFormatter.string(interval))s interval...",
             )
+        case let .extractPeriod(threshold):
+            if let threshold {
+                Console.section(
+                    "Extracting one period (threshold \(engineeringFormatter.string(threshold)))...",
+                )
+            }
+            else {
+                Console.section("Extracting one period (auto threshold)...")
+            }
         case let .cutAfter(value):
             Console.section("Cutting signal after \(engineeringFormatter.string(value))s...")
         case let .cutBefore(value):

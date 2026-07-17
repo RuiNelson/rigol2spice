@@ -101,6 +101,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `Pad` | `Pad 5m` · `Pad 5m, 0` | Extend by a duration, holding the last value (or a given level); alias `HoldLast` |
 | `ExtendTo` | `ExtendTo 10m` · `ExtendTo 10m, 0` | Extend to an absolute end time, holding the last value (or a given level) |
 | `Resample` | `Resample 1n` | Linearly interpolate onto a uniform sample interval |
+| `ExtractPeriod` | `ExtractPeriod` · `ExtractPeriod 0.5` | Keep one cycle from the first rising crossing (auto or given threshold); shift to t=0 |
 | `CutBefore` | `CutBefore 5m` | Discard samples before the timestamp |
 | `CutAfter` | `CutAfter 10u` | Discard samples at or after the timestamp |
 | `Trim` | `Trim 1m, 10m` | Keep samples with start ≤ t < end |

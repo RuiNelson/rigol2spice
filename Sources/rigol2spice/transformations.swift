@@ -70,6 +70,7 @@ enum Transformation: Equatable {
     case pad(duration: Double, value: Double?)
     case extendTo(endTime: Double, value: Double?)
     case resample(Double)
+    case extractPeriod(threshold: Double?)
     case cutAfter(Double)
     case cutBefore(Double)
     case trim(start: Double, end: Double)
@@ -485,6 +486,18 @@ enum Transformation: Equatable {
                     )
                 }
                 return .resample(value)
+            case "extractperiod":
+                guard arguments.count <= 1 else {
+                    throw TransformationParseError.invalidArgumentCount(
+                        operation: operation,
+                        expected: 0,
+                        actual: arguments.count,
+                    )
+                }
+                if arguments.isEmpty {
+                    return .extractPeriod(threshold: nil)
+                }
+                return .extractPeriod(threshold: try parseScalarArgument(arguments[0]))
             case "cutafter":
                 let value = try scalar()
                 guard value > 0 else {
@@ -535,6 +548,7 @@ enum Transformation: Equatable {
              .pad,
              .extendTo,
              .resample,
+             .extractPeriod,
              .cutAfter,
              .cutBefore,
              .trim,
@@ -634,6 +648,8 @@ enum Transformation: Equatable {
             return extendPoints(to: endTime, points: points, value: value)
         case let .resample(interval):
             return try resamplePoints(points, interval: interval)
+        case let .extractPeriod(threshold):
+            return try extractPeriodPoints(points, threshold: threshold)
         case let .cutAfter(value):
             return cutPointsAfter(points, after: value)
         case let .cutBefore(value):
