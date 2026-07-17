@@ -71,3 +71,22 @@ func gatePoints(_ points: [Point], threshold: Double) -> [Point] {
     }
     return output
 }
+
+/// Default impedance when converting absolute power levels (dBmW / dBW) to volts.
+let powerReferenceResistance = 50.0
+
+/// Voltage corresponding to an absolute power level into the given resistance.
+/// - Parameter powerWatts: Power in watts (must be ≥ 0).
+func voltageForPower(_ powerWatts: Double, resistance: Double = powerReferenceResistance) -> Double {
+    sqrt(max(powerWatts, 0) * resistance)
+}
+
+/// dBmW (dB relative to 1 mW) → volts into `resistance`.
+func voltageFromDBmW(_ dbmW: Double, resistance: Double = powerReferenceResistance) -> Double {
+    voltageForPower(1e-3 * pow(10, dbmW / 10), resistance: resistance)
+}
+
+/// dBW (dB relative to 1 W) → volts into `resistance`.
+func voltageFromDBW(_ dbW: Double, resistance: Double = powerReferenceResistance) -> Double {
+    voltageForPower(pow(10, dbW / 10), resistance: resistance)
+}

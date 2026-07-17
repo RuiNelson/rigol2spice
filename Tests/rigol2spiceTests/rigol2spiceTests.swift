@@ -121,6 +121,77 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `dB scales amplitude using voltage decibels`() throws {
+        #expect(try Transformation.parseList("dB 6") == [.db(6)])
+        #expect(try Transformation.parseList("DB -20") == [.db(-20)])
+
+        let points = [Point(time: 0, value: 1), Point(time: 1, value: -2)]
+        let plusSix = try Transformation.db(6).applying(to: points)
+        let minusTwenty = try Transformation.db(-20).applying(to: points)
+        let unity = try Transformation.db(0).applying(to: points)
+
+        let sixFactor = pow(10.0, 6.0 / 20.0)
+        #expect(abs(plusSix[0].value - sixFactor) < 1e-12)
+        #expect(abs(plusSix[1].value - (-2 * sixFactor)) < 1e-12)
+        #expect(abs(minusTwenty[0].value - 0.1) < 1e-12)
+        #expect(abs(minusTwenty[1].value - (-0.2)) < 1e-12)
+        #expect(unity.map(\.value) == [1, -2])
+    }
+
+    @Test
+    func `dBmW and dBW multiply by absolute power voltage at 50 ohm`() throws {
+        #expect(
+            try Transformation.parseList("dBmW 0")
+                == [.dbmW(level: 0, resistance: 50)],
+        )
+        #expect(
+            try Transformation.parseList("dBm 10")
+                == [.dbmW(level: 10, resistance: 50)],
+        )
+        #expect(
+            try Transformation.parseList("dBW -10")
+                == [.dbW(level: -10, resistance: 50)],
+        )
+        #expect(
+            try Transformation.parseList("dBmW 0, 75")
+                == [.dbmW(level: 0, resistance: 75)],
+        )
+        #expect(
+            try Transformation.parseList("dBW 0, 75")
+                == [.dbW(level: 0, resistance: 75)],
+        )
+
+        let points = [Point(time: 0, value: 1), Point(time: 1, value: 2)]
+
+        let zeroDBm = try Transformation.dbmW(level: 0, resistance: 50).applying(to: points)
+        let expectedZeroDBm = sqrt(1e-3 * 50) // ≈ 0.22360679775
+        #expect(abs(zeroDBm[0].value - expectedZeroDBm) < 1e-12)
+        #expect(abs(zeroDBm[1].value - 2 * expectedZeroDBm) < 1e-12)
+
+        let zeroDBW = try Transformation.dbW(level: 0, resistance: 50).applying(to: points)
+        let expectedZeroDBW = sqrt(50.0)
+        #expect(abs(zeroDBW[0].value - expectedZeroDBW) < 1e-12)
+
+        // 30 dBmW == 0 dBW
+        let thirtyDBm = try Transformation.dbmW(level: 30, resistance: 50).applying(to: points)
+        #expect(abs(thirtyDBm[0].value - expectedZeroDBW) < 1e-12)
+
+        // 0 dBW == 30 dBmW voltage; relative offset of -30 dBW matches 0 dBmW
+        let minus30DBW = try Transformation.dbW(level: -30, resistance: 50).applying(to: points)
+        #expect(abs(minus30DBW[0].value - expectedZeroDBm) < 1e-12)
+
+        let seventyFiveOhm = try Transformation.dbmW(level: 0, resistance: 75).applying(to: points)
+        #expect(abs(seventyFiveOhm[0].value - sqrt(1e-3 * 75)) < 1e-12)
+
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("dBmW 0, 0")
+        }
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("dBW 0, -50")
+        }
+    }
+
+    @Test
     func `fractional repeat appends full and partial copies`() throws {
         let points = [
             Point(time: 0, value: 0),

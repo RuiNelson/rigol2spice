@@ -206,6 +206,19 @@ struct Rigol2SpiceApplication {
             Console.section("Offsetting signal by \(sign)\(engineeringFormatter.string(value))...")
         case let .multiply(value):
             Console.section("Multiplying the signal by a factor of \(engineeringFormatter.string(value))...")
+        case let .db(value):
+            let sign = value >= 0 ? "+" : ""
+            Console.section("Scaling the signal by \(sign)\(engineeringFormatter.string(value))dB...")
+        case let .dbmW(level, resistance):
+            let volts = voltageFromDBmW(level, resistance: resistance)
+            Console.section(
+                "Scaling the signal by \(engineeringFormatter.string(level))dBmW (×\(engineeringFormatter.string(volts)) V at \(engineeringFormatter.string(resistance))Ω)...",
+            )
+        case let .dbW(level, resistance):
+            let volts = voltageFromDBW(level, resistance: resistance)
+            Console.section(
+                "Scaling the signal by \(engineeringFormatter.string(level))dBW (×\(engineeringFormatter.string(volts)) V at \(engineeringFormatter.string(resistance))Ω)...",
+            )
         case let .timeShift(value):
             Console.section("Shifting signal for \(engineeringFormatter.string(value))s...")
         case let .cutAfter(value):

@@ -56,6 +56,9 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `Gate` | `Gate 0.6` | Zero values below the threshold; keep the rest |
 | `Offset` | `Offset -1.5` | Add the scalar to every value |
 | `Multiply` | `Multiply 10` | Multiply every value by the scalar |
+| `dB` | `dB 6` | Scale amplitude by the given voltage dB (×10^(dB/20)) |
+| `dBmW` | `dBmW 0` or `dBmW 0, 75` | Multiply by volts for this power into R Ω (default R = 50)³ |
+| `dBW` | `dBW 0` or `dBW 0, 75` | Multiply by volts for this power into R Ω (default R = 50)³ |
 | `TimeShift` | `TimeShift -5m` | Shift timestamps; negative values shift left |
 | `CutAfter` | `CutAfter 10u` | Discard samples at or after the timestamp |
 | `Repeat` | `Repeat 2.5` | Append two copies and the first 50% of another |
@@ -69,6 +72,8 @@ Scalars accept decimal (`0.7`), engineering (`3n`, `10u`), and scientific (`5e-3
 ¹ `RemoveDC` estimates the DC component from the capture by applying one-dimensional k-means clustering with `k = 3` to all finite sample values. Several deterministic initializations are evaluated and the clustering with the smallest squared error is selected. The DC estimate is the midpoint between the lower and upper centroids.
 
 ² Filters are linear-phase windowed-sinc FIRs (Blackman–Harris). You only supply the cutoff frequency(ies); the sample rate comes from the capture, tap count is chosen automatically, and group delay is removed so event timing stays aligned. Frequencies must be greater than 0 and below Nyquist (`fs/2`). Band filters require `0 < f1 < f2`.
+
+³ `dBmW` (alias `dBm`) and `dBW` convert an absolute power level to a voltage scale factor: `V = √(P · R)`, with `P = 1 mW · 10^(dBmW/10)` or `P = 10^(dBW/10)`. The optional second argument is the load impedance in ohms (default 50). Unlike `dB`, these are not relative gains — they multiply the waveform by that absolute voltage.
 
 ### Post-processing Options
 

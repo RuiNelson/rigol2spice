@@ -37,6 +37,9 @@ enum Transformation: Equatable {
     case gate(Double)
     case offset(Double)
     case multiply(Double)
+    case db(Double)
+    case dbmW(level: Double, resistance: Double)
+    case dbW(level: Double, resistance: Double)
     case timeShift(Double)
     case cutAfter(Double)
     case `repeat`(Double)
@@ -113,6 +116,29 @@ enum Transformation: Equatable {
                 return (low, high)
             }
 
+            /// Absolute power level with optional impedance (defaults to 50 Ω).
+            func powerLevelWithResistance() throws -> (level: Double, resistance: Double) {
+                guard arguments.count == 1 || arguments.count == 2 else {
+                    throw TransformationParseError.invalidArgumentCount(
+                        operation: operation,
+                        expected: 1,
+                        actual: arguments.count,
+                    )
+                }
+                let level = try parseScalarArgument(arguments[0])
+                guard arguments.count == 2 else {
+                    return (level, powerReferenceResistance)
+                }
+                let resistance = try parseScalarArgument(arguments[1])
+                guard resistance > 0 else {
+                    throw TransformationParseError.invalidPositiveScalar(
+                        operation: operation,
+                        value: arguments[1],
+                    )
+                }
+                return (level, resistance)
+            }
+
             switch operation.lowercased() {
             case "removedc":
                 try requireArgumentCount(0)
@@ -127,6 +153,14 @@ enum Transformation: Equatable {
                 return try .offset(scalar())
             case "multiply":
                 return try .multiply(scalar())
+            case "db":
+                return try .db(scalar())
+            case "dbmw", "dbm":
+                let power = try powerLevelWithResistance()
+                return .dbmW(level: power.level, resistance: power.resistance)
+            case "dbw":
+                let power = try powerLevelWithResistance()
+                return .dbW(level: power.level, resistance: power.resistance)
             case "timeshift":
                 return try .timeShift(scalar())
             case "cutafter":
@@ -197,6 +231,12 @@ enum Transformation: Equatable {
             return offsetPoints(points, offset: value)
         case let .multiply(value):
             return multiplyValueOfPoints(points, factor: value)
+        case let .db(value):
+            return multiplyValueOfPoints(points, factor: pow(10, value / 20))
+        case let .dbmW(level, resistance):
+            return multiplyValueOfPoints(points, factor: voltageFromDBmW(level, resistance: resistance))
+        case let .dbW(level, resistance):
+            return multiplyValueOfPoints(points, factor: voltageFromDBW(level, resistance: resistance))
         case let .timeShift(value):
             return timeShiftPoints(points, value: value)
         case let .cutAfter(value):
