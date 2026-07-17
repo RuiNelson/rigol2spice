@@ -29,12 +29,6 @@ enum ParseError: LocalizedError, Equatable {
 struct Point: Equatable {
     var time: Double
     var value: Double
-
-    var serialize: String {
-        let serializedTime = spiceFormatter.string(for: time)!
-        let serializedValue = spiceFormatter.string(for: value)!
-        return "\(serializedTime)\t\(serializedValue)"
-    }
 }
 
 // MARK: - Capture

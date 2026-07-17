@@ -1,23 +1,9 @@
 import Foundation
 
-// MARK: - PWLWriterError
-
-enum PWLWriterError: LocalizedError {
-    case nonASCIIOutput
-
-    var errorDescription: String? {
-        "Unable to encode PWL output as ASCII"
-    }
-}
-
-// MARK: - PWLWriter
-
 struct PWLWriter {
-    private static let newline = Data("\r\n".utf8)
-
     func write(
         _ points: [Point],
-        to outputURL: URL,
+        to outputURL: URL
     ) throws -> Int {
         var data = Data()
         let (estimatedCapacity, overflow) = points.count.multipliedReportingOverflow(by: 32)
@@ -26,14 +12,16 @@ struct PWLWriter {
         }
 
         for point in points {
-            guard let pointData = point.serialize.data(using: .ascii) else {
-                throw PWLWriterError.nonASCIIOutput
-            }
+            let pointTimeStr = spiceFormatter.string(for: point.time)!
+            let pointValueStr = spiceFormatter.string(for: point.value)!
+            let pointLine = "\(pointTimeStr)\t\(pointValueStr)\r\n"
+            let pointData = pointLine.data(using: .ascii)!
+            
             data.append(pointData)
-            data.append(Self.newline)
         }
 
         try data.write(to: outputURL, options: .atomic)
         return data.count
     }
 }
+
