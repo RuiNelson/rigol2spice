@@ -425,6 +425,25 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `dead zone zeros values inside the threshold band`() throws {
+        #expect(try Transformation.parseList("DeadZone 0.1") == [.deadZone(0.1)])
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("DeadZone 0")
+        }
+
+        let points = [
+            Point(time: 0, value: -0.2),
+            Point(time: 1, value: -0.05),
+            Point(time: 2, value: 0.05),
+            Point(time: 3, value: 0.1),
+            Point(time: 4, value: 0.3),
+        ]
+        let result = try Transformation.deadZone(0.1).applying(to: points)
+
+        #expect(result.map(\.value) == [-0.2, 0, 0, 0.1, 0.3])
+    }
+
+    @Test
     func `legacy parser reads a real oscilloscope capture`() throws {
         let capture = try LegacyCSVParser().parse(sampleData(named: "Legacy"), channel: "ch2")
 

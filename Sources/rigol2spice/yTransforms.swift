@@ -200,6 +200,18 @@ func integratePoints(_ points: [Point]) -> [Point] {
     return output
 }
 
+/// Zero values with absolute magnitude strictly below `threshold`.
+func deadZonePoints(_ points: [Point], threshold: Double) -> [Point] {
+    let magnitude = abs(threshold)
+    var output = points
+    output.withUnsafeMutableBufferPointer { buffer in
+        for index in buffer.indices where abs(buffer[index].value) < magnitude {
+            buffer[index].value = 0
+        }
+    }
+    return output
+}
+
 /// Default impedance when converting absolute power levels (dBmW / dBW) to volts.
 let powerReferenceResistance = 50.0
 

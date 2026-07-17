@@ -49,6 +49,7 @@ enum Transformation: Equatable {
     case movingAverage(Int)
     case diff
     case integrate
+    case deadZone(Double)
     case db(Double)
     case dbmW(level: Double, resistance: Double)
     case dbW(level: Double, resistance: Double)
@@ -214,6 +215,15 @@ enum Transformation: Equatable {
             case "integrate":
                 try requireArgumentCount(0)
                 return .integrate
+            case "deadzone":
+                let value = try scalar()
+                guard value > 0 else {
+                    throw TransformationParseError.invalidPositiveScalar(
+                        operation: operation,
+                        value: arguments[0],
+                    )
+                }
+                return .deadZone(value)
             case "db":
                 return try .db(scalar())
             case "dbmw", "dbm":
@@ -326,6 +336,8 @@ enum Transformation: Equatable {
             return differentiatePoints(points)
         case .integrate:
             return integratePoints(points)
+        case let .deadZone(value):
+            return deadZonePoints(points, threshold: value)
         case let .db(value):
             return multiplyValueOfPoints(points, factor: pow(10, value / 20))
         case let .dbmW(level, resistance):
