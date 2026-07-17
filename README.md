@@ -105,10 +105,6 @@ swift build
 
 Builds on macOS, Windows, and Linux.
 
-### Windows CI builds
-
-The `Windows` GitHub Actions workflow builds release binaries for **x86_64** (`windows-latest`) and **arm64** (`windows-11-arm`, native), with the Swift standard library statically linked (experimental Windows SDK when available). Each package includes only the non-system DLLs still required at runtime — ideally just `rigol2spice.exe`. Artifacts are uploaded on every run; tag pushes (`v*`) also attach `rigol2spice-windows-x86_64.zip` and `rigol2spice-windows-arm64.zip` to the GitHub Release.
-
 ## Legal
 
 This is an independent project, not affiliated with Rigol Technologies, Inc.
