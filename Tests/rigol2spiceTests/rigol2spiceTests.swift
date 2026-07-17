@@ -597,6 +597,24 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `slew limit caps the rate of change`() throws {
+        #expect(try Transformation.parseList("SlewLimit 1") == [.slewLimit(1)])
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("SlewLimit 0")
+        }
+
+        // Step 0→10 in 1 s; max slew 2 V/s → reaches 2 after 1 s
+        let points = [
+            Point(time: 0, value: 0),
+            Point(time: 1, value: 10),
+            Point(time: 2, value: 10),
+            Point(time: 3, value: 10),
+        ]
+        let result = try Transformation.slewLimit(2).applying(to: points)
+        #expect(result.map(\.value) == [0, 2, 4, 6])
+    }
+
+    @Test
     func `digitize converts analog samples to two levels`() throws {
         #expect(
             try Transformation.parseList("Digitize 0.5")

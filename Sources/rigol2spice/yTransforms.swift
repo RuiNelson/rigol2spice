@@ -264,6 +264,33 @@ func integratePoints(_ points: [Point]) -> [Point] {
     return output
 }
 
+/// Limit |dv/dt| to `maxSlew` (V/s). Walks forward from the first sample.
+func slewLimitPoints(_ points: [Point], maxSlew: Double) -> [Point] {
+    guard points.count >= 2, maxSlew > 0 else {
+        return points
+    }
+
+    var output = points
+    for index in 1 ..< output.count {
+        let dt = output[index].time - output[index - 1].time
+        guard dt > 0 else {
+            output[index].value = output[index - 1].value
+            continue
+        }
+        let maxDelta = maxSlew * dt
+        let previous = output[index - 1].value
+        let target = output[index].value
+        let delta = target - previous
+        if delta > maxDelta {
+            output[index].value = previous + maxDelta
+        }
+        else if delta < -maxDelta {
+            output[index].value = previous - maxDelta
+        }
+    }
+    return output
+}
+
 /// Convert an analog waveform to two-level digital output.
 /// - Without hysteresis (`highThreshold == lowThreshold`): each sample is
 ///   `highOut` if ≥ threshold, else `lowOut`.

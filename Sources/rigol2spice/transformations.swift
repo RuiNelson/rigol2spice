@@ -56,6 +56,7 @@ enum Transformation: Equatable {
     case integrate
     case deadZone(Double)
     case digitize(lowThreshold: Double, highThreshold: Double, lowOut: Double, highOut: Double)
+    case slewLimit(Double)
     case limit(lower: Double, upper: Double)
     case db(Double)
     case dbmW(level: Double, resistance: Double)
@@ -256,6 +257,15 @@ enum Transformation: Equatable {
                     )
                 }
                 return .deadZone(value)
+            case "slewlimit":
+                let value = try scalar()
+                guard value > 0 else {
+                    throw TransformationParseError.invalidPositiveScalar(
+                        operation: operation,
+                        value: arguments[0],
+                    )
+                }
+                return .slewLimit(value)
             case "digitize",
                  "threshold":
                 // Digitize threshold
@@ -543,6 +553,8 @@ enum Transformation: Equatable {
                 lowOut: lowOut,
                 highOut: highOut,
             )
+        case let .slewLimit(value):
+            return slewLimitPoints(points, maxSlew: value)
         case let .limit(lower, upper):
             return clamp(points, lowerLimit: lower, upperLimit: upper)
         case let .db(value):

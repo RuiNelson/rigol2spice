@@ -266,6 +266,8 @@ struct Rigol2SpiceApplication {
                     "Digitizing with hysteresis \(engineeringFormatter.string(lowThreshold))/\(engineeringFormatter.string(highThreshold)) → \(engineeringFormatter.string(lowOut))/\(engineeringFormatter.string(highOut))...",
                 )
             }
+        case let .slewLimit(value):
+            Console.section("Limiting slew rate to \(engineeringFormatter.string(value)) V/s...")
         case let .limit(lower, upper):
             Console.section(
                 "Limiting the signal between \(engineeringFormatter.string(lower)) and \(engineeringFormatter.string(upper))...",
