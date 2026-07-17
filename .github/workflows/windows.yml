@@ -41,7 +41,9 @@ jobs:
           swift-version: swift-6.2.4-release
           swift-build: 6.2.4-RELEASE
           build_arch: ${{ matrix.build_arch }}
-          update-sdk-modules: true
+          # Do not set update-sdk-modules: true — it replaces clang's
+          # module.modulemap with llvm-project/main, which references
+          # arm64_neon.h and breaks WinSDK/ucrt on Windows arm64.
           cache: true
 
       - name: Build release (static stdlib)
