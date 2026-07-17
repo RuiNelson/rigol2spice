@@ -134,23 +134,34 @@ extension CSVFormatParser {
             resolvedChannels[name] = channel
         }
 
-        let selectedLabel: String = if case let .channel(name) = expression, let only = resolvedChannels[name] {
-            only.name
+        let singleChannel: CSVChannel?
+        let selectedLabel: String
+        if case let .channel(name) = expression, let only = resolvedChannels[name] {
+            singleChannel = only
+            selectedLabel = only.name
         }
         else {
-            requestedChannel.trimmingCharacters(in: .whitespacesAndNewlines)
+            singleChannel = nil
+            selectedLabel = requestedChannel.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
         var points: [Point] = []
-        while let line = try reader.nextLine() {
-            try points.append(
-                parsePoint(
-                    line,
-                    expression: expression,
-                    channels: resolvedChannels,
-                    header: header,
-                ),
-            )
+        if let singleChannel {
+            while let line = try reader.nextLine() {
+                try points.append(parsePoint(line, channel: singleChannel, header: header))
+            }
+        }
+        else {
+            while let line = try reader.nextLine() {
+                try points.append(
+                    parsePoint(
+                        line,
+                        expression: expression,
+                        channels: resolvedChannels,
+                        header: header,
+                    ),
+                )
+            }
         }
         normalize(&points)
 
@@ -183,6 +194,24 @@ extension CSVFormatParser {
             }
     }
 
+    /// Fast path: single channel, no expression evaluation.
+    private func parsePoint(
+        _ line: String,
+        channel: CSVChannel,
+        header: CSVHeader,
+    ) throws -> Point {
+        let columns = csvFields(in: line)
+        guard columns.indices.contains(0),
+              columns.indices.contains(channel.columnIndex),
+              let rawTime = Double(columns[0]),
+              let value = Double(columns[channel.columnIndex]) else {
+            throw ParseError.invalidLine(line: line)
+        }
+
+        return Point(time: rawTime * header.timeScale, value: value)
+    }
+
+    /// Expression path: evaluate channel math for one sample row.
     private func parsePoint(
         _ line: String,
         expression: ChannelExpression,
