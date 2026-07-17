@@ -408,6 +408,23 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `integrate accumulates with the trapezoid rule`() throws {
+        #expect(try Transformation.parseList("Integrate") == [.integrate])
+
+        // constant 2 over time → ramp 2t
+        let points = [
+            Point(time: 0, value: 2),
+            Point(time: 1, value: 2),
+            Point(time: 2, value: 2),
+            Point(time: 3, value: 2),
+        ]
+        let result = try Transformation.integrate.applying(to: points)
+
+        #expect(result.map(\.value) == [0, 2, 4, 6])
+        #expect(result.map(\.time) == [0, 1, 2, 3])
+    }
+
+    @Test
     func `legacy parser reads a real oscilloscope capture`() throws {
         let capture = try LegacyCSVParser().parse(sampleData(named: "Legacy"), channel: "ch2")
 

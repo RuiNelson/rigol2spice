@@ -48,6 +48,7 @@ enum Transformation: Equatable {
     case scaleTo(Double)
     case movingAverage(Int)
     case diff
+    case integrate
     case db(Double)
     case dbmW(level: Double, resistance: Double)
     case dbW(level: Double, resistance: Double)
@@ -210,6 +211,9 @@ enum Transformation: Equatable {
             case "diff":
                 try requireArgumentCount(0)
                 return .diff
+            case "integrate":
+                try requireArgumentCount(0)
+                return .integrate
             case "db":
                 return try .db(scalar())
             case "dbmw", "dbm":
@@ -320,6 +324,8 @@ enum Transformation: Equatable {
             return movingAveragePoints(points, window: window)
         case .diff:
             return differentiatePoints(points)
+        case .integrate:
+            return integratePoints(points)
         case let .db(value):
             return multiplyValueOfPoints(points, factor: pow(10, value / 20))
         case let .dbmW(level, resistance):

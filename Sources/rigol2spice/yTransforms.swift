@@ -178,6 +178,28 @@ func differentiatePoints(_ points: [Point]) -> [Point] {
     return output
 }
 
+/// Cumulative trapezoidal integral starting at 0.
+func integratePoints(_ points: [Point]) -> [Point] {
+    guard !points.isEmpty else {
+        return points
+    }
+
+    var output = points
+    output[0].value = 0
+
+    guard points.count > 1 else {
+        return output
+    }
+
+    var cumulative = 0.0
+    for index in 1 ..< points.count {
+        let dt = points[index].time - points[index - 1].time
+        cumulative += 0.5 * (points[index].value + points[index - 1].value) * dt
+        output[index].value = cumulative
+    }
+    return output
+}
+
 /// Default impedance when converting absolute power levels (dBmW / dBW) to volts.
 let powerReferenceResistance = 50.0
 
