@@ -49,6 +49,7 @@ enum Transformation: Equatable {
     case normalize
     case peakTo(Double)
     case movingAverage(Int)
+    case median(Int)
     case diff
     case integrate
     case deadZone(Double)
@@ -209,6 +210,17 @@ enum Transformation: Equatable {
                     )
                 }
                 return .movingAverage(Int(value))
+            case "median":
+                let value = try scalar()
+                guard value >= 1,
+                      value < Double(Int.max),
+                      value == value.rounded(.towardZero) else {
+                    throw TransformationParseError.invalidPositiveScalar(
+                        operation: operation,
+                        value: arguments[0],
+                    )
+                }
+                return .median(Int(value))
             case "diff":
                 try requireArgumentCount(0)
                 return .diff
@@ -491,6 +503,8 @@ enum Transformation: Equatable {
             return scalePeakTo(points, target: value)
         case let .movingAverage(window):
             return movingAveragePoints(points, window: window)
+        case let .median(window):
+            return medianPoints(points, window: window)
         case .diff:
             return differentiatePoints(points)
         case .integrate:

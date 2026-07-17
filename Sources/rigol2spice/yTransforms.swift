@@ -113,6 +113,37 @@ func scalePeakTo(_ points: [Point], target: Double) -> [Point] {
     return multiplyValueOfPoints(points, factor: target / peak)
 }
 
+/// Centered median filter over `window` samples (window ≥ 1). Edges use a shorter window.
+func medianPoints(_ points: [Point], window: Int) -> [Point] {
+    guard window > 1, points.count > 1 else {
+        return points
+    }
+
+    let count = points.count
+    let half = window / 2
+    var output = points
+    var scratch = [Double]()
+    scratch.reserveCapacity(window)
+
+    for index in 0 ..< count {
+        let lower = max(0, index - half)
+        let upper = min(count - 1, index - half + window - 1)
+        scratch.removeAll(keepingCapacity: true)
+        for sampleIndex in lower ... upper {
+            scratch.append(points[sampleIndex].value)
+        }
+        scratch.sort()
+        let sampleCount = scratch.count
+        if sampleCount % 2 == 1 {
+            output[index].value = scratch[sampleCount / 2]
+        }
+        else {
+            output[index].value = 0.5 * (scratch[sampleCount / 2 - 1] + scratch[sampleCount / 2])
+        }
+    }
+    return output
+}
+
 /// Centered moving average over `window` samples (window ≥ 1). Edges use a shorter window.
 func movingAveragePoints(_ points: [Point], window: Int) -> [Point] {
     guard window > 1, points.count > 1 else {

@@ -243,6 +243,8 @@ struct Rigol2SpiceApplication {
             Console.section("Scaling peak absolute value to \(engineeringFormatter.string(value))...")
         case let .movingAverage(window):
             Console.section("Applying moving average over \(window) samples...")
+        case let .median(window):
+            Console.section("Applying median filter over \(window) samples...")
         case .diff:
             Console.section("Differentiating the signal (dv/dt)...")
         case .integrate:

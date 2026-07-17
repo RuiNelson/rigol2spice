@@ -107,6 +107,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `BandPass` | `BandPass 900, 1.1k` | Apply a band-pass filter² |
 | `BandStop` | `BandStop 48, 52` | Apply a band-stop filter² |
 | `MovingAverage` | `MovingAverage 5` | Centered moving average over N samples |
+| `Median` | `Median 5` | Centered median filter over N samples (spike-resistant) |
 | `Diff` | `Diff` | Numerical derivative dv/dt |
 | `Integrate` | `Integrate` | Cumulative trapezoidal integral (starts at 0) |
 

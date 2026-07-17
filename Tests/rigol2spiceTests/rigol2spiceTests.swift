@@ -517,6 +517,29 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `median rejects spikes with a centered window`() throws {
+        #expect(try Transformation.parseList("Median 3") == [.median(3)])
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("Median 0")
+        }
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("Median 1.5")
+        }
+
+        let points = [
+            Point(time: 0, value: 0),
+            Point(time: 1, value: 0),
+            Point(time: 2, value: 100),
+            Point(time: 3, value: 0),
+            Point(time: 4, value: 0),
+        ]
+        let result = try Transformation.median(3).applying(to: points)
+
+        #expect(result.map(\.value) == [0, 0, 0, 0, 0])
+        #expect(result.map(\.time) == [0, 1, 2, 3, 4])
+    }
+
+    @Test
     func `diff computes numerical derivative`() throws {
         #expect(try Transformation.parseList("Diff") == [.diff])
 
