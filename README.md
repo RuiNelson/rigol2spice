@@ -59,9 +59,8 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `Invert` | `Invert` | Multiply every value by −1 (alias of `Multiply -1`) |
 | `Abs` | `Abs` | Replace every value with its absolute value |
 | `Rectify` | `Rectify` | Half-wave rectify (keep values ≥ 0, zero the rest) |
-| `Normalize` | `Normalize` | Scale so the peak absolute value is 1 |
+| `Normalize` | `Normalize` | Alias of `PeakTo 1` |
 | `PeakTo` | `PeakTo 3.3` | Scale so the peak absolute value equals the scalar |
-| `ScaleTo` | `ScaleTo 3.3` | Alias of `PeakTo` |
 | `MovingAverage` | `MovingAverage 5` | Centered moving average over N samples |
 | `Diff` | `Diff` | Numerical derivative dv/dt |
 | `Integrate` | `Integrate` | Cumulative trapezoidal integral (starts at 0) |

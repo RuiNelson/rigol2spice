@@ -213,10 +213,8 @@ struct Rigol2SpiceApplication {
         case .rectify:
             Console.section("Half-wave rectifying the signal...")
         case .normalize:
-            Console.section("Normalizing the signal to unit peak...")
+            Console.section("Normalizing the signal to unit peak (PeakTo 1)...")
         case let .peakTo(value):
-            Console.section("Scaling peak absolute value to \(engineeringFormatter.string(value))...")
-        case let .scaleTo(value):
             Console.section("Scaling peak absolute value to \(engineeringFormatter.string(value))...")
         case let .movingAverage(window):
             Console.section("Applying moving average over \(window) samples...")

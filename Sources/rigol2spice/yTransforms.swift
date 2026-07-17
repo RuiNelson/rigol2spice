@@ -104,15 +104,6 @@ func peakAbsoluteValue(_ points: [Point]) -> Double {
     return peak
 }
 
-/// Scale so the peak absolute value is 1. Unchanged if the peak is zero.
-func normalizePoints(_ points: [Point]) -> [Point] {
-    let peak = peakAbsoluteValue(points)
-    guard peak > 0 else {
-        return points
-    }
-    return multiplyValueOfPoints(points, factor: 1 / peak)
-}
-
 /// Scale so the peak absolute value equals `target`. Unchanged if the peak is zero.
 func scalePeakTo(_ points: [Point], target: Double) -> [Point] {
     let peak = peakAbsoluteValue(points)

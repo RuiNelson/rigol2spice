@@ -48,7 +48,6 @@ enum Transformation: Equatable {
     case rectify
     case normalize
     case peakTo(Double)
-    case scaleTo(Double)
     case movingAverage(Int)
     case diff
     case integrate
@@ -193,15 +192,6 @@ enum Transformation: Equatable {
                     )
                 }
                 return .peakTo(value)
-            case "scaleto":
-                let value = try scalar()
-                guard value > 0 else {
-                    throw TransformationParseError.invalidPositiveScalar(
-                        operation: operation,
-                        value: arguments[0],
-                    )
-                }
-                return .scaleTo(value)
             case "movingaverage":
                 let value = try scalar()
                 guard value >= 1,
@@ -341,10 +331,8 @@ enum Transformation: Equatable {
         case .rectify:
             return rectifyPoints(points)
         case .normalize:
-            return normalizePoints(points)
+            return scalePeakTo(points, target: 1)
         case let .peakTo(value):
-            return scalePeakTo(points, target: value)
-        case let .scaleTo(value):
             return scalePeakTo(points, target: value)
         case let .movingAverage(window):
             return movingAveragePoints(points, window: window)
