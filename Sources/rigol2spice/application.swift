@@ -241,6 +241,10 @@ struct Rigol2SpiceApplication {
             Console.section("Normalizing the signal to unit peak (PeakTo 1)...")
         case let .peakTo(value):
             Console.section("Scaling peak absolute value to \(engineeringFormatter.string(value))...")
+        case let .peakToPeak(value):
+            Console.section("Scaling peak-to-peak amplitude to \(engineeringFormatter.string(value))...")
+        case let .scaleRMS(value):
+            Console.section("Scaling RMS to \(engineeringFormatter.string(value))...")
         case let .movingAverage(window):
             Console.section("Applying moving average over \(window) samples...")
         case let .median(window):

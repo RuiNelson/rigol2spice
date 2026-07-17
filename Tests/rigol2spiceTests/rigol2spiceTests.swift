@@ -495,6 +495,29 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `peakToPeak and scaleRMS normalize amplitude measures`() throws {
+        #expect(try Transformation.parseList("PeakToPeak 2") == [.peakToPeak(2)])
+        #expect(try Transformation.parseList("ScaleRMS 1") == [.scaleRMS(1)])
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("PeakToPeak 0")
+        }
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("ScaleRMS -1")
+        }
+
+        let points = [Point(time: 0, value: -1), Point(time: 1, value: 3)]
+        // span = 4 → scale to 2 → factor 0.5
+        let p2p = try Transformation.peakToPeak(2).applying(to: points)
+        #expect(p2p.map(\.value) == [-0.5, 1.5])
+
+        // RMS of [1, -1] = 1; scale to 2
+        let rmsPoints = [Point(time: 0, value: 1), Point(time: 1, value: -1)]
+        let scaled = try Transformation.scaleRMS(2).applying(to: rmsPoints)
+        #expect(scaled.map(\.value) == [2, -2])
+        #expect(abs(rmsValue(scaled) - 2) < 1e-12)
+    }
+
+    @Test
     func `moving average smooths with a centered window`() throws {
         #expect(try Transformation.parseList("MovingAverage 3") == [.movingAverage(3)])
         #expect(throws: (any Error).self) {

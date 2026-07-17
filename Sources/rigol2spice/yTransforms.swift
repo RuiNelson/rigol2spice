@@ -113,6 +113,48 @@ func scalePeakTo(_ points: [Point], target: Double) -> [Point] {
     return multiplyValueOfPoints(points, factor: target / peak)
 }
 
+func peakToPeakValue(_ points: [Point]) -> Double {
+    guard let first = points.first else {
+        return 0
+    }
+    var minimum = first.value
+    var maximum = first.value
+    for point in points.dropFirst() {
+        minimum = min(minimum, point.value)
+        maximum = max(maximum, point.value)
+    }
+    return maximum - minimum
+}
+
+/// Scale so max − min equals `target`. Unchanged if the span is zero.
+func scalePeakToPeak(_ points: [Point], target: Double) -> [Point] {
+    let span = peakToPeakValue(points)
+    guard span > 0 else {
+        return points
+    }
+    return multiplyValueOfPoints(points, factor: target / span)
+}
+
+func rmsValue(_ points: [Point]) -> Double {
+    guard !points.isEmpty else {
+        return 0
+    }
+    var sumSquares = 0.0
+    for point in points {
+        sumSquares += point.value * point.value
+    }
+    return sqrt(sumSquares / Double(points.count))
+}
+
+/// Scale so the sample RMS equals `target`. Unchanged if RMS is zero.
+func scalePointsToRMS(_ points: [Point], target: Double) -> [Point] {
+    let rms = rmsValue(points)
+    guard rms > 0 else {
+        return points
+    }
+    return multiplyValueOfPoints(points, factor: target / rms)
+}
+
 /// Centered median filter over `window` samples (window ≥ 1). Edges use a shorter window.
 func medianPoints(_ points: [Point], window: Int) -> [Point] {
     guard window > 1, points.count > 1 else {
