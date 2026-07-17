@@ -208,6 +208,8 @@ struct Rigol2SpiceApplication {
             Console.section("Multiplying the signal by a factor of \(engineeringFormatter.string(value))...")
         case .invert:
             Console.section("Inverting the signal...")
+        case .abs:
+            Console.section("Taking the absolute value of the signal...")
         case let .db(value):
             let sign = value >= 0 ? "+" : ""
             Console.section("Scaling the signal by \(sign)\(engineeringFormatter.string(value))dB...")

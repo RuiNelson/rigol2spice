@@ -57,6 +57,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `Offset` | `Offset -1.5` | Add the scalar to every value |
 | `Multiply` | `Multiply 10` | Multiply every value by the scalar |
 | `Invert` | `Invert` | Multiply every value by −1 (alias of `Multiply -1`) |
+| `Abs` | `Abs` | Replace every value with its absolute value |
 | `dB` | `dB 6` | Scale amplitude by the given voltage dB (×10^(dB/20)) |
 | `dBmW` | `dBmW 10` · `dBmW 0, 75` | × volts for that power into R Ω (e.g. 10 dBm @ 50 Ω ≈ 0.707 V)³ |
 | `dBW` | `dBW 0` · `dBW -30` | Same as `dBmW` but relative to 1 W (0 dBW = 30 dBm ≈ 7.07 V @ 50 Ω)³ |

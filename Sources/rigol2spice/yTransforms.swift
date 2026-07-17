@@ -72,6 +72,16 @@ func gatePoints(_ points: [Point], threshold: Double) -> [Point] {
     return output
 }
 
+func absPoints(_ points: [Point]) -> [Point] {
+    var output = points
+    output.withUnsafeMutableBufferPointer { buffer in
+        for index in buffer.indices {
+            buffer[index].value = abs(buffer[index].value)
+        }
+    }
+    return output
+}
+
 /// Default impedance when converting absolute power levels (dBmW / dBW) to volts.
 let powerReferenceResistance = 50.0
 
