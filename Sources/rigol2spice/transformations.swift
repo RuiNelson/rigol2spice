@@ -52,6 +52,7 @@ enum Transformation: Equatable {
     case diff
     case integrate
     case deadZone(Double)
+    case digitize(lowThreshold: Double, highThreshold: Double, lowOut: Double, highOut: Double)
     case limit(lower: Double, upper: Double)
     case db(Double)
     case dbmW(level: Double, resistance: Double)
@@ -223,6 +224,48 @@ enum Transformation: Equatable {
                     )
                 }
                 return .deadZone(value)
+            case "digitize",
+                 "threshold":
+                // Digitize threshold
+                // Digitize threshold, lowOut, highOut
+                // Digitize lowThresh, highThresh, lowOut, highOut
+                switch arguments.count {
+                case 1:
+                    let threshold = try parseScalarArgument(arguments[0])
+                    return .digitize(
+                        lowThreshold: threshold,
+                        highThreshold: threshold,
+                        lowOut: 0,
+                        highOut: 1,
+                    )
+                case 3:
+                    let threshold = try parseScalarArgument(arguments[0])
+                    let lowOut = try parseScalarArgument(arguments[1])
+                    let highOut = try parseScalarArgument(arguments[2])
+                    return .digitize(
+                        lowThreshold: threshold,
+                        highThreshold: threshold,
+                        lowOut: lowOut,
+                        highOut: highOut,
+                    )
+                case 4:
+                    let lowThreshold = try parseScalarArgument(arguments[0])
+                    let highThreshold = try parseScalarArgument(arguments[1])
+                    let lowOut = try parseScalarArgument(arguments[2])
+                    let highOut = try parseScalarArgument(arguments[3])
+                    return .digitize(
+                        lowThreshold: lowThreshold,
+                        highThreshold: highThreshold,
+                        lowOut: lowOut,
+                        highOut: highOut,
+                    )
+                default:
+                    throw TransformationParseError.invalidArgumentCount(
+                        operation: operation,
+                        expected: 3,
+                        actual: arguments.count,
+                    )
+                }
             case "limit":
                 try requireArgumentCount(2)
                 let lower = try parseScalarArgument(arguments[0])
@@ -454,6 +497,14 @@ enum Transformation: Equatable {
             return integratePoints(points)
         case let .deadZone(value):
             return deadZonePoints(points, threshold: value)
+        case let .digitize(lowThreshold, highThreshold, lowOut, highOut):
+            return digitizePoints(
+                points,
+                lowThreshold: lowThreshold,
+                highThreshold: highThreshold,
+                lowOut: lowOut,
+                highOut: highOut,
+            )
         case let .limit(lower, upper):
             return clamp(points, lowerLimit: lower, upperLimit: upper)
         case let .db(value):

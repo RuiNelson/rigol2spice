@@ -551,6 +551,56 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `digitize converts analog samples to two levels`() throws {
+        #expect(
+            try Transformation.parseList("Digitize 0.5")
+                == [.digitize(lowThreshold: 0.5, highThreshold: 0.5, lowOut: 0, highOut: 1)],
+        )
+        #expect(
+            try Transformation.parseList("Threshold 0.8, 0, 3.3")
+                == [.digitize(lowThreshold: 0.8, highThreshold: 0.8, lowOut: 0, highOut: 3.3)],
+        )
+        #expect(
+            try Transformation.parseList("Digitize 1.2, 0.8, 0, 3.3")
+                == [.digitize(lowThreshold: 1.2, highThreshold: 0.8, lowOut: 0, highOut: 3.3)],
+        )
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("Digitize")
+        }
+
+        let points = [
+            Point(time: 0, value: 0.2),
+            Point(time: 1, value: 0.6),
+            Point(time: 2, value: 1.0),
+            Point(time: 3, value: 0.4),
+        ]
+        let hard = try Transformation.digitize(
+            lowThreshold: 0.5,
+            highThreshold: 0.5,
+            lowOut: 0,
+            highOut: 3.3,
+        ).applying(to: points)
+        #expect(hard.map(\.value) == [0, 3.3, 3.3, 0])
+
+        // Schmitt: high needs ≥1.0, low needs ≤0.4
+        let schmittPoints = [
+            Point(time: 0, value: 0.0),
+            Point(time: 1, value: 0.5),
+            Point(time: 2, value: 1.0),
+            Point(time: 3, value: 0.5),
+            Point(time: 4, value: 0.4),
+            Point(time: 5, value: 0.0),
+        ]
+        let schmitt = try Transformation.digitize(
+            lowThreshold: 0.4,
+            highThreshold: 1.0,
+            lowOut: 0,
+            highOut: 1,
+        ).applying(to: schmittPoints)
+        #expect(schmitt.map(\.value) == [0, 0, 1, 1, 0, 0])
+    }
+
+    @Test
     func `dead zone zeros values inside the threshold band`() throws {
         #expect(try Transformation.parseList("DeadZone 0.1") == [.deadZone(0.1)])
         #expect(throws: (any Error).self) {

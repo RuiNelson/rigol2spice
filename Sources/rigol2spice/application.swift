@@ -249,6 +249,17 @@ struct Rigol2SpiceApplication {
             Console.section("Integrating the signal...")
         case let .deadZone(value):
             Console.section("Applying dead zone of ±\(engineeringFormatter.string(value))...")
+        case let .digitize(lowThreshold, highThreshold, lowOut, highOut):
+            if lowThreshold == highThreshold {
+                Console.section(
+                    "Digitizing at \(engineeringFormatter.string(lowThreshold)) → \(engineeringFormatter.string(lowOut))/\(engineeringFormatter.string(highOut))...",
+                )
+            }
+            else {
+                Console.section(
+                    "Digitizing with hysteresis \(engineeringFormatter.string(lowThreshold))/\(engineeringFormatter.string(highThreshold)) → \(engineeringFormatter.string(lowOut))/\(engineeringFormatter.string(highOut))...",
+                )
+            }
         case let .limit(lower, upper):
             Console.section(
                 "Limiting the signal between \(engineeringFormatter.string(lower)) and \(engineeringFormatter.string(upper))...",

@@ -79,6 +79,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `Limit` | `Limit -0.7, 0.7` | Clamp values between low and high |
 | `Gate` | `Gate 0.6` | Zero values below the threshold; keep the rest |
 | `DeadZone` | `DeadZone 0.1` | Zero values inside ±threshold; keep the rest |
+| `Digitize` | `Digitize 0.8` · `Digitize 0.8, 0, 3.3` · `Digitize 1.2, 0.8, 0, 3.3` | Two-level digital output (threshold; low/high out; optional Schmitt hysteresis); alias `Threshold` |
 | `Abs` | `Abs` | Replace every value with its absolute value |
 | `Rectify` | `Rectify` | Half-wave rectify (keep values ≥ 0, zero the rest) |
 

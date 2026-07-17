@@ -191,6 +191,45 @@ func integratePoints(_ points: [Point]) -> [Point] {
     return output
 }
 
+/// Convert an analog waveform to two-level digital output.
+/// - Without hysteresis (`highThreshold == lowThreshold`): each sample is
+///   `highOut` if ≥ threshold, else `lowOut`.
+/// - With hysteresis: rising needs `highThreshold`, falling needs `lowThreshold`.
+func digitizePoints(
+    _ points: [Point],
+    lowThreshold: Double,
+    highThreshold: Double,
+    lowOut: Double,
+    highOut: Double,
+) -> [Point] {
+    guard !points.isEmpty else {
+        return points
+    }
+
+    var output = points
+    let lo = min(lowThreshold, highThreshold)
+    let hi = max(lowThreshold, highThreshold)
+
+    output.withUnsafeMutableBufferPointer { buffer in
+        var isHigh = buffer[0].value >= hi
+        buffer[0].value = isHigh ? highOut : lowOut
+
+        for index in 1 ..< buffer.count {
+            let sample = buffer[index].value
+            if isHigh {
+                if sample <= lo {
+                    isHigh = false
+                }
+            }
+            else if sample >= hi {
+                isHigh = true
+            }
+            buffer[index].value = isHigh ? highOut : lowOut
+        }
+    }
+    return output
+}
+
 /// Zero values with absolute magnitude strictly below `threshold`.
 func deadZonePoints(_ points: [Point], threshold: Double) -> [Point] {
     let magnitude = abs(threshold)
