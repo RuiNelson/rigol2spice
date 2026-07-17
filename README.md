@@ -56,9 +56,10 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `Gate` | `Gate 0.6` | Zero values below the threshold; keep the rest |
 | `Offset` | `Offset -1.5` | Add the scalar to every value |
 | `Multiply` | `Multiply 10` | Multiply every value by the scalar |
+| `Invert` | `Invert` | Multiply every value by −1 (alias of `Multiply -1`) |
 | `dB` | `dB 6` | Scale amplitude by the given voltage dB (×10^(dB/20)) |
-| `dBmW` | `dBmW 0` or `dBmW 0, 75` | Multiply by volts for this power into R Ω (default R = 50)³ |
-| `dBW` | `dBW 0` or `dBW 0, 75` | Multiply by volts for this power into R Ω (default R = 50)³ |
+| `dBmW` | `dBmW 10` · `dBmW 0, 75` | × volts for that power into R Ω (e.g. 10 dBm @ 50 Ω ≈ 0.707 V)³ |
+| `dBW` | `dBW 0` · `dBW -30` | Same as `dBmW` but relative to 1 W (0 dBW = 30 dBm ≈ 7.07 V @ 50 Ω)³ |
 | `TimeShift` | `TimeShift -5m` | Shift timestamps; negative values shift left |
 | `CutAfter` | `CutAfter 10u` | Discard samples at or after the timestamp |
 | `Repeat` | `Repeat 2.5` | Append two copies and the first 50% of another |
@@ -73,7 +74,7 @@ Scalars accept decimal (`0.7`), engineering (`3n`, `10u`), and scientific (`5e-3
 
 ² Filters are linear-phase windowed-sinc FIRs (Blackman–Harris). You only supply the cutoff frequency(ies); the sample rate comes from the capture, tap count is chosen automatically, and group delay is removed so event timing stays aligned. Frequencies must be greater than 0 and below Nyquist (`fs/2`). Band filters require `0 < f1 < f2`.
 
-³ `dBmW` (alias `dBm`) and `dBW` convert an absolute power level to a voltage scale factor: `V = √(P · R)`, with `P = 1 mW · 10^(dBmW/10)` or `P = 10^(dBW/10)`. The optional second argument is the load impedance in ohms (default 50). Unlike `dB`, these are not relative gains — they multiply the waveform by that absolute voltage.
+³ `dBmW` (alias `dBm`) and `dBW` convert an absolute power level to a voltage scale factor: `V = √(P · R)`, with `P = 1 mW · 10^(dBmW/10)` or `P = 1 W · 10^(dBW/10)`. Optional second argument is load impedance in ohms (default 50). Unlike `dB`, these are not relative gains — they multiply the waveform by that absolute voltage (useful for unit-amplitude templates).
 
 ### Post-processing Options
 

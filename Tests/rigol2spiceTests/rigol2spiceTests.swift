@@ -271,6 +271,22 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `invert multiplies every value by negative one`() throws {
+        #expect(try Transformation.parseList("Invert") == [.invert])
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("Invert 1")
+        }
+
+        let points = [Point(time: 0, value: -1), Point(time: 1, value: 2)]
+        let inverted = try Transformation.invert.applying(to: points)
+        let viaMultiply = try Transformation.multiply(-1).applying(to: points)
+
+        #expect(inverted.map(\.value) == [1, -2])
+        #expect(inverted == viaMultiply)
+        #expect(inverted.map(\.time) == [0, 1])
+    }
+
+    @Test
     func `legacy parser reads a real oscilloscope capture`() throws {
         let capture = try LegacyCSVParser().parse(sampleData(named: "Legacy"), channel: "ch2")
 

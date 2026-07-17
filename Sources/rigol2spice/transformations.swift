@@ -37,6 +37,7 @@ enum Transformation: Equatable {
     case gate(Double)
     case offset(Double)
     case multiply(Double)
+    case invert
     case db(Double)
     case dbmW(level: Double, resistance: Double)
     case dbW(level: Double, resistance: Double)
@@ -153,6 +154,9 @@ enum Transformation: Equatable {
                 return try .offset(scalar())
             case "multiply":
                 return try .multiply(scalar())
+            case "invert":
+                try requireArgumentCount(0)
+                return .invert
             case "db":
                 return try .db(scalar())
             case "dbmw", "dbm":
@@ -231,6 +235,8 @@ enum Transformation: Equatable {
             return offsetPoints(points, offset: value)
         case let .multiply(value):
             return multiplyValueOfPoints(points, factor: value)
+        case .invert:
+            return multiplyValueOfPoints(points, factor: -1)
         case let .db(value):
             return multiplyValueOfPoints(points, factor: pow(10, value / 20))
         case let .dbmW(level, resistance):
