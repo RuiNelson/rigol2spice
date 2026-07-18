@@ -360,12 +360,14 @@ struct Rigol2spiceTests {
     @Test
     func `time scale stretches timestamps from the first sample`() throws {
         #expect(try Transformation.parseList("TimeScale 2") == [.timeScale(2)])
-        #expect(try Transformation.parseList("Stretch 0.5") == [.timeScale(0.5)])
         #expect(throws: (any Error).self) {
             try Transformation.parseList("TimeScale 0")
         }
         #expect(throws: (any Error).self) {
             try Transformation.parseList("TimeScale -1")
+        }
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("Stretch 0.5")
         }
 
         let points = [
@@ -382,20 +384,23 @@ struct Rigol2spiceTests {
     }
 
     @Test
-    func `align edge shifts the first threshold crossing to t zero`() throws {
+    func `trigger at shifts the first threshold crossing to t zero`() throws {
         #expect(
-            try Transformation.parseList("AlignEdge rising, 0.5")
-                == [.alignEdge(rising: true, threshold: 0.5, after: nil)],
+            try Transformation.parseList("TriggerAt rising, 0.5")
+                == [.triggerAt(rising: true, threshold: 0.5, after: nil)],
         )
         #expect(
             try Transformation.parseList("TriggerAt falling, 1.5, 2m")
-                == [.alignEdge(rising: false, threshold: 1.5, after: 2e-3)],
+                == [.triggerAt(rising: false, threshold: 1.5, after: 2e-3)],
         )
         #expect(throws: (any Error).self) {
-            try Transformation.parseList("AlignEdge sideways, 0.5")
+            try Transformation.parseList("TriggerAt sideways, 0.5")
         }
         #expect(throws: (any Error).self) {
-            try Transformation.parseList("AlignEdge rising")
+            try Transformation.parseList("TriggerAt rising")
+        }
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("AlignEdge rising, 0.5")
         }
 
         // Sample exactly on the threshold at t=1
@@ -405,7 +410,7 @@ struct Rigol2spiceTests {
             Point(time: 2, value: 1),
             Point(time: 3, value: 1),
         ]
-        let aligned = try Transformation.alignEdge(rising: true, threshold: 0.5, after: nil)
+        let aligned = try Transformation.triggerAt(rising: true, threshold: 0.5, after: nil)
             .applying(to: risingPoints)
         #expect(aligned.map(\.time) == [0, 1, 2])
         #expect(aligned.map(\.value) == [0.5, 1, 1])
@@ -419,7 +424,7 @@ struct Rigol2spiceTests {
             Point(time: 4, value: 0),
             Point(time: 5, value: 0),
         ]
-        let secondFall = try Transformation.alignEdge(rising: false, threshold: 0.5, after: 2)
+        let secondFall = try Transformation.triggerAt(rising: false, threshold: 0.5, after: 2)
             .applying(to: fallingPoints)
         #expect(secondFall.first == Point(time: 0, value: 0.5))
         #expect(secondFall.map(\.value) == [0.5, 0, 0])
@@ -431,13 +436,13 @@ struct Rigol2spiceTests {
             Point(time: 2, value: 1),
             Point(time: 4, value: 1),
         ]
-        let interp = try alignEdgePoints(smooth, rising: true, threshold: 0.5)
+        let interp = try triggerAtPoints(smooth, rising: true, threshold: 0.5)
         #expect(interp.first == Point(time: 0, value: 0.5))
         #expect(interp.map(\.time) == [0, 1, 3])
         #expect(interp.map(\.value) == [0.5, 1, 1])
 
         #expect(throws: Rigol2SpiceError.edgeNotFound(rising: true, threshold: 10)) {
-            try alignEdgePoints(risingPoints, rising: true, threshold: 10)
+            try triggerAtPoints(risingPoints, rising: true, threshold: 10)
         }
     }
 
@@ -698,7 +703,9 @@ struct Rigol2spiceTests {
     @Test
     func `soft clip approaches bounds without hard corners`() throws {
         #expect(try Transformation.parseList("SoftClip -1, 1") == [.softClip(lower: -1, upper: 1)])
-        #expect(try Transformation.parseList("TanhLimit -0.7, 0.7") == [.softClip(lower: -0.7, upper: 0.7)])
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("TanhLimit -0.7, 0.7")
+        }
         #expect(throws: (any Error).self) {
             try Transformation.parseList("SoftClip 1, 0")
         }

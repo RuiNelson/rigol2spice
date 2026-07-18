@@ -86,7 +86,6 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `Threshold` | `Threshold 0.8` | Alias of `Digitize` |
 | `SlewLimit` | `SlewLimit 100meg` | Limit |dv/dt| to the given rate (V/s) |
 | `SoftClip` | `SoftClip -0.7, 0.7` | Soft-clip into [low, high] via tanh |
-| `TanhLimit` | `TanhLimit -0.7, 0.7` | Alias of `SoftClip` |
 | `Fade` | `Fade 100n` | Linear fade-in and fade-out over the given duration |
 | `FadeIn` | `FadeIn 50n` | Linear fade-in only |
 | `FadeOut` | `FadeOut 50n` | Linear fade-out only |
@@ -100,9 +99,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 |---|---|---|
 | `TimeShift` | `TimeShift -5m` | Shift timestamps; negative values shift left |
 | `TimeScale` | `TimeScale 2` · `TimeScale 0.5` | Scale the time axis (preserve start time) |
-| `Stretch` | `Stretch 2` | Alias of `TimeScale` |
-| `AlignEdge` | `AlignEdge rising, 0.5` · `AlignEdge falling, 1.5, 2m` | Shift so the first rising/falling crossing of the threshold is at t=0 (optional search-after time) |
-| `TriggerAt` | `TriggerAt rising, 0.5` | Alias of `AlignEdge` |
+| `TriggerAt` | `TriggerAt rising, 0.5` · `TriggerAt falling, 1.5, 2m` | Shift so the first rising/falling crossing of the threshold is at t=0 (optional search-after time) |
 | `Seamless` | `Seamless` · `Seamless 100n` | Force last value = first (or append a ramp of the given duration) |
 | `MatchEnds` | `MatchEnds` | Alias of `Seamless` |
 | `Pad` | `Pad 5m` · `Pad 5m, 0` | Extend by a duration, holding the last value (or a given level) |

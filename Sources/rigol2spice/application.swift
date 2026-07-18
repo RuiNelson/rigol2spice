@@ -320,16 +320,16 @@ struct Rigol2SpiceApplication {
             Console.section("Shifting signal for \(engineeringFormatter.string(value))s...")
         case let .timeScale(value):
             Console.section("Scaling time axis by \(engineeringFormatter.string(value))...")
-        case let .alignEdge(rising, threshold, after):
+        case let .triggerAt(rising, threshold, after):
             let direction = rising ? "rising" : "falling"
             if let after {
                 Console.section(
-                    "Aligning \(direction) edge at \(engineeringFormatter.string(threshold)) (search after \(engineeringFormatter.string(after))s) to t=0...",
+                    "Triggering on \(direction) edge at \(engineeringFormatter.string(threshold)) (search after \(engineeringFormatter.string(after))s) to t=0...",
                 )
             }
             else {
                 Console.section(
-                    "Aligning \(direction) edge at \(engineeringFormatter.string(threshold)) to t=0...",
+                    "Triggering on \(direction) edge at \(engineeringFormatter.string(threshold)) to t=0...",
                 )
             }
         case let .seamless(rampDuration):

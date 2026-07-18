@@ -59,7 +59,7 @@ func downsamplePoints(_ source: [Point], interval: Int) -> [Point] {
 
 /// Find the first rising or falling crossing of `threshold` and shift that instant to t = 0.
 /// Optional `after` restricts the search to edges at or after that time.
-func alignEdgePoints(
+func triggerAtPoints(
     _ points: [Point],
     rising: Bool,
     threshold: Double,

@@ -66,7 +66,7 @@ enum Transformation: Equatable {
     case dbW(level: Double, resistance: Double)
     case timeShift(Double)
     case timeScale(Double)
-    case alignEdge(rising: Bool, threshold: Double, after: Double?)
+    case triggerAt(rising: Bool, threshold: Double, after: Double?)
     case seamless(rampDuration: Double?)
     case pad(duration: Double, value: Double?)
     case extendTo(endTime: Double, value: Double?)
@@ -271,8 +271,7 @@ enum Transformation: Equatable {
                     )
                 }
                 return .slewLimit(value)
-            case "softclip",
-                 "tanhlimit":
+            case "softclip":
                 try requireArgumentCount(2)
                 let lower = try parseScalarArgument(arguments[0])
                 let upper = try parseScalarArgument(arguments[1])
@@ -416,8 +415,7 @@ enum Transformation: Equatable {
                 return .dbW(level: power.level, resistance: power.resistance)
             case "timeshift":
                 return try .timeShift(scalar())
-            case "timescale",
-                 "stretch":
+            case "timescale":
                 let value = try scalar()
                 guard value > 0 else {
                     throw TransformationParseError.invalidPositiveScalar(
@@ -426,8 +424,7 @@ enum Transformation: Equatable {
                     )
                 }
                 return .timeScale(value)
-            case "alignedge",
-                 "triggerat":
+            case "triggerat":
                 guard arguments.count == 2 || arguments.count == 3 else {
                     throw TransformationParseError.invalidArgumentCount(
                         operation: operation,
@@ -456,7 +453,7 @@ enum Transformation: Equatable {
                 else {
                     after = nil
                 }
-                return .alignEdge(rising: rising, threshold: threshold, after: after)
+                return .triggerAt(rising: rising, threshold: threshold, after: after)
             case "seamless",
                  "matchends":
                 guard arguments.count <= 1 else {
@@ -584,7 +581,7 @@ enum Transformation: Equatable {
     var reportsPointCount: Bool {
         switch self {
         case .timeShift,
-             .alignEdge,
+             .triggerAt,
              .seamless,
              .pad,
              .extendTo,
@@ -681,8 +678,8 @@ enum Transformation: Equatable {
             return timeShiftPoints(points, value: value)
         case let .timeScale(value):
             return timeScalePoints(points, factor: value)
-        case let .alignEdge(rising, threshold, after):
-            return try alignEdgePoints(points, rising: rising, threshold: threshold, after: after)
+        case let .triggerAt(rising, threshold, after):
+            return try triggerAtPoints(points, rising: rising, threshold: threshold, after: after)
         case let .seamless(rampDuration):
             return seamlessPoints(points, rampDuration: rampDuration)
         case let .pad(duration, value):
