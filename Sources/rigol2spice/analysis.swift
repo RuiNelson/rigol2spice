@@ -65,6 +65,7 @@ enum Analysis: Equatable {
     case fallTime(lowPercent: Double, highPercent: Double)
     case pulseWidth(threshold: Double?)
     case duty(threshold: Double?)
+    case period
 
 
 
@@ -234,6 +235,9 @@ enum Analysis: Equatable {
                 return .pulseWidth(threshold: try parseOptionalThreshold())
             case "duty":
                 return .duty(threshold: try parseOptionalThreshold())
+            case "period":
+                try requireArgumentCount(0)
+                return .period
 
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
@@ -311,6 +315,7 @@ enum Analysis: Equatable {
             else {
                 "Duty"
             }
+        case .period: "Period"
         }
     }
 }
@@ -475,6 +480,8 @@ extension Analysis {
                 return .unavailable
             }
             return .scalar(duty)
+        case .period:
+            return periodOnlyOutcome(points, threshold: averageValue(points))
 
         }
     }
@@ -488,6 +495,17 @@ extension Analysis {
             return .insufficientCrossings
         }
         return .periodAndFrequency(period: result.period, frequency: result.frequency)
+    }
+
+    private func periodOnlyOutcome(
+        _ points: [Point],
+        threshold: Double,
+    ) -> AnalysisOutcome {
+        let crossings = levelCrossingTimes(points, threshold: threshold)
+        guard let result = averagePeriodAndFrequency(from: crossings) else {
+            return .insufficientCrossings
+        }
+        return .scalar(result.period)
     }
 }
 
