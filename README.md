@@ -174,6 +174,7 @@ rigol2spice input.csv -p -a 'FFT 1024; Frequency'
 | `Peak` | `Peak` | Peak absolute value `max|v|` (same as `PeakTo`) |
 | `Amplitude` | `Amplitude` | Half of peak-to-peak (`PkPk / 2`) |
 | `Mid` | `Mid` | Midpoint of min/max: `(max + min) / 2` |
+| `ACRms` | `ACRms` | AC RMS: `√max(0, RMS² − Avg²)` |
 | `Crossing` | `Crossing 0` · `Crossing 1.5` | Average period/frequency of **complete** waves at that level (rise+fall crossings; first wave needs 3 crossings, each next wave +2, sharing the boundary; partial start/end ignored) |
 | `ZeroCrossing` | `ZeroCrossing` | Alias of `Crossing 0` |
 | `Frequency` | `Frequency` | Same as `Crossing` at the sample average (`Avg`) |

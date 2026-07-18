@@ -50,6 +50,7 @@ enum Analysis: Equatable {
     case peak
     case amplitude
     case mid
+    case acRms
 
 
 
@@ -164,6 +165,9 @@ enum Analysis: Equatable {
             case "mid":
                 try requireArgumentCount(0)
                 return .mid
+            case "acrms":
+                try requireArgumentCount(0)
+                return .acRms
 
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
@@ -205,6 +209,7 @@ enum Analysis: Equatable {
         case .peak: "Peak"
         case .amplitude: "Amplitude"
         case .mid: "Mid"
+        case .acRms: "ACRms"
         }
     }
 }
@@ -316,6 +321,8 @@ extension Analysis {
             return .scalar(amplitudeValue(points))
         case .mid:
             return .scalar(midValue(points))
+        case .acRms:
+            return .scalar(acRmsValue(points))
 
         }
     }
