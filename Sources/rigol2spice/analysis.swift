@@ -66,6 +66,7 @@ enum Analysis: Equatable {
     case pulseWidth(threshold: Double?)
     case duty(threshold: Double?)
     case period
+    case edgeCount(threshold: Double?)
 
 
 
@@ -238,6 +239,8 @@ enum Analysis: Equatable {
             case "period":
                 try requireArgumentCount(0)
                 return .period
+            case "edgecount":
+                return .edgeCount(threshold: try parseOptionalThreshold())
 
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
@@ -316,6 +319,13 @@ enum Analysis: Equatable {
                 "Duty"
             }
         case .period: "Period"
+        case let .edgeCount(threshold):
+            if let threshold {
+                "EdgeCount \(analysisFormatter.string(threshold))"
+            }
+            else {
+                "EdgeCount"
+            }
         }
     }
 }
@@ -482,6 +492,9 @@ extension Analysis {
             return .scalar(duty)
         case .period:
             return periodOnlyOutcome(points, threshold: averageValue(points))
+        case let .edgeCount(threshold):
+            let level = threshold ?? averageValue(points)
+            return .scalar(Double(directedLevelCrossings(points, threshold: level).count))
 
         }
     }
