@@ -101,7 +101,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 |---|---|---|
 | `TimeShift` | `TimeShift -5m` | Shift timestamps; negative values shift left |
 | `TimeScale` | `TimeScale 2` · `TimeScale 0.5` | Scale the time axis (preserve start time) |
-| `TriggerAt` | `TriggerAt 0.5` · `TriggerAt either, 0.5` · `TriggerAt rising, 0.5` · `TriggerAt falling, 1.5, 2m` | Shift so the first edge at the threshold is at t=0. Direction is `rising`, `falling`, or `either` (first of either polarity). A single argument is the level with `either`. Optional final time is search-after. |
+| `Trigger` | `Trigger 0.5` · `Trigger either, 0.5` · `Trigger rising, 0.5` · `Trigger falling, 1.5, 2m` | Shift so the first edge at the threshold is at t=0. Direction is `rising`, `falling`, or `either` (first of either polarity). A single argument is the level with `either`. Optional final time is search-after. |
 | `Seamless` | `Seamless` · `Seamless 100n` | Force last value = first (or append a ramp of the given duration) |
 | `MatchEnds` | `MatchEnds` | Alias of `Seamless` |
 | `Pad` | `Pad 5m` · `Pad 5m, 0` | Extend by a duration, holding the last value (or a given level) |

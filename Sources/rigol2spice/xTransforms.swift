@@ -76,7 +76,7 @@ enum TriggerEdge: Equatable, CustomStringConvertible {
 
 /// Find the first rising, falling, or either-direction crossing of `threshold` and shift that
 /// instant to t = 0. Optional `after` restricts the search to edges at or after that time.
-func triggerAtPoints(
+func triggerPoints(
     _ points: [Point],
     edge: TriggerEdge,
     threshold: Double,

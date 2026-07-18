@@ -453,32 +453,35 @@ struct Rigol2spiceTests {
     }
 
     @Test
-    func `trigger at shifts the first threshold crossing to t zero`() throws {
+    func `trigger shifts the first threshold crossing to t zero`() throws {
         #expect(
-            try Transformation.parseList("TriggerAt rising, 0.5")
-                == [.triggerAt(edge: .rising, threshold: 0.5, after: nil)],
+            try Transformation.parseList("Trigger rising, 0.5")
+                == [.trigger(edge: .rising, threshold: 0.5, after: nil)],
         )
         #expect(
-            try Transformation.parseList("TriggerAt falling, 1.5, 2m")
-                == [.triggerAt(edge: .falling, threshold: 1.5, after: 2e-3)],
+            try Transformation.parseList("Trigger falling, 1.5, 2m")
+                == [.trigger(edge: .falling, threshold: 1.5, after: 2e-3)],
         )
         #expect(
-            try Transformation.parseList("TriggerAt 0.5")
-                == [.triggerAt(edge: .either, threshold: 0.5, after: nil)],
+            try Transformation.parseList("Trigger 0.5")
+                == [.trigger(edge: .either, threshold: 0.5, after: nil)],
         )
         #expect(
-            try Transformation.parseList("TriggerAt either, 0.5, 2m")
-                == [.triggerAt(edge: .either, threshold: 0.5, after: 2e-3)],
+            try Transformation.parseList("Trigger either, 0.5, 2m")
+                == [.trigger(edge: .either, threshold: 0.5, after: 2e-3)],
         )
         #expect(
-            try Transformation.parseList("TriggerAt 0.5, 1m")
-                == [.triggerAt(edge: .either, threshold: 0.5, after: 1e-3)],
+            try Transformation.parseList("Trigger 0.5, 1m")
+                == [.trigger(edge: .either, threshold: 0.5, after: 1e-3)],
         )
         #expect(throws: (any Error).self) {
-            try Transformation.parseList("TriggerAt sideways, 0.5")
+            try Transformation.parseList("TriggerAt rising, 0.5")
         }
         #expect(throws: (any Error).self) {
-            try Transformation.parseList("TriggerAt rising")
+            try Transformation.parseList("Trigger sideways, 0.5")
+        }
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("Trigger rising")
         }
         #expect(throws: (any Error).self) {
             try Transformation.parseList("AlignEdge rising, 0.5")
@@ -491,7 +494,7 @@ struct Rigol2spiceTests {
             Point(time: 2, value: 1),
             Point(time: 3, value: 1),
         ]
-        let aligned = try Transformation.triggerAt(edge: .rising, threshold: 0.5, after: nil)
+        let aligned = try Transformation.trigger(edge: .rising, threshold: 0.5, after: nil)
             .applying(to: risingPoints)
         #expect(aligned.map(\.time) == [0, 1, 2])
         #expect(aligned.map(\.value) == [0.5, 1, 1])
@@ -505,7 +508,7 @@ struct Rigol2spiceTests {
             Point(time: 4, value: 0),
             Point(time: 5, value: 0),
         ]
-        let secondFall = try Transformation.triggerAt(edge: .falling, threshold: 0.5, after: 2)
+        let secondFall = try Transformation.trigger(edge: .falling, threshold: 0.5, after: 2)
             .applying(to: fallingPoints)
         #expect(secondFall.first == Point(time: 0, value: 0.5))
         #expect(secondFall.map(\.value) == [0.5, 0, 0])
@@ -517,7 +520,7 @@ struct Rigol2spiceTests {
             Point(time: 2, value: 1),
             Point(time: 4, value: 1),
         ]
-        let interp = try triggerAtPoints(smooth, edge: .rising, threshold: 0.5)
+        let interp = try triggerPoints(smooth, edge: .rising, threshold: 0.5)
         #expect(interp.first == Point(time: 0, value: 0.5))
         #expect(interp.map(\.time) == [0, 1, 3])
         #expect(interp.map(\.value) == [0.5, 1, 1])
@@ -528,13 +531,13 @@ struct Rigol2spiceTests {
             Point(time: 1, value: 0),
             Point(time: 2, value: 1),
         ]
-        let either = try Transformation.triggerAt(edge: .either, threshold: 0.5, after: nil)
+        let either = try Transformation.trigger(edge: .either, threshold: 0.5, after: nil)
             .applying(to: eitherPoints)
         #expect(either.first == Point(time: 0, value: 0.5))
         #expect(either.map(\.time) == [0, 0.5, 1.5])
 
         #expect(throws: Rigol2SpiceError.edgeNotFound(edge: .rising, threshold: 10)) {
-            try triggerAtPoints(risingPoints, edge: .rising, threshold: 10)
+            try triggerPoints(risingPoints, edge: .rising, threshold: 10)
         }
     }
 

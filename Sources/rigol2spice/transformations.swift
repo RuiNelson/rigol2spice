@@ -68,7 +68,7 @@ enum Transformation: Equatable {
     case dbW(level: Double, resistance: Double)
     case timeShift(Double)
     case timeScale(Double)
-    case triggerAt(edge: TriggerEdge, threshold: Double, after: Double?)
+    case trigger(edge: TriggerEdge, threshold: Double, after: Double?)
     case seamless(rampDuration: Double?)
     case pad(duration: Double, value: Double?)
     case extendTo(endTime: Double, value: Double?)
@@ -444,11 +444,11 @@ enum Transformation: Equatable {
                     )
                 }
                 return .timeScale(value)
-            case "triggerat":
+            case "trigger":
                 // Forms:
-                //   TriggerAt <level>                      → either edge
-                //   TriggerAt <level>, <after>
-                //   TriggerAt rising|falling|either, <level>[, <after>]
+                //   Trigger <level>                      → either edge
+                //   Trigger <level>, <after>
+                //   Trigger rising|falling|either, <level>[, <after>]
                 guard (1 ... 3).contains(arguments.count) else {
                     throw TransformationParseError.invalidArgumentCount(
                         operation: operation,
@@ -501,7 +501,7 @@ enum Transformation: Equatable {
                 else {
                     after = nil
                 }
-                return .triggerAt(edge: edge, threshold: threshold, after: after)
+                return .trigger(edge: edge, threshold: threshold, after: after)
             case "seamless",
                  "matchends":
                 guard arguments.count <= 1 else {
@@ -629,7 +629,7 @@ enum Transformation: Equatable {
     var reportsPointCount: Bool {
         switch self {
         case .timeShift,
-             .triggerAt,
+             .trigger,
              .seamless,
              .pad,
              .extendTo,
@@ -730,8 +730,8 @@ enum Transformation: Equatable {
             return timeShiftPoints(points, value: value)
         case let .timeScale(value):
             return timeScalePoints(points, factor: value)
-        case let .triggerAt(edge, threshold, after):
-            return try triggerAtPoints(points, edge: edge, threshold: threshold, after: after)
+        case let .trigger(edge, threshold, after):
+            return try triggerPoints(points, edge: edge, threshold: threshold, after: after)
         case let .seamless(rampDuration):
             return seamlessPoints(points, rampDuration: rampDuration)
         case let .pad(duration, value):

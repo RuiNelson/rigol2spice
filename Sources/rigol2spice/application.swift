@@ -363,7 +363,7 @@ struct Rigol2SpiceApplication {
             Console.section("Shifting signal for \(engineeringFormatter.string(value))s...")
         case let .timeScale(value):
             Console.section("Scaling time axis by \(engineeringFormatter.string(value))...")
-        case let .triggerAt(edge, threshold, after):
+        case let .trigger(edge, threshold, after):
             if let after {
                 Console.section(
                     "Triggering on \(edge.description) edge at \(engineeringFormatter.string(threshold)) (search after \(engineeringFormatter.string(after))s) to t=0...",
