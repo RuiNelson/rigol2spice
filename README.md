@@ -22,7 +22,7 @@ For newer Centaurus-platform scopes (e.g. DHO800/900 series), add `-n`:
 rigol2spice -n input.csv output.txt
 ```
 
-The output `.txt` file can be loaded directly as a PWL source in LTspice.
+The output `.txt` file can be loaded directly as a PWL source in LTspice and other SPICE simulators.
 
 ## Channel Selection
 
