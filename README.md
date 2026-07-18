@@ -82,8 +82,8 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `Limit` | `Limit -0.7, 0.7` | Clamp values between low and high |
 | `Gate` | `Gate 0.6` | Zero values below the threshold; keep the rest |
 | `DeadZone` | `DeadZone 0.1` | Zero values inside ±threshold; keep the rest |
-| `Digitize` | `Digitize 0.8` · `Digitize 0.8, 0, 3.3` · `Digitize 1.2, 0.8, 0, 3.3` | Two-level digital output (threshold; low/high out; optional Schmitt hysteresis) |
-| `Threshold` | `Threshold 0.8` | Alias of `Digitize` |
+| `Digitize` | `Digitize 1.5` · `Digitize 1.5, 0, 3.3` · `Digitize 1.2, 1.8, 0, 3.3` | Map each sample to one of two levels (hard threshold or Schmitt)⁵ |
+| `Threshold` | `Threshold 1.5` | Alias of `Digitize` |
 | `SlewLimit` | `SlewLimit 100meg` | Limit |dv/dt| to the given rate (V/s) |
 | `SoftClip` | `SoftClip -0.7, 0.7` | Soft-clip into [low, high] via tanh |
 | `Fade` | `Fade 100n` | Linear fade-in and fade-out over the given duration |
@@ -132,6 +132,16 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 ³ `dBmW` and `dBW` convert an absolute power level to a voltage scale factor: `V = √(P · R)`, with `P = 1 mW · 10^(dBmW/10)` or `P = 1 W · 10^(dBW/10)`. Optional second argument is load impedance in ohms (default 50). Unlike `dB`, these are not relative gains — they multiply the waveform by that absolute voltage (useful for unit-amplitude templates).
 
 ⁴ `Repeat` requires a value greater than zero and accepts fractional repetitions; its final point is interpolated when needed.
+
+⁵ `Digitize` turns an analog capture into a two-level digital PWL. Argument forms:
+
+| Form | Meaning |
+|---|---|
+| `Digitize T` | Hard threshold: output `1` when the sample is ≥ `T`, else `0` |
+| `Digitize T, low, high` | Same compare, but output `low` / `high` instead of `0` / `1` |
+| `Digitize fall, rise, low, high` | Schmitt trigger: go high when the sample is ≥ `rise`, go low when ≤ `fall`; stay put while between the two (hysteresis). `fall` and `rise` may be given in either order |
+
+The first sample seeds the state (`≥ rise` → high, otherwise low). With a single threshold the compare is hard (no band between levels). Use hysteresis when the analog edge is noisy so the digital output does not chatter.
 
 ### Post-processing Options
 

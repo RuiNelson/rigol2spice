@@ -352,9 +352,9 @@ enum Transformation: Equatable {
                 return .quantize(bits: bits, lower: lower, upper: upper)
             case "digitize",
                  "threshold":
-                // Digitize threshold
-                // Digitize threshold, lowOut, highOut
-                // Digitize lowThresh, highThresh, lowOut, highOut
+                // Digitize T                         → 0/1 hard threshold
+                // Digitize T, lowOut, highOut        → hard threshold with custom levels
+                // Digitize fall, rise, lowOut, highOut → Schmitt hysteresis
                 switch arguments.count {
                 case 1:
                     let threshold = try parseScalarArgument(arguments[0])

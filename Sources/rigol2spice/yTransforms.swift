@@ -365,9 +365,12 @@ func slewLimitPoints(_ points: [Point], maxSlew: Double) -> [Point] {
 }
 
 /// Convert an analog waveform to two-level digital output.
-/// - Without hysteresis (`highThreshold == lowThreshold`): each sample is
+///
+/// - Hard threshold (`fall == rise`): each sample is independently
 ///   `highOut` if ≥ threshold, else `lowOut`.
-/// - With hysteresis: rising needs `highThreshold`, falling needs `lowThreshold`.
+/// - Schmitt (`fall != rise`): go high when sample ≥ max(fall, rise),
+///   go low when sample ≤ min(fall, rise); keep the previous level while
+///   between the two thresholds. The first sample seeds the state.
 func digitizePoints(
     _ points: [Point],
     lowThreshold: Double,
@@ -379,10 +382,22 @@ func digitizePoints(
         return points
     }
 
-    var output = points
     let lo = min(lowThreshold, highThreshold)
     let hi = max(lowThreshold, highThreshold)
 
+    // Hard threshold: independent compare per sample (no hysteresis band).
+    if lo == hi {
+        var output = points
+        output.withUnsafeMutableBufferPointer { buffer in
+            for index in buffer.indices {
+                buffer[index].value = buffer[index].value >= hi ? highOut : lowOut
+            }
+        }
+        return output
+    }
+
+    // Schmitt trigger with hysteresis between lo and hi.
+    var output = points
     output.withUnsafeMutableBufferPointer { buffer in
         var isHigh = buffer[0].value >= hi
         buffer[0].value = isHigh ? highOut : lowOut
