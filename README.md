@@ -65,11 +65,12 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `Multiply` | `Multiply 10` | Multiply every value by the scalar |
 | `Invert` | `Invert` | Multiply every value by −1 (alias of `Multiply -1`) |
 | `PeakTo` | `PeakTo 3.3` | Scale so the peak absolute value equals the scalar |
+| `Normalize` | `Normalize` | Alias of `PeakTo 1` |
 | `PeakToPeak` | `PeakToPeak 2` | Scale so max − min equals the scalar |
 | `ScaleRMS` | `ScaleRMS 0.707` | Scale so the sample RMS equals the scalar |
-| `Normalize` | `Normalize` | Alias of `PeakTo 1` |
 | `dB` | `dB 6` | Scale amplitude by the given voltage dB (×10^(dB/20)) |
 | `dBmW` | `dBmW 10` · `dBmW 0, 75` | × volts for that power into R Ω (e.g. 10 dBm @ 50 Ω ≈ 0.707 V)³ |
+| `dBm` | `dBm 10` | Alias of `dBmW` |
 | `dBW` | `dBW 0` · `dBW -30` | Same as `dBmW` but relative to 1 W (0 dBW = 30 dBm ≈ 7.07 V @ 50 Ω)³ |
 
 ### Clipping, gates & shaping
@@ -81,9 +82,11 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `Limit` | `Limit -0.7, 0.7` | Clamp values between low and high |
 | `Gate` | `Gate 0.6` | Zero values below the threshold; keep the rest |
 | `DeadZone` | `DeadZone 0.1` | Zero values inside ±threshold; keep the rest |
-| `Digitize` | `Digitize 0.8` · `Digitize 0.8, 0, 3.3` · `Digitize 1.2, 0.8, 0, 3.3` | Two-level digital output (threshold; low/high out; optional Schmitt hysteresis); alias `Threshold` |
+| `Digitize` | `Digitize 0.8` · `Digitize 0.8, 0, 3.3` · `Digitize 1.2, 0.8, 0, 3.3` | Two-level digital output (threshold; low/high out; optional Schmitt hysteresis) |
+| `Threshold` | `Threshold 0.8` | Alias of `Digitize` |
 | `SlewLimit` | `SlewLimit 100meg` | Limit |dv/dt| to the given rate (V/s) |
-| `SoftClip` | `SoftClip -0.7, 0.7` | Soft-clip into [low, high] via tanh; alias `TanhLimit` |
+| `SoftClip` | `SoftClip -0.7, 0.7` | Soft-clip into [low, high] via tanh |
+| `TanhLimit` | `TanhLimit -0.7, 0.7` | Alias of `SoftClip` |
 | `Fade` | `Fade 100n` | Linear fade-in and fade-out over the given duration |
 | `FadeIn` | `FadeIn 50n` | Linear fade-in only |
 | `FadeOut` | `FadeOut 50n` | Linear fade-out only |
@@ -96,10 +99,14 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | Operation | Example | Effect |
 |---|---|---|
 | `TimeShift` | `TimeShift -5m` | Shift timestamps; negative values shift left |
-| `TimeScale` | `TimeScale 2` · `TimeScale 0.5` | Scale the time axis (preserve start time); alias `Stretch` |
-| `AlignEdge` | `AlignEdge rising, 0.5` · `AlignEdge falling, 1.5, 2m` | Shift so the first rising/falling crossing of the threshold is at t=0 (optional search-after time); alias `TriggerAt` |
-| `Seamless` | `Seamless` · `Seamless 100n` | Force last value = first (or append a ramp of the given duration); alias `MatchEnds` |
-| `Pad` | `Pad 5m` · `Pad 5m, 0` | Extend by a duration, holding the last value (or a given level); alias `HoldLast` |
+| `TimeScale` | `TimeScale 2` · `TimeScale 0.5` | Scale the time axis (preserve start time) |
+| `Stretch` | `Stretch 2` | Alias of `TimeScale` |
+| `AlignEdge` | `AlignEdge rising, 0.5` · `AlignEdge falling, 1.5, 2m` | Shift so the first rising/falling crossing of the threshold is at t=0 (optional search-after time) |
+| `TriggerAt` | `TriggerAt rising, 0.5` | Alias of `AlignEdge` |
+| `Seamless` | `Seamless` · `Seamless 100n` | Force last value = first (or append a ramp of the given duration) |
+| `MatchEnds` | `MatchEnds` | Alias of `Seamless` |
+| `Pad` | `Pad 5m` · `Pad 5m, 0` | Extend by a duration, holding the last value (or a given level) |
+| `HoldLast` | `HoldLast 5m` | Alias of `Pad` |
 | `ExtendTo` | `ExtendTo 10m` · `ExtendTo 10m, 0` | Extend to an absolute end time, holding the last value (or a given level) |
 | `Resample` | `Resample 1n` | Linearly interpolate onto a uniform sample interval |
 | `ExtractPeriod` | `ExtractPeriod` · `ExtractPeriod 0.5` | Keep one cycle from the first rising crossing (auto or given threshold); shift to t=0 |
@@ -125,7 +132,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 
 ² Filters are linear-phase windowed-sinc FIRs (Blackman–Harris). You only supply the cutoff frequency(ies); the sample rate comes from the capture, tap count is chosen automatically, and group delay is removed so event timing stays aligned. Frequencies must be greater than 0 and below Nyquist (`fs/2`). Band filters require `0 < f1 < f2`.
 
-³ `dBmW` (alias `dBm`) and `dBW` convert an absolute power level to a voltage scale factor: `V = √(P · R)`, with `P = 1 mW · 10^(dBmW/10)` or `P = 1 W · 10^(dBW/10)`. Optional second argument is load impedance in ohms (default 50). Unlike `dB`, these are not relative gains — they multiply the waveform by that absolute voltage (useful for unit-amplitude templates).
+³ `dBmW` and `dBW` convert an absolute power level to a voltage scale factor: `V = √(P · R)`, with `P = 1 mW · 10^(dBmW/10)` or `P = 1 W · 10^(dBW/10)`. Optional second argument is load impedance in ohms (default 50). Unlike `dB`, these are not relative gains — they multiply the waveform by that absolute voltage (useful for unit-amplitude templates).
 
 ⁴ `Repeat` requires a value greater than zero and accepts fractional repetitions; its final point is interpolated when needed.
 
