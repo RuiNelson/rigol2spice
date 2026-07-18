@@ -33,6 +33,7 @@ enum AnalysisParseError: LocalizedError, Equatable {
 /// Independent signal measurements printed to the console (do not alter the capture).
 /// Unlike transformations, evaluation order is irrelevant; they always run after transforms.
 enum Analysis: Equatable {
+    // Existing
     case max
     case min
     case avg
@@ -44,12 +45,16 @@ enum Analysis: Equatable {
     /// Real FFT over a centered window of up to `pointCount` samples (Hann + zero-pad to 2ⁿ).
     /// `pointCount == nil` means use every sample in the capture.
     case fft(pointCount: Int?)
+
+    // Capture metadata
     case duration
     case points
     case sampleRate
     case interval
     case start
     case end
+
+    // Amplitude
     case peak
     case amplitude
     case mid
@@ -61,18 +66,30 @@ enum Analysis: Equatable {
     case base
     case overshoot
     case undershoot
+
+    // Timing
+    /// Rise time between low/high percent of min/max span (default 10 → 90).
     case riseTime(lowPercent: Double, highPercent: Double)
+    /// Fall time between high/low percent of min/max span (default 90 → 10).
     case fallTime(lowPercent: Double, highPercent: Double)
+    /// Average high pulse width at threshold (`nil` → sample average).
     case pulseWidth(threshold: Double?)
+    /// Duty cycle (0…1) at threshold (`nil` → sample average).
     case duty(threshold: Double?)
+    /// Average period at sample average (same threshold as `Frequency`).
     case period
+    /// Number of level crossings at threshold (`nil` → sample average).
     case edgeCount(threshold: Double?)
+    /// Std. dev. of complete-wave periods at threshold (`nil` → sample average).
     case jitter(threshold: Double?)
+
+    // Integrals / power / spectrum
     case integral
     case energy
+    /// RMS power in dBm into `resistance` ohms (default 50).
     case dbm(resistance: Double)
-
-
+    /// THD fraction from FFT; `pointCount == nil` uses every sample.
+    case thd(pointCount: Int?)
 
     static func parseList(_ source: String) throws -> [Analysis] {
         let commands = source.split(separator: ";", omittingEmptySubsequences: false)
@@ -148,7 +165,6 @@ enum Analysis: Equatable {
                 return Int(value.rounded())
             }
 
-
             switch operation.lowercased() {
             case "max", "hipeak":
                 try requireArgumentCount(0)
@@ -179,6 +195,7 @@ enum Analysis: Equatable {
                 return .pkPk
             case "fft":
                 return .fft(pointCount: try parseOptionalPointCount())
+
             case "duration":
                 try requireArgumentCount(0)
                 return .duration
@@ -197,6 +214,7 @@ enum Analysis: Equatable {
             case "end":
                 try requireArgumentCount(0)
                 return .end
+
             case "peak":
                 try requireArgumentCount(0)
                 return .peak
@@ -230,6 +248,7 @@ enum Analysis: Equatable {
             case "undershoot":
                 try requireArgumentCount(0)
                 return .undershoot
+
             case "risetime":
                 let pair = try parsePercentPair(defaultLow: 10, defaultHigh: 90)
                 return .riseTime(lowPercent: pair.0, highPercent: pair.1)
@@ -247,6 +266,7 @@ enum Analysis: Equatable {
                 return .edgeCount(threshold: try parseOptionalThreshold())
             case "jitter", "periodstd":
                 return .jitter(threshold: try parseOptionalThreshold())
+
             case "integral":
                 try requireArgumentCount(0)
                 return .integral
@@ -263,15 +283,16 @@ enum Analysis: Equatable {
                     throw AnalysisParseError.invalidScalar(operation: operation, value: arguments[0])
                 }
                 return .dbm(resistance: resistance)
+            case "thd":
+                return .thd(pointCount: try parseOptionalPointCount())
 
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
             }
-
         }
     }
 
-
+    /// Display name used in console output.
     var label: String {
         switch self {
         case .max: "Max"
@@ -295,12 +316,14 @@ enum Analysis: Equatable {
             else {
                 "FFT"
             }
+
         case .duration: "Duration"
         case .points: "Points"
         case .sampleRate: "SampleRate"
         case .interval: "Interval"
         case .start: "Start"
         case .end: "End"
+
         case .peak: "Peak"
         case .amplitude: "Amplitude"
         case .mid: "Mid"
@@ -312,6 +335,7 @@ enum Analysis: Equatable {
         case .base: "Base"
         case .overshoot: "Overshoot"
         case .undershoot: "Undershoot"
+
         case let .riseTime(low, high):
             if low == 10, high == 90 {
                 "RiseTime"
@@ -355,6 +379,7 @@ enum Analysis: Equatable {
             else {
                 "Jitter"
             }
+
         case .integral: "Integral"
         case .energy: "Energy"
         case let .dbm(resistance):
@@ -364,12 +389,18 @@ enum Analysis: Equatable {
             else {
                 "dBm \(analysisFormatter.string(resistance))"
             }
+        case let .thd(pointCount):
+            if let pointCount {
+                "THD \(pointCount)"
+            }
+            else {
+                "THD"
+            }
         }
     }
 }
 
 // MARK: - AnalysisOutcome
-
 
 enum AnalysisOutcome: Equatable {
     case scalar(Double)
@@ -383,13 +414,13 @@ enum AnalysisOutcome: Equatable {
 // MARK: - AnalysisReport
 
 /// One evaluated analysis, shared by console output and the SVG plot footer.
-
 struct AnalysisReport: Equatable {
     let analysis: Analysis
     let outcome: AnalysisOutcome
 
     var label: String { analysis.label }
 
+    /// Spectrum payload when this report is a successful FFT analysis.
     var fftSpectrum: FFTSpectrum? {
         if case let .fft(spectrum) = outcome {
             return spectrum
@@ -397,6 +428,8 @@ struct AnalysisReport: Equatable {
         return nil
     }
 
+    /// Console / plot line using the analysis engineering formatter (1 decimal).
+    /// FFT reports dominant frequency and peak magnitude in dB; N is samples actually used.
     var displayLine: String {
         switch outcome {
         case let .scalar(value):
@@ -424,6 +457,7 @@ struct AnalysisReport: Equatable {
         }
     }
 
+    /// Evaluate every analysis on `points` (order preserved only for display).
     static func reports(for analyses: [Analysis], on points: [Point]) -> [AnalysisReport] {
         analyses.map { analysis in
             AnalysisReport(analysis: analysis, outcome: analysis.evaluate(on: points))
@@ -431,8 +465,8 @@ struct AnalysisReport: Equatable {
     }
 }
 
-
 extension Analysis {
+    /// Evaluate using the same measurement helpers as amplitude transforms / period extract.
     func evaluate(on points: [Point]) -> AnalysisOutcome {
         switch self {
         case .max:
@@ -457,6 +491,7 @@ extension Analysis {
                 return .fftUnavailable
             }
             return .fft(spectrum)
+
         case .duration:
             return .scalar(captureDuration(points))
         case .points:
@@ -475,6 +510,7 @@ extension Analysis {
             return .scalar(points.first?.time ?? 0)
         case .end:
             return .scalar(points.last?.time ?? 0)
+
         case .peak:
             return .scalar(peakValue(points))
         case .amplitude:
@@ -512,6 +548,7 @@ extension Analysis {
                 return .unavailable
             }
             return .scalar(ratio)
+
         case let .riseTime(low, high):
             guard let dt = transitionTime(points, lowPercent: low, highPercent: high, rising: true) else {
                 return .unavailable
@@ -546,6 +583,7 @@ extension Analysis {
                 return .unavailable
             }
             return .scalar(jitter)
+
         case .integral:
             return .scalar(integralValue(points))
         case .energy:
@@ -555,7 +593,14 @@ extension Analysis {
                 return .unavailable
             }
             return .scalar(dbm)
-
+        case let .thd(pointCount):
+            let requested = pointCount ?? points.count
+            guard let spectrum = computeFFTSpectrum(points: points, requestedPointCount: requested),
+                  let thd = thdFraction(spectrum: spectrum)
+            else {
+                return .unavailable
+            }
+            return .scalar(thd)
         }
     }
 
@@ -581,4 +626,3 @@ extension Analysis {
         return .scalar(result.period)
     }
 }
-

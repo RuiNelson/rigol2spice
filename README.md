@@ -165,13 +165,7 @@ rigol2spice input.csv -p -a 'FFT 1024; Frequency'
 | `LowPeak` | `LowPeak` | Alias of `Min` |
 | `Avg` | `Avg` | Arithmetic mean of sample values |
 | `DC` | `DC` | DC estimate (same k-means method as `RemoveDC`)¹ |
-| `Duration` | `Duration` | Capture time span `t_last − t_first` |
-| `Points` | `Points` | Number of samples |
-| `SampleRate` | `SampleRate` | Estimated sample rate `(N−1) / Duration` |
-| `Interval` | `Interval` | Mean sample interval `1 / SampleRate` |
-| `Start` | `Start` | First sample timestamp |
-| `End` | `End` | Last sample timestamp |
-| `Peak` | `Peak` | Peak absolute value `max|v|` (same as `PeakTo`) |
+| `Peak` | `Peak` | Peak absolute value `max\|v\|` (same as `PeakTo`) |
 | `Amplitude` | `Amplitude` | Half of peak-to-peak (`PkPk / 2`) |
 | `Mid` | `Mid` | Midpoint of min/max: `(max + min) / 2` |
 | `ACRms` | `ACRms` | AC RMS: `√max(0, RMS² − Avg²)` |
@@ -183,23 +177,30 @@ rigol2spice input.csv -p -a 'FFT 1024; Frequency'
 | `Base` | `Base` | Lower histogram mode (scope-style low level) |
 | `Overshoot` | `Overshoot` | `(max − Top) / (Top − Base)` (fraction) |
 | `Undershoot` | `Undershoot` | `(Base − min) / (Top − Base)` (fraction) |
+| `PkPk` | `PkPk` | Peak-to-peak (`max − min`, same as `PeakToPeak`) |
+| `RMS` | `RMS` | Sample RMS (same definition as `ScaleRMS`) |
+| `Duration` | `Duration` | Capture time span `t_last − t_first` |
+| `Points` | `Points` | Number of samples |
+| `SampleRate` | `SampleRate` | Estimated sample rate `(N−1) / Duration` |
+| `Interval` | `Interval` | Mean sample interval `1 / SampleRate` |
+| `Start` | `Start` | First sample timestamp |
+| `End` | `End` | Last sample timestamp |
+| `Crossing` | `Crossing 0` · `Crossing 1.5` | Average period/frequency of **complete** waves at that level (rise+fall crossings; first wave needs 3 crossings, each next wave +2, sharing the boundary; partial start/end ignored) |
+| `ZeroCrossing` | `ZeroCrossing` | Alias of `Crossing 0` |
+| `Frequency` | `Frequency` | Same as `Crossing` at the sample average (`Avg`) |
+| `Period` | `Period` | Average period only (same threshold as `Frequency`) |
 | `RiseTime` | `RiseTime` · `RiseTime 20, 80` | First rising edge time from low% to high% of min/max span (default 10 → 90) |
 | `FallTime` | `FallTime` · `FallTime 20, 80` | First falling edge time from high% to low% of min/max span (default 90 → 10 via the same percent pair) |
 | `PulseWidth` | `PulseWidth` · `PulseWidth 0.5` | Average high pulse width (rise→fall) at threshold (default `Avg`) |
 | `Duty` | `Duty` · `Duty 0.5` | Average duty cycle as a fraction 0…1 (high time / period) at threshold (default `Avg`) |
-| `Period` | `Period` | Average period only (same threshold as `Frequency`) |
 | `EdgeCount` | `EdgeCount` · `EdgeCount 0` | Number of level crossings at threshold (default `Avg`) |
 | `Jitter` | `Jitter` · `Jitter 0` | Std. dev. of complete-wave periods at threshold (default `Avg`; needs ≥ 2 periods) |
 | `PeriodStd` | `PeriodStd` | Alias of `Jitter` |
 | `Integral` | `Integral` | Trapezoidal ∫v dt over the capture |
 | `Energy` | `Energy` | Trapezoidal ∫v² dt (energy proxy at 1 Ω) |
 | `dBm` | `dBm` · `dBm 75` | RMS power in dBm into R Ω (default 50): `10·log₁₀(Vrms²/R / 1mW)` |
-| `Crossing` | `Crossing 0` · `Crossing 1.5` | Average period/frequency of **complete** waves at that level (rise+fall crossings; first wave needs 3 crossings, each next wave +2, sharing the boundary; partial start/end ignored) |
-| `ZeroCrossing` | `ZeroCrossing` | Alias of `Crossing 0` |
-| `Frequency` | `Frequency` | Same as `Crossing` at the sample average (`Avg`) |
-| `RMS` | `RMS` | Sample RMS (same definition as `ScaleRMS`) |
-| `PkPk` | `PkPk` | Peak-to-peak (`max − min`, same as `PeakToPeak`) |
 | `FFT` | `FFT` · `FFT 1024` · `FFT 1k` | Real FFT: remove mean (DC), Hann window, zero-pad to next 2ⁿ. Bare `FFT` uses **all** samples. `FFT N` uses a **centered** window of up to N samples; if the capture is shorter than N, all available samples are used. Peak is the strongest local AC maximum (sub-bin refined). Console prints frequency, peak magnitude in dB, and the N actually used; with `-p`, the SVG also shows the magnitude spectrum in dB. |
+| `THD` | `THD` · `THD 1024` | Total harmonic distortion as a fraction: `√(Σ Aₕ²) / A₁` for harmonics 2…10 of the FFT peak (same window rules as `FFT`) |
 
 ### Post-processing Options
 

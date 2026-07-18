@@ -60,6 +60,12 @@ struct AnalysisTests {
         #expect(throws: (any Error).self) {
             try Analysis.parseList("ZeroCrossing 0")
         }
+        #expect(throws: (any Error).self) {
+            try Analysis.parseList("RiseTime 90, 10")
+        }
+        #expect(throws: (any Error).self) {
+            try Analysis.parseList("dBm -50")
+        }
     }
 
     @Test
@@ -216,6 +222,238 @@ struct AnalysisTests {
         let extracted = try extractPeriodPoints(points, threshold: 0)
         #expect(extracted.first?.time == 0)
         #expect(!extracted.isEmpty)
+    }
+
+    // MARK: - Capture metadata
+
+    @Test
+    func `duration points start end sample rate and interval`() {
+        let points = [
+            Point(time: 1e-3, value: 0),
+            Point(time: 2e-3, value: 1),
+            Point(time: 3e-3, value: 0),
+        ]
+
+        #expect(Analysis.duration.evaluate(on: points) == .scalar(2e-3))
+        #expect(Analysis.points.evaluate(on: points) == .scalar(3))
+        #expect(Analysis.start.evaluate(on: points) == .scalar(1e-3))
+        #expect(Analysis.end.evaluate(on: points) == .scalar(3e-3))
+        #expect(Analysis.sampleRate.evaluate(on: points) == .scalar(1000))
+        #expect(Analysis.interval.evaluate(on: points) == .scalar(1e-3))
+
+        #expect(Analysis.sampleRate.evaluate(on: [Point(time: 0, value: 1)]) == .unavailable)
+        #expect(Analysis.duration.evaluate(on: []) == .scalar(0))
+        #expect(Analysis.points.evaluate(on: []) == .scalar(0))
+    }
+
+    @Test
+    func `parses capture metadata analyses`() throws {
+        #expect(
+            try Analysis.parseList("Duration; Points; SampleRate; Interval; Start; End")
+                == [.duration, .points, .sampleRate, .interval, .start, .end],
+        )
+    }
+
+    // MARK: - Amplitude pack
+
+    @Test
+    func `peak amplitude mid acrms stddev crest median`() {
+        let points = [
+            Point(time: 0, value: -2),
+            Point(time: 1, value: 4),
+            Point(time: 2, value: 0),
+        ]
+
+        #expect(Analysis.peak.evaluate(on: points) == .scalar(4))
+        #expect(Analysis.amplitude.evaluate(on: points) == .scalar(3)) // pkpk 6 / 2
+        #expect(Analysis.mid.evaluate(on: points) == .scalar(1))
+        #expect(Analysis.acRms.evaluate(on: points) == .scalar(acRmsValue(points)))
+        #expect(Analysis.stdDev.evaluate(on: points) == Analysis.acRms.evaluate(on: points))
+        #expect(Analysis.median.evaluate(on: points) == .scalar(0))
+
+        guard case let .scalar(crest) = Analysis.crest.evaluate(on: points) else {
+            Issue.record("Expected crest scalar")
+            return
+        }
+        #expect(abs(crest - 4 / rmsValue(points)) < 1e-12)
+
+        #expect(Analysis.crest.evaluate(on: [Point(time: 0, value: 0)]) == .unavailable)
+    }
+
+    @Test
+    func `parses amplitude analyses`() throws {
+        #expect(
+            try Analysis.parseList("Peak; Amplitude; Mid; ACRms; StdDev; Stdev; Crest; Median")
+                == [.peak, .amplitude, .mid, .acRms, .stdDev, .stdDev, .crest, .median],
+        )
+    }
+
+    // MARK: - Top / Base / overshoot
+
+    @Test
+    func `top base overshoot undershoot on square-like levels`() {
+        // Mostly at 0 and 1, with one overshoot spike to 1.2 and undershoot to -0.1
+        var points: [Point] = []
+        for i in 0 ..< 40 {
+            points.append(Point(time: Double(i), value: i < 20 ? 0 : 1))
+        }
+        points[10] = Point(time: 10, value: -0.1)
+        points[30] = Point(time: 30, value: 1.2)
+
+        guard case let .scalar(base) = Analysis.base.evaluate(on: points),
+              case let .scalar(top) = Analysis.top.evaluate(on: points)
+        else {
+            Issue.record("Expected top/base")
+            return
+        }
+        #expect(base < 0.3)
+        #expect(top > 0.7)
+
+        guard case let .scalar(over) = Analysis.overshoot.evaluate(on: points),
+              case let .scalar(under) = Analysis.undershoot.evaluate(on: points)
+        else {
+            Issue.record("Expected over/under")
+            return
+        }
+        #expect(over > 0)
+        #expect(under > 0)
+    }
+
+    // MARK: - Timing
+
+    @Test
+    func `rise and fall time on linear edges`() throws {
+        // Rise 0→1 over 1s from t=1 to t=2; fall 1→0 over 2s from t=4 to t=6
+        let points = [
+            Point(time: 0, value: 0),
+            Point(time: 1, value: 0),
+            Point(time: 2, value: 1),
+            Point(time: 4, value: 1),
+            Point(time: 6, value: 0),
+        ]
+
+        // 10%→90% of span 0…1 = 0.1→0.9. Rise: levels at t=1.1 and t=1.9 → 0.8s
+        guard case let .scalar(rise) = Analysis.riseTime(lowPercent: 10, highPercent: 90).evaluate(on: points)
+        else {
+            Issue.record("Expected rise time")
+            return
+        }
+        #expect(abs(rise - 0.8) < 1e-9)
+
+        // Fall: 0.9 at t=4.2, 0.1 at t=5.8 → 1.6s
+        guard case let .scalar(fall) = Analysis.fallTime(lowPercent: 10, highPercent: 90).evaluate(on: points)
+        else {
+            Issue.record("Expected fall time")
+            return
+        }
+        #expect(abs(fall - 1.6) < 1e-9)
+
+        #expect(try Analysis.parseList("RiseTime") == [.riseTime(lowPercent: 10, highPercent: 90)])
+        #expect(try Analysis.parseList("FallTime 20, 80") == [.fallTime(lowPercent: 20, highPercent: 80)])
+    }
+
+    @Test
+    func `pulse width duty period edge count jitter`() throws {
+        // 50% duty square, period 2: high 1.0s, low 1.0s
+        let points = [
+            Point(time: 0, value: -1),
+            Point(time: 1, value: 1),
+            Point(time: 2, value: -1),
+            Point(time: 3, value: 1),
+            Point(time: 4, value: -1),
+            Point(time: 5, value: 1),
+            Point(time: 6, value: -1),
+        ]
+
+        guard case let .scalar(width) = Analysis.pulseWidth(threshold: 0).evaluate(on: points) else {
+            Issue.record("Expected pulse width")
+            return
+        }
+        #expect(abs(width - 1) < 1e-12)
+
+        guard case let .scalar(duty) = Analysis.duty(threshold: 0).evaluate(on: points) else {
+            Issue.record("Expected duty")
+            return
+        }
+        #expect(abs(duty - 0.5) < 1e-12)
+
+        guard case let .scalar(period) = Analysis.period.evaluate(on: points) else {
+            Issue.record("Expected period")
+            return
+        }
+        #expect(abs(period - 2) < 1e-12)
+
+        #expect(Analysis.edgeCount(threshold: 0).evaluate(on: points) == .scalar(6))
+
+        // Perfect periods → jitter 0 (need ≥2 complete waves)
+        guard case let .scalar(jitter) = Analysis.jitter(threshold: 0).evaluate(on: points) else {
+            Issue.record("Expected jitter")
+            return
+        }
+        #expect(abs(jitter) < 1e-12)
+
+        #expect(try Analysis.parseList("PulseWidth; Duty 0.5; Period; EdgeCount; Jitter; PeriodStd")
+            == [
+                .pulseWidth(threshold: nil),
+                .duty(threshold: 0.5),
+                .period,
+                .edgeCount(threshold: nil),
+                .jitter(threshold: nil),
+                .jitter(threshold: nil),
+            ])
+    }
+
+    // MARK: - Integrals / power / THD
+
+    @Test
+    func `integral energy and dbm`() throws {
+        // v=1 constant from 0 to 2 → ∫v = 2, ∫v² = 2
+        let points = [
+            Point(time: 0, value: 1),
+            Point(time: 1, value: 1),
+            Point(time: 2, value: 1),
+        ]
+        #expect(Analysis.integral.evaluate(on: points) == .scalar(2))
+        #expect(Analysis.energy.evaluate(on: points) == .scalar(2))
+
+        // 0.707 Vrms into 50 Ω ≈ 10 dBm? Vrms=1 → P = 1/50 = 0.02 W = 20 mW → 13.0 dBm
+        guard case let .scalar(dbm) = Analysis.dbm(resistance: 50).evaluate(on: points) else {
+            Issue.record("Expected dBm")
+            return
+        }
+        #expect(abs(dbm - (10 * log10(0.02 / 0.001))) < 1e-9)
+
+        #expect(try Analysis.parseList("Integral; Energy; dBm; dBm 75")
+            == [.integral, .energy, .dbm(resistance: 50), .dbm(resistance: 75)])
+    }
+
+    @Test
+    func `thd is low for pure sine and higher with harmonics`() throws {
+        let frequency = 50.0
+        let sampleRate = 5000.0
+        let count = 2048
+        let pure = (0 ..< count).map { index -> Point in
+            let time = Double(index) / sampleRate
+            return Point(time: time, value: sin(2 * Double.pi * frequency * time))
+        }
+        let distorted = (0 ..< count).map { index -> Point in
+            let time = Double(index) / sampleRate
+            let fundamental = sin(2 * Double.pi * frequency * time)
+            let third = 0.3 * sin(2 * Double.pi * 3 * frequency * time)
+            return Point(time: time, value: fundamental + third)
+        }
+
+        guard case let .scalar(thdPure) = Analysis.thd(pointCount: count).evaluate(on: pure),
+              case let .scalar(thdDist) = Analysis.thd(pointCount: count).evaluate(on: distorted)
+        else {
+            Issue.record("Expected THD scalars")
+            return
+        }
+        #expect(thdPure < 0.05)
+        #expect(thdDist > thdPure)
+        #expect(abs(thdDist - 0.3) < 0.08)
+
+        #expect(try Analysis.parseList("THD; THD 1k") == [.thd(pointCount: nil), .thd(pointCount: 1000)])
     }
 }
 
