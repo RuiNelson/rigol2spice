@@ -25,8 +25,10 @@ struct WFMParserTests {
         #expect(capture.selectedChannel == "CH1")
         #expect(capture.points.count == 12512)
         #expect(capture.points.first?.time == 0)
-        #expect(abs((capture.sampleInterval ?? 0) - 40e-9) < 1e-15)
-        #expect(abs((capture.points.last?.time ?? 0) - 500.44e-6) < 1e-11)
+        // Interval is exact after rounding the float32 GHz sample-rate field to whole Sa/s.
+        #expect(capture.sampleInterval == 40e-9)
+        #expect(capture.points.last?.time == 500.44e-6)
+        #expect(capture.duration == 500.48e-6)
         #expect(abs((capture.points.first?.value ?? 0) - 0.05) < 1e-12)
 
         let metadata = try #require(capture.metadata)
@@ -71,6 +73,21 @@ struct WFMParserTests {
         #expect(abs((capture.points.first?.value ?? 0) - 0.0025) < 1e-12)
         #expect(throws: ParseError.channelNotFound(channelLabel: "CH2")) {
             try DS1000ZWFMParser().parse(data, channel: "CH2")
+        }
+    }
+
+    @Test
+    func `WFM sample rate float noise is rounded to whole Sa per second`() throws {
+        // DS1000Z stores rate as float32 GHz: 0.025 → 25.00000037… MSa/s without cleaning.
+        let noisyGHzPath = Double(Float(0.025)) * 1e9
+        #expect(noisyGHzPath != 25e6)
+        #expect(try sampleInterval(fromWFMSampleRate: noisyGHzPath) == 40e-9)
+        #expect(try sampleInterval(fromWFMSampleRate: 1e9) == 1e-9)
+        #expect(throws: ParseError.invalidFileFormat) {
+            try sampleInterval(fromWFMSampleRate: 0)
+        }
+        #expect(throws: ParseError.invalidFileFormat) {
+            try sampleInterval(fromWFMSampleRate: .nan)
         }
     }
 

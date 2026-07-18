@@ -618,10 +618,7 @@ private struct AdditionalRigolWFMParser: CaptureParser {
     }
 
     private func validatedSampleInterval(sampleRate: Double) throws -> Double {
-        guard sampleRate.isFinite, sampleRate > 0 else {
-            throw ParseError.invalidFileFormat
-        }
-        return 1 / sampleRate
+        try sampleInterval(fromWFMSampleRate: sampleRate)
     }
 
     private func minimumRawOffset(_ channels: [DecodedWFMChannel]) throws -> Int {

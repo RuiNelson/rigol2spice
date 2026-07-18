@@ -28,6 +28,24 @@ enum ParseError: LocalizedError, Equatable {
     }
 }
 
+// MARK: - WFM timing
+
+/// Sample interval from a Rigol WFM sample-rate header field.
+///
+/// Headers store rate as `float32` (DS1000Z even as GHz). Real oscilloscope
+/// rates are whole Sa/s; rounding removes float32 noise that would otherwise
+/// skew every PWL timestamp (e.g. 25.00000037 MSa/s → 40 ns exactly).
+func sampleInterval(fromWFMSampleRate sampleRate: Double) throws -> Double {
+    guard sampleRate.isFinite, sampleRate > 0 else {
+        throw ParseError.invalidFileFormat
+    }
+    let rateInSaPerSecond = sampleRate.rounded()
+    guard rateInSaPerSecond > 0 else {
+        throw ParseError.invalidFileFormat
+    }
+    return 1 / rateInSaPerSecond
+}
+
 // MARK: - Point
 
 struct Point: Equatable {

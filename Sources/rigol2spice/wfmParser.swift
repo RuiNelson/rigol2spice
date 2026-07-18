@@ -17,11 +17,10 @@ struct DS1000ZWFMParser: CaptureParser {
 
         let recordStride = enabledChannels.count == 3 ? 4 : enabledChannels.count
         guard header.memoryDepth > 0,
-              header.memoryDepth.isMultiple(of: recordStride),
-              header.sampleRate > 0,
-              header.sampleRate.isFinite else {
+              header.memoryDepth.isMultiple(of: recordStride) else {
             throw ParseError.invalidFileFormat
         }
+        let sampleInterval = try sampleInterval(fromWFMSampleRate: header.sampleRate)
 
         let pointCount = header.memoryDepth / recordStride
         let dataOffset = try checkedSum(header.horizontalOffset, header.horizontalSize)
@@ -53,7 +52,7 @@ struct DS1000ZWFMParser: CaptureParser {
                 channels: channelNames,
                 selectedChannel: nil,
                 points: [],
-                sampleInterval: 1 / header.sampleRate,
+                sampleInterval: sampleInterval,
                 metadata: metadata,
             )
         }
@@ -88,7 +87,6 @@ struct DS1000ZWFMParser: CaptureParser {
             },
         )
 
-        let sampleInterval = 1 / header.sampleRate
         let selectedLabel: String
         let points: [Point]
         if case let .channel(name) = expression,
