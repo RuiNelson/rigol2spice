@@ -28,6 +28,14 @@ func offsetPoints(_ points: [Point], offset: Double) -> [Point] {
     return output
 }
 
+/// Shift so the lowest sample is 0 (subtract min). Empty or already min-zero → unchanged values.
+func shiftMinToZero(_ points: [Point]) -> [Point] {
+    guard let range = valueRange(points) else {
+        return points
+    }
+    return offsetPoints(points, offset: -range.minimum)
+}
+
 /// Sample from the standard normal distribution N(0, 1) via Box–Muller.
 func unitGaussianSample() -> Double {
     let u1 = Double.random(in: Double.leastNonzeroMagnitude ... 1)

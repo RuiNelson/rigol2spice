@@ -264,6 +264,8 @@ struct Rigol2SpiceApplication {
         case let .offset(value):
             let sign = value >= 0 ? "+" : ""
             Console.section("Offsetting signal by \(sign)\(engineeringFormatter.string(value))...")
+        case .min0:
+            Console.section("Shifting signal so minimum is 0...")
         case let .addNoise(value):
             Console.section(
                 "Adding Gaussian noise (σ=\(engineeringFormatter.string(value)))...",

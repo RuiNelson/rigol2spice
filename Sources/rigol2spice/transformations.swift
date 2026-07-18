@@ -46,6 +46,8 @@ enum Transformation: Equatable {
     case clampMax(Double)
     case gate(Double)
     case offset(Double)
+    /// Shift so the minimum sample value becomes 0 (add −min).
+    case min0
     case addNoise(Double)
     case tvDenoise(Double)
     case multiply(Double)
@@ -206,6 +208,9 @@ enum Transformation: Equatable {
                 return try .gate(scalar())
             case "offset":
                 return try .offset(scalar())
+            case "min0":
+                try requireArgumentCount(0)
+                return .min0
             case "addnoise":
                 let value = try scalar()
                 guard value >= 0 else {
@@ -695,6 +700,8 @@ enum Transformation: Equatable {
             return gatePoints(points, threshold: value)
         case let .offset(value):
             return offsetPoints(points, offset: value)
+        case .min0:
+            return shiftMinToZero(points)
         case let .addNoise(value):
             return addNoisePoints(points, amplitude: value)
         case let .tvDenoise(value):

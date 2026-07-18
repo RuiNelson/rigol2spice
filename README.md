@@ -62,6 +62,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 |---|---|---|
 | `RemoveDC` | `RemoveDC` · `RemoveDC Avg` · `RemoveDC Median` · `RemoveDC Mid` | Estimate and subtract the DC component¹ |
 | `Offset` | `Offset -1.5` | Add the scalar to every value |
+| `Min0` | `Min0` | Shift so the lowest sample is 0 (subtract min) |
 | `AddNoise` | `AddNoise 10m` | Add zero-mean Gaussian noise with standard deviation equal to the scalar |
 | `TVDenoise` | `TVDenoise 50m` | 1D total variation denoising with weight λ (piecewise-constant bias; preserves edges)⁶ |
 | `Multiply` | `Multiply 10` | Multiply every value by the scalar |

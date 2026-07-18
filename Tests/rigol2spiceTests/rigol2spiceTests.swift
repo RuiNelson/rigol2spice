@@ -609,6 +609,36 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `min0 shifts the lowest sample to zero`() throws {
+        #expect(try Transformation.parseList("Min0") == [.min0])
+        #expect(try Transformation.parseList("min0") == [.min0])
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("Min0 1")
+        }
+
+        let points = [
+            Point(time: 0, value: -1.5),
+            Point(time: 1, value: 2),
+            Point(time: 2, value: 0.5),
+        ]
+        let result = try Transformation.min0.applying(to: points)
+
+        #expect(result.map(\.value) == [0, 3.5, 2])
+        #expect(result.map(\.time) == [0, 1, 2])
+        #expect(valueRange(result)?.minimum == 0)
+
+        // Already non-negative min stays put when min is 0.
+        let nonNegative = [Point(time: 0, value: 0), Point(time: 1, value: 3)]
+        #expect(try Transformation.min0.applying(to: nonNegative) == nonNegative)
+
+        // Positive min is shifted down.
+        let positive = [Point(time: 0, value: 1), Point(time: 1, value: 4)]
+        #expect(try Transformation.min0.applying(to: positive).map(\.value) == [0, 3])
+
+        #expect(try Transformation.min0.applying(to: []).isEmpty)
+    }
+
+    @Test
     func `invert multiplies every value by negative one`() throws {
         #expect(try Transformation.parseList("Invert") == [.invert])
         #expect(throws: (any Error).self) {
