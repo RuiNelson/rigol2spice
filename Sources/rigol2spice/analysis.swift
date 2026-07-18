@@ -57,6 +57,7 @@ enum Analysis: Equatable {
     case top
     case base
     case overshoot
+    case undershoot
 
 
 
@@ -192,6 +193,9 @@ enum Analysis: Equatable {
             case "overshoot":
                 try requireArgumentCount(0)
                 return .overshoot
+            case "undershoot":
+                try requireArgumentCount(0)
+                return .undershoot
 
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
@@ -240,6 +244,7 @@ enum Analysis: Equatable {
         case .top: "Top"
         case .base: "Base"
         case .overshoot: "Overshoot"
+        case .undershoot: "Undershoot"
         }
     }
 }
@@ -374,6 +379,11 @@ extension Analysis {
             return .scalar(levels.base)
         case .overshoot:
             guard let ratio = overshootRatio(points) else {
+                return .unavailable
+            }
+            return .scalar(ratio)
+        case .undershoot:
+            guard let ratio = undershootRatio(points) else {
                 return .unavailable
             }
             return .scalar(ratio)
