@@ -68,6 +68,7 @@ enum Analysis: Equatable {
     case period
     case edgeCount(threshold: Double?)
     case jitter(threshold: Double?)
+    case integral
 
 
 
@@ -244,6 +245,9 @@ enum Analysis: Equatable {
                 return .edgeCount(threshold: try parseOptionalThreshold())
             case "jitter", "periodstd":
                 return .jitter(threshold: try parseOptionalThreshold())
+            case "integral":
+                try requireArgumentCount(0)
+                return .integral
 
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
@@ -336,6 +340,7 @@ enum Analysis: Equatable {
             else {
                 "Jitter"
             }
+        case .integral: "Integral"
         }
     }
 }
@@ -512,6 +517,8 @@ extension Analysis {
                 return .unavailable
             }
             return .scalar(jitter)
+        case .integral:
+            return .scalar(integralValue(points))
 
         }
     }

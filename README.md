@@ -191,6 +191,7 @@ rigol2spice input.csv -p -a 'FFT 1024; Frequency'
 | `EdgeCount` | `EdgeCount` · `EdgeCount 0` | Number of level crossings at threshold (default `Avg`) |
 | `Jitter` | `Jitter` · `Jitter 0` | Std. dev. of complete-wave periods at threshold (default `Avg`; needs ≥ 2 periods) |
 | `PeriodStd` | `PeriodStd` | Alias of `Jitter` |
+| `Integral` | `Integral` | Trapezoidal ∫v dt over the capture |
 | `Crossing` | `Crossing 0` · `Crossing 1.5` | Average period/frequency of **complete** waves at that level (rise+fall crossings; first wave needs 3 crossings, each next wave +2, sharing the boundary; partial start/end ignored) |
 | `ZeroCrossing` | `ZeroCrossing` | Alias of `Crossing 0` |
 | `Frequency` | `Frequency` | Same as `Crossing` at the sample average (`Avg`) |
