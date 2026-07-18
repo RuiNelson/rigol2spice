@@ -44,6 +44,7 @@ enum Analysis: Equatable {
     case duration
     case points
     case sampleRate
+    case interval
 
 
 
@@ -140,6 +141,9 @@ enum Analysis: Equatable {
             case "samplerate":
                 try requireArgumentCount(0)
                 return .sampleRate
+            case "interval":
+                try requireArgumentCount(0)
+                return .interval
 
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
@@ -175,6 +179,7 @@ enum Analysis: Equatable {
         case .duration: "Duration"
         case .points: "Points"
         case .sampleRate: "SampleRate"
+        case .interval: "Interval"
         }
     }
 }
@@ -271,6 +276,11 @@ extension Analysis {
                 return .unavailable
             }
             return .scalar(rate)
+        case .interval:
+            guard let interval = captureSampleInterval(points) else {
+                return .unavailable
+            }
+            return .scalar(interval)
 
         }
     }
