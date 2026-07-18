@@ -51,12 +51,54 @@ struct DCEstimatorTests {
         )
 
         let estimate = estimateDC(points)
-        let correctedPoints = try Transformation.removeDC.applying(to: points)
+        let correctedPoints = try Transformation.removeDC(.dc).applying(to: points)
         let estimateRelativeError = relativeError(estimate.value, comparedTo: expectedDC)
         let correctedRelativeError = abs(estimateDC(correctedPoints).value / expectedDC)
 
         #expect(estimateRelativeError < 0.001)
         #expect(correctedRelativeError < 1e-12)
+    }
+
+    @Test
+    func `remove dc avg subtracts the sample average`() throws {
+        let points = [
+            Point(time: 0, value: 1),
+            Point(time: 1, value: 2),
+            Point(time: 2, value: 3),
+            Point(time: 3, value: 6),
+        ]
+        // Mean = 3
+        let estimate = estimateDC(points, method: .avg)
+        #expect(estimate.value == 3)
+        #expect(estimate.method == .avg)
+
+        let corrected = try Transformation.removeDC(.avg).applying(to: points)
+        #expect(corrected.map(\.value) == [-2, -1, 0, 3])
+        #expect(abs(averageValue(corrected)) < 1e-12)
+    }
+
+    @Test
+    func `remove dc median and mid match analysis helpers`() throws {
+        let points = [
+            Point(time: 0, value: 0),
+            Point(time: 1, value: 1),
+            Point(time: 2, value: 10),
+            Point(time: 3, value: 100),
+        ]
+
+        let medianEstimate = estimateDC(points, method: .median)
+        #expect(medianEstimate.value == medianValue(points))
+        #expect(medianEstimate.value == 5.5)
+
+        let midEstimate = estimateDC(points, method: .mid)
+        #expect(midEstimate.value == midValue(points))
+        #expect(midEstimate.value == 50)
+
+        let afterMedian = try Transformation.removeDC(.median).applying(to: points)
+        #expect(afterMedian.map(\.value) == [-5.5, -4.5, 4.5, 94.5])
+
+        let afterMid = try Transformation.removeDC(.mid).applying(to: points)
+        #expect(afterMid.map(\.value) == [-50, -49, -40, 50])
     }
 
     @Test

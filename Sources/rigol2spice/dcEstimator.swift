@@ -4,12 +4,71 @@ private let dcClusterCount = 3
 private let maximumKMeansIterations = 100
 private let relativeConvergenceTolerance = 1e-12
 
+// MARK: - DCEstimationMethod
+
+/// How `RemoveDC` estimates the DC level to subtract.
+/// Method names match the corresponding analysis measurements (`DC`, `Avg`, `Median`, `Mid`).
+enum DCEstimationMethod: Equatable, CaseIterable {
+    /// K-means clustering (k = 3); DC is the midpoint of the outer centroids. Default.
+    case dc
+    /// Arithmetic mean of sample values (analysis `Avg`).
+    case avg
+    /// Median of sample values (analysis `Median`).
+    case median
+    /// Midpoint of min/max (analysis `Mid`).
+    case mid
+
+    var displayName: String {
+        switch self {
+        case .dc: "DC"
+        case .avg: "Avg"
+        case .median: "Median"
+        case .mid: "Mid"
+        }
+    }
+
+    /// Parse a method keyword (case-insensitive). Returns `nil` for unknown names.
+    static func parse(_ raw: String) -> DCEstimationMethod? {
+        switch raw.lowercased() {
+        case "dc",
+             "cluster",
+             "kmeans":
+            .dc
+        case "avg",
+             "average",
+             "mean":
+            .avg
+        case "median":
+            .median
+        case "mid",
+             "midpoint":
+            .mid
+        default:
+            nil
+        }
+    }
+}
+
 // MARK: - DCEstimate
 
 struct DCEstimate: Equatable {
     let value: Double
+    /// K-means centroids when `method == .dc`; otherwise a single-level placeholder.
     let centroids: [Double]
     let iterations: Int
+    let method: DCEstimationMethod
+
+    init(
+        value: Double,
+        centroids: [Double],
+        iterations: Int,
+        method: DCEstimationMethod = .dc,
+    ) {
+        self.value = value
+        self.centroids = centroids
+        self.iterations = iterations
+        self.method = method
+    }
 }
 
 // MARK: - KMeansResult
@@ -20,15 +79,39 @@ private struct KMeansResult {
     let error: Double
 }
 
-func calculateDC(_ points: [Point]) -> Double {
-    estimateDC(points).value
+func calculateDC(_ points: [Point], method: DCEstimationMethod = .dc) -> Double {
+    estimateDC(points, method: method).value
 }
 
-func estimateDC(_ points: [Point]) -> DCEstimate {
+func estimateDC(_ points: [Point], method: DCEstimationMethod = .dc) -> DCEstimate {
+    switch method {
+    case .dc:
+        return estimateDCCluster(points)
+    case .avg:
+        return simpleDCEstimate(averageValue(points), method: .avg)
+    case .median:
+        return simpleDCEstimate(medianValue(points), method: .median)
+    case .mid:
+        return simpleDCEstimate(midValue(points), method: .mid)
+    }
+}
+
+private func simpleDCEstimate(_ value: Double, method: DCEstimationMethod) -> DCEstimate {
+    let level = value.isFinite ? value : 0
+    return DCEstimate(
+        value: level,
+        centroids: [level, level, level],
+        iterations: 0,
+        method: method,
+    )
+}
+
+/// K-means (k = 3) DC estimate: midpoint of the lower and upper centroids.
+private func estimateDCCluster(_ points: [Point]) -> DCEstimate {
     let values = points.lazy.map(\.value).filter(\.isFinite)
     let sortedValues = values.sorted()
     guard let minimum = sortedValues.first, let maximum = sortedValues.last else {
-        return DCEstimate(value: 0, centroids: [0, 0, 0], iterations: 0)
+        return DCEstimate(value: 0, centroids: [0, 0, 0], iterations: 0, method: .dc)
     }
 
     guard minimum < maximum else {
@@ -36,6 +119,7 @@ func estimateDC(_ points: [Point]) -> DCEstimate {
             value: minimum,
             centroids: [minimum, minimum, minimum],
             iterations: 0,
+            method: .dc,
         )
     }
 
@@ -65,6 +149,7 @@ func estimateDC(_ points: [Point]) -> DCEstimate {
         value: (result.centroids[0] + result.centroids[2]) / 2,
         centroids: result.centroids,
         iterations: result.iterations,
+        method: .dc,
     )
 }
 

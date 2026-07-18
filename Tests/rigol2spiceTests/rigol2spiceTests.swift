@@ -10,7 +10,7 @@ struct Rigol2spiceTests {
         )
 
         try #require(transformations.count == 4)
-        #expect(transformations[0] == .removeDC)
+        #expect(transformations[0] == .removeDC(.dc))
         #expect(transformations[1] == .clampMax(0.7))
         guard case let .clampMin(clampMinimum) = transformations[2] else {
             Issue.record("Expected ClampMin as the third transformation")
@@ -24,8 +24,31 @@ struct Rigol2spiceTests {
     func `operation names are case insensitive`() throws {
         #expect(
             try Transformation.parseList("removedc; TIMESHiFT -5e-3; cutafter 7.5m")
-                == [.removeDC, .timeShift(-5e-3), .cutAfter(7.5e-3)],
+                == [.removeDC(.dc), .timeShift(-5e-3), .cutAfter(7.5e-3)],
         )
+    }
+
+    @Test
+    func `remove dc accepts optional estimation methods`() throws {
+        #expect(try Transformation.parseList("RemoveDC") == [.removeDC(.dc)])
+        #expect(try Transformation.parseList("RemoveDC DC") == [.removeDC(.dc)])
+        #expect(try Transformation.parseList("RemoveDC Cluster") == [.removeDC(.dc)])
+        #expect(try Transformation.parseList("RemoveDC Avg") == [.removeDC(.avg)])
+        #expect(try Transformation.parseList("RemoveDC mean") == [.removeDC(.avg)])
+        #expect(try Transformation.parseList("RemoveDC Median") == [.removeDC(.median)])
+        #expect(try Transformation.parseList("RemoveDC Mid") == [.removeDC(.mid)])
+        #expect(try Transformation.parseList("RemoveDC midpoint") == [.removeDC(.mid)])
+
+        do {
+            _ = try Transformation.parseList("RemoveDC RMS")
+            Issue.record("Expected unknown RemoveDC method to fail")
+        }
+        catch let error as TransformationParseError {
+            #expect(error == .invalidDCMethod(operation: "RemoveDC", value: "RMS"))
+        }
+        catch {
+            Issue.record("Unexpected error: \(error)")
+        }
     }
 
     @Test
@@ -74,6 +97,9 @@ struct Rigol2spiceTests {
         }
         #expect(throws: (any Error).self) {
             try Transformation.parseList("RemoveDC 1")
+        }
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("RemoveDC Avg, Median")
         }
         #expect(throws: (any Error).self) {
             try Transformation.parseList("ClampMin 1, 2")

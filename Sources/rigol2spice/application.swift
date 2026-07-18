@@ -205,8 +205,8 @@ struct Rigol2SpiceApplication {
 
         for transformation in transformations {
             let countBefore = points.count
-            if case .removeDC = transformation {
-                let estimate = estimateDC(points)
+            if case let .removeDC(method) = transformation {
+                let estimate = estimateDC(points, method: method)
                 reportTransformation(transformation, points: points, dcEstimate: estimate)
                 points = offsetPoints(points, offset: -estimate.value)
             }
@@ -245,14 +245,16 @@ struct Rigol2SpiceApplication {
         dcEstimate: DCEstimate? = nil,
     ) {
         switch transformation {
-        case .removeDC:
-            let estimate = dcEstimate ?? estimateDC(points)
-            Console.section("Removing DC component...")
+        case let .removeDC(method):
+            let estimate = dcEstimate ?? estimateDC(points, method: method)
+            Console.section("Removing DC component (\(method.displayName))...")
             Console.detail("Automatically calculated DC component: \(engineeringFormatter.string(estimate.value))")
-            let centroids = estimate.centroids
-                .map { engineeringFormatter.string($0) }
-                .joined(separator: ", ")
-            Console.detail("K-means centroids: \(centroids) (\(estimate.iterations) iterations)")
+            if method == .dc {
+                let centroids = estimate.centroids
+                    .map { engineeringFormatter.string($0) }
+                    .joined(separator: ", ")
+                Console.detail("K-means centroids: \(centroids) (\(estimate.iterations) iterations)")
+            }
         case let .clampMin(value):
             Console.section("Clamping the signal above \(engineeringFormatter.string(value))...")
         case let .clampMax(value):

@@ -11,6 +11,7 @@ enum TransformationParseError: LocalizedError, Equatable {
     case invalidFrequencyBand(operation: String, low: String, high: String)
     case invalidTimeRange(operation: String, start: String, end: String)
     case invalidRange(operation: String, low: String, high: String)
+    case invalidDCMethod(operation: String, value: String)
 
     var errorDescription: String? {
         switch self {
@@ -30,6 +31,8 @@ enum TransformationParseError: LocalizedError, Equatable {
             "\(operation) requires start < end, but received \(start) and \(end)"
         case let .invalidRange(operation, low, high):
             "\(operation) requires low < high, but received \(low) and \(high)"
+        case let .invalidDCMethod(operation, value):
+            "\(operation) method must be DC, Avg, Median, or Mid, but received: \(value)"
         }
     }
 }
@@ -37,7 +40,8 @@ enum TransformationParseError: LocalizedError, Equatable {
 // MARK: - Transformation
 
 enum Transformation: Equatable {
-    case removeDC
+    /// Subtract a DC estimate. Default method is k-means (`DC`); see `DCEstimationMethod`.
+    case removeDC(DCEstimationMethod)
     case clampMin(Double)
     case clampMax(Double)
     case gate(Double)
@@ -176,8 +180,24 @@ enum Transformation: Equatable {
 
             switch operation.lowercased() {
             case "removedc":
-                try requireArgumentCount(0)
-                return .removeDC
+                // Forms: RemoveDC | RemoveDC DC|Avg|Median|Mid
+                guard arguments.count <= 1 else {
+                    throw TransformationParseError.invalidArgumentCount(
+                        operation: operation,
+                        expected: 0,
+                        actual: arguments.count,
+                    )
+                }
+                if arguments.isEmpty {
+                    return .removeDC(.dc)
+                }
+                guard let method = DCEstimationMethod.parse(arguments[0]) else {
+                    throw TransformationParseError.invalidDCMethod(
+                        operation: operation,
+                        value: arguments[0],
+                    )
+                }
+                return .removeDC(method)
             case "clampmin":
                 return try .clampMin(scalar())
             case "clampmax":
@@ -665,8 +685,8 @@ enum Transformation: Equatable {
 
     func applying(to points: [Point], sampleInterval: Double? = nil) throws -> [Point] {
         switch self {
-        case .removeDC:
-            return offsetPoints(points, offset: -calculateDC(points))
+        case let .removeDC(method):
+            return offsetPoints(points, offset: -calculateDC(points, method: method))
         case let .clampMin(value):
             return clamp(points, lowerLimit: value, upperLimit: nil)
         case let .clampMax(value):

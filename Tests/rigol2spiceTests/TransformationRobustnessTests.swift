@@ -18,7 +18,7 @@ struct TransformationRobustnessTests {
         #expect(estimate.value.isFinite)
         #expect(abs(estimate.value - 5) < 1e-12)
 
-        let corrected = try Transformation.removeDC.applying(to: points)
+        let corrected = try Transformation.removeDC(.dc).applying(to: points)
         #expect(abs(corrected[0].value + 5) < 1e-12)
         #expect(abs(corrected[2].value - 5) < 1e-12)
     }

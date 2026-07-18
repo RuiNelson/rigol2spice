@@ -60,7 +60,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 
 | Operation | Example | Effect |
 |---|---|---|
-| `RemoveDC` | `RemoveDC` | Estimate and subtract the DC component¹ |
+| `RemoveDC` | `RemoveDC` · `RemoveDC Avg` · `RemoveDC Median` · `RemoveDC Mid` | Estimate and subtract the DC component¹ |
 | `Offset` | `Offset -1.5` | Add the scalar to every value |
 | `AddNoise` | `AddNoise 10m` | Add zero-mean Gaussian noise with standard deviation equal to the scalar |
 | `TVDenoise` | `TVDenoise 50m` | 1D total variation denoising with weight λ (piecewise-constant bias; preserves edges)⁶ |
@@ -127,7 +127,16 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `Diff` | `Diff` | Numerical derivative dv/dt |
 | `Integrate` | `Integrate` | Cumulative trapezoidal integral (starts at 0) |
 
-¹ `RemoveDC` estimates the DC component from the capture by applying one-dimensional k-means clustering with `k = 3` to all finite sample values. Several deterministic initializations are evaluated and the clustering with the smallest squared error is selected. The DC estimate is the midpoint between the lower and upper centroids.
+¹ `RemoveDC` subtracts a DC estimate. Optional method (same names as analysis measurements; case-insensitive):
+
+| Method | Meaning |
+|---|---|
+| `DC` (default; aliases `Cluster`, `KMeans`) | 1D k-means with `k = 3` on finite sample values; several deterministic initializations; pick smallest squared error; DC = midpoint of lower and upper centroids |
+| `Avg` (aliases `Average`, `Mean`) | Arithmetic mean of sample values |
+| `Median` | Median of sample values |
+| `Mid` (alias `Midpoint`) | Midpoint of min/max: `(max + min) / 2` |
+
+Bare `RemoveDC` is equivalent to `RemoveDC DC`.
 
 ² Filters are linear-phase windowed-sinc FIRs (Blackman–Harris). You only supply the cutoff frequency(ies); the sample rate comes from the capture, tap count is chosen automatically, and group delay is removed so event timing stays aligned. Frequencies must be greater than 0 and below Nyquist (`fs/2`). Band filters require `0 < f1 < f2`.
 
@@ -181,7 +190,7 @@ rigol2spice input.csv -p -a 'FFT 1024; Frequency'
 | `Amplitude` | `Amplitude` | Half of peak-to-peak (`PkPk / 2`) |
 | `Mid` | `Mid` | Midpoint of min/max: `(max + min) / 2` |
 | `Avg` | `Avg` | Arithmetic mean of sample values |
-| `DC` | `DC` | DC estimate (same k-means method as `RemoveDC`)¹ |
+| `DC` | `DC` | DC estimate (same default k-means method as bare `RemoveDC`)¹ |
 | `RMS` | `RMS` | Sample RMS (same definition as `ScaleRMS`) |
 | `ACRms` | `ACRms` | AC RMS: `√max(0, RMS² − Avg²)` |
 | `StdDev` | `StdDev` | Population standard deviation (same value as `ACRms`) |
