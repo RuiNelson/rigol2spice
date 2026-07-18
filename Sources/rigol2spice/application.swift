@@ -8,7 +8,7 @@ enum Rigol2SpiceError: LocalizedError, Equatable {
     case invalidDownsampleValue(value: Int)
     case mustHaveAtLeastTwoPointsToRepeat
     case operationRemovedEveryPoint
-    case edgeNotFound(rising: Bool, threshold: Double)
+    case edgeNotFound(edge: TriggerEdge, threshold: Double)
     case periodNotDetected
 
     var errorDescription: String? {
@@ -19,8 +19,8 @@ enum Rigol2SpiceError: LocalizedError, Equatable {
         case let .invalidDownsampleValue(value): "Invalid downsample value: \(value)"
         case .mustHaveAtLeastTwoPointsToRepeat: "Must have at least two original samples to repeat capture"
         case .operationRemovedEveryPoint: "Operation removed every sample"
-        case let .edgeNotFound(rising, threshold):
-            "No \(rising ? "rising" : "falling") edge found at threshold \(threshold)"
+        case let .edgeNotFound(edge, threshold):
+            "No \(edge.description) edge found at threshold \(threshold)"
         case .periodNotDetected:
             "Could not detect a repeating period in the capture"
         }
@@ -363,16 +363,15 @@ struct Rigol2SpiceApplication {
             Console.section("Shifting signal for \(engineeringFormatter.string(value))s...")
         case let .timeScale(value):
             Console.section("Scaling time axis by \(engineeringFormatter.string(value))...")
-        case let .triggerAt(rising, threshold, after):
-            let direction = rising ? "rising" : "falling"
+        case let .triggerAt(edge, threshold, after):
             if let after {
                 Console.section(
-                    "Triggering on \(direction) edge at \(engineeringFormatter.string(threshold)) (search after \(engineeringFormatter.string(after))s) to t=0...",
+                    "Triggering on \(edge.description) edge at \(engineeringFormatter.string(threshold)) (search after \(engineeringFormatter.string(after))s) to t=0...",
                 )
             }
             else {
                 Console.section(
-                    "Triggering on \(direction) edge at \(engineeringFormatter.string(threshold)) to t=0...",
+                    "Triggering on \(edge.description) edge at \(engineeringFormatter.string(threshold)) to t=0...",
                 )
             }
         case let .seamless(rampDuration):

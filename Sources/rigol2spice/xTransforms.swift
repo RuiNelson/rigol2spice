@@ -57,16 +57,33 @@ func downsamplePoints(_ source: [Point], interval: Int) -> [Point] {
     return output
 }
 
-/// Find the first rising or falling crossing of `threshold` and shift that instant to t = 0.
-/// Optional `after` restricts the search to edges at or after that time.
+// MARK: - TriggerEdge
+
+enum TriggerEdge: Equatable, CustomStringConvertible {
+    case rising
+    case falling
+    /// First rising or falling crossing, whichever comes first.
+    case either
+
+    var description: String {
+        switch self {
+        case .rising: "rising"
+        case .falling: "falling"
+        case .either: "either"
+        }
+    }
+}
+
+/// Find the first rising, falling, or either-direction crossing of `threshold` and shift that
+/// instant to t = 0. Optional `after` restricts the search to edges at or after that time.
 func triggerAtPoints(
     _ points: [Point],
-    rising: Bool,
+    edge: TriggerEdge,
     threshold: Double,
     after: Double? = nil,
 ) throws -> [Point] {
     guard points.count >= 2 else {
-        throw Rigol2SpiceError.edgeNotFound(rising: rising, threshold: threshold)
+        throw Rigol2SpiceError.edgeNotFound(edge: edge, threshold: threshold)
     }
 
     let searchStart: Int
@@ -78,7 +95,7 @@ func triggerAtPoints(
     }
 
     guard searchStart < points.count else {
-        throw Rigol2SpiceError.edgeNotFound(rising: rising, threshold: threshold)
+        throw Rigol2SpiceError.edgeNotFound(edge: edge, threshold: threshold)
     }
 
     // Walk consecutive pairs; start from the first pair that ends at or after searchStart.
@@ -86,12 +103,16 @@ func triggerAtPoints(
     for index in pairStart ..< points.count {
         let previous = points[index - 1]
         let current = points[index]
+        let crossedUp = previous.value < threshold && current.value >= threshold
+        let crossedDown = previous.value > threshold && current.value <= threshold
         let crossed: Bool
-        if rising {
-            crossed = previous.value < threshold && current.value >= threshold
-        }
-        else {
-            crossed = previous.value > threshold && current.value <= threshold
+        switch edge {
+        case .rising:
+            crossed = crossedUp
+        case .falling:
+            crossed = crossedDown
+        case .either:
+            crossed = crossedUp || crossedDown
         }
         guard crossed else {
             continue
@@ -122,7 +143,7 @@ func triggerAtPoints(
         return shifted
     }
 
-    throw Rigol2SpiceError.edgeNotFound(rising: rising, threshold: threshold)
+    throw Rigol2SpiceError.edgeNotFound(edge: edge, threshold: threshold)
 }
 
 /// Interpolated time when the segment from `previous` to `current` meets `threshold`.

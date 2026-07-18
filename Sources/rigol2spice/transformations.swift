@@ -68,7 +68,7 @@ enum Transformation: Equatable {
     case dbW(level: Double, resistance: Double)
     case timeShift(Double)
     case timeScale(Double)
-    case triggerAt(rising: Bool, threshold: Double, after: Double?)
+    case triggerAt(edge: TriggerEdge, threshold: Double, after: Double?)
     case seamless(rampDuration: Double?)
     case pad(duration: Double, value: Double?)
     case extendTo(endTime: Double, value: Double?)
@@ -445,35 +445,63 @@ enum Transformation: Equatable {
                 }
                 return .timeScale(value)
             case "triggerat":
-                guard arguments.count == 2 || arguments.count == 3 else {
+                // Forms:
+                //   TriggerAt <level>                      → either edge
+                //   TriggerAt <level>, <after>
+                //   TriggerAt rising|falling|either, <level>[, <after>]
+                guard (1 ... 3).contains(arguments.count) else {
                     throw TransformationParseError.invalidArgumentCount(
                         operation: operation,
                         expected: 2,
                         actual: arguments.count,
                     )
                 }
-                let direction = arguments[0].lowercased()
-                let rising: Bool
-                switch direction {
+
+                let first = arguments[0].lowercased()
+                let edge: TriggerEdge
+                let thresholdIndex: Int
+                switch first {
                 case "rising", "rise", "up":
-                    rising = true
+                    edge = .rising
+                    thresholdIndex = 1
                 case "falling", "fall", "down":
-                    rising = false
+                    edge = .falling
+                    thresholdIndex = 1
+                case "either", "any", "both":
+                    edge = .either
+                    thresholdIndex = 1
                 default:
-                    throw TransformationParseError.invalidScalar(
+                    // Single scalar (or scalar + after): default edge is either.
+                    edge = .either
+                    thresholdIndex = 0
+                }
+
+                guard arguments.count > thresholdIndex else {
+                    throw TransformationParseError.invalidArgumentCount(
                         operation: operation,
-                        value: arguments[0],
+                        expected: thresholdIndex + 1,
+                        actual: arguments.count,
                     )
                 }
-                let threshold = try parseScalarArgument(arguments[1])
+                // Direction form takes 2–3 args; bare-level form takes 1–2.
+                let maxArgs = thresholdIndex + 2
+                guard arguments.count <= maxArgs else {
+                    throw TransformationParseError.invalidArgumentCount(
+                        operation: operation,
+                        expected: maxArgs,
+                        actual: arguments.count,
+                    )
+                }
+
+                let threshold = try parseScalarArgument(arguments[thresholdIndex])
                 let after: Double?
-                if arguments.count == 3 {
-                    after = try parseScalarArgument(arguments[2])
+                if arguments.count > thresholdIndex + 1 {
+                    after = try parseScalarArgument(arguments[thresholdIndex + 1])
                 }
                 else {
                     after = nil
                 }
-                return .triggerAt(rising: rising, threshold: threshold, after: after)
+                return .triggerAt(edge: edge, threshold: threshold, after: after)
             case "seamless",
                  "matchends":
                 guard arguments.count <= 1 else {
@@ -702,8 +730,8 @@ enum Transformation: Equatable {
             return timeShiftPoints(points, value: value)
         case let .timeScale(value):
             return timeScalePoints(points, factor: value)
-        case let .triggerAt(rising, threshold, after):
-            return try triggerAtPoints(points, rising: rising, threshold: threshold, after: after)
+        case let .triggerAt(edge, threshold, after):
+            return try triggerAtPoints(points, edge: edge, threshold: threshold, after: after)
         case let .seamless(rampDuration):
             return seamlessPoints(points, rampDuration: rampDuration)
         case let .pad(duration, value):
