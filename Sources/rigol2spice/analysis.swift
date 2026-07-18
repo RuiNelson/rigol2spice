@@ -45,6 +45,7 @@ enum Analysis: Equatable {
     case points
     case sampleRate
     case interval
+    case start
 
 
 
@@ -144,6 +145,9 @@ enum Analysis: Equatable {
             case "interval":
                 try requireArgumentCount(0)
                 return .interval
+            case "start":
+                try requireArgumentCount(0)
+                return .start
 
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
@@ -180,6 +184,7 @@ enum Analysis: Equatable {
         case .points: "Points"
         case .sampleRate: "SampleRate"
         case .interval: "Interval"
+        case .start: "Start"
         }
     }
 }
@@ -281,6 +286,8 @@ extension Analysis {
                 return .unavailable
             }
             return .scalar(interval)
+        case .start:
+            return .scalar(points.first?.time ?? 0)
 
         }
     }
