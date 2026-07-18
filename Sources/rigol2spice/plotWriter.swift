@@ -7,10 +7,15 @@ enum PlotWriter {
     static let largePlotPointThreshold = 10000
 
     private static let plotHeight: Double = 400
+    private static let spectrumHeight: Double = 600
+    private static let spectrumGap: Double = 28
+    private static let spectrumBottomPad: Double = 36
     private static let leftMargin: Double = 88
     private static let rightMargin: Double = 24
     private static let topMargin: Double = 44
     private static let bottomMargin: Double = 48
+    private static let analysisLineHeight: Double = 15
+    private static let analysisBlockPadding: Double = 10
 
     /// Compact engineering labels for axis ticks (1 decimal place).
     private static let plotEngineeringFormatter = EngineeringNumberFormatter(
@@ -27,8 +32,14 @@ enum PlotWriter {
         to outputURL: URL,
         sourceFile: String,
         channel: String,
+        analysisReports: [AnalysisReport] = [],
     ) throws -> Int {
-        let svg = render(points, sourceFile: sourceFile, channel: channel)
+        let svg = render(
+            points,
+            sourceFile: sourceFile,
+            channel: channel,
+            analysisReports: analysisReports,
+        )
         guard let data = svg.data(using: .utf8) else {
             throw PlotError.encodingFailed
         }
@@ -40,6 +51,7 @@ enum PlotWriter {
         _ points: [Point],
         sourceFile: String = "",
         channel: String = "",
+        analysisReports: [AnalysisReport] = [],
     ) -> String {
         guard !points.isEmpty else {
             return emptySVG(sourceFile: sourceFile, channel: channel)
@@ -47,8 +59,24 @@ enum PlotWriter {
 
         let count = points.count
         let plotWidth = Double(max(count, 1))
+        let spectra = analysisReports.compactMap(\.fftSpectrum)
+        // Title line + one line per report, below the X-axis labels.
+        let analysisBlockHeight = analysisReports.isEmpty
+            ? 0
+            : analysisBlockPadding + analysisLineHeight
+                + Double(analysisReports.count) * analysisLineHeight
+        let spectraBlockHeight = spectra.isEmpty
+            ? 0
+            : Double(spectra.count) * (spectrumGap + spectrumHeight + spectrumBottomPad)
         let width = leftMargin + plotWidth + rightMargin
+        let analysisOriginY = topMargin + plotHeight + bottomMargin + 4
+        let spectraOriginY = analysisOriginY
+            + (analysisReports.isEmpty ? 0 : analysisBlockHeight)
+            + (spectra.isEmpty ? 0 : 8)
         let height = topMargin + plotHeight + bottomMargin
+            + (analysisReports.isEmpty ? 0 : analysisBlockHeight)
+            + spectraBlockHeight
+            + (spectra.isEmpty || analysisReports.isEmpty ? 0 : 8)
 
         let values = points.map(\.value)
         let minValue = values.min() ?? 0
@@ -166,6 +194,17 @@ enum PlotWriter {
                 + yMark(value: meanValue, css: "mark-mean", label: "avg")
                 + yMark(value: minValue, css: "mark-min", label: "min")
 
+        let analysisText = analysisTextElements(
+            reports: analysisReports,
+            x: leftMargin,
+            y: analysisOriginY,
+        )
+        let spectrumPanels = spectrumPanelElements(
+            spectra: spectra,
+            plotWidth: plotWidth,
+            originY: spectraOriginY,
+        )
+
         return """
         <?xml version="1.0" encoding="UTF-8"?>
         <svg xmlns="http://www.w3.org/2000/svg" width="\(formatCoord(
@@ -180,12 +219,17 @@ enum PlotWriter {
               .mark-max { stroke: #f87171; stroke-width: 1; stroke-dasharray: 4 3; opacity: 0.9; }
               .mark-min { stroke: #60a5fa; stroke-width: 1; stroke-dasharray: 4 3; opacity: 0.9; }
               .mark-mean { stroke: #a3e635; stroke-width: 1; stroke-dasharray: 2 3; opacity: 0.85; }
+              .mark-peak { stroke: #fbbf24; stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.85; }
               .signal { fill: none; stroke: #38bdf8; stroke-width: 1.25; stroke-linejoin: round; stroke-linecap: round; }
+              .spectrum { fill: none; stroke: #c084fc; stroke-width: 1.25; stroke-linejoin: round; stroke-linecap: round; }
               .label-x { fill: #94a3b8; font: 11px ui-sans-serif, system-ui, -apple-system, sans-serif; text-anchor: middle; }
               .label-y { fill: #cbd5e1; font: 11px ui-sans-serif, system-ui, -apple-system, sans-serif; text-anchor: end; }
               .label-y-name { fill: #64748b; font: 10px ui-sans-serif, system-ui, -apple-system, sans-serif; text-anchor: end; }
               .title { fill: #e2e8f0; font: 600 13px ui-sans-serif, system-ui, -apple-system, sans-serif; }
               .subtitle { fill: #94a3b8; font: 12px ui-sans-serif, system-ui, -apple-system, sans-serif; }
+              .analysis-title { fill: #cbd5e1; font: 600 11px ui-sans-serif, system-ui, -apple-system, sans-serif; }
+              .analysis-line { fill: #e2e8f0; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
+              .spectrum-title { fill: #cbd5e1; font: 600 11px ui-sans-serif, system-ui, -apple-system, sans-serif; }
             </style>
           </defs>
           <rect class="bg" width="100%" height="100%"/>
@@ -198,8 +242,146 @@ enum PlotWriter {
           <polyline class="signal" points="\(polyline)"/>
           \(xLabels)
           \(titleElements(sourceFile: sourceFile, channel: channel, x: leftMargin))
+          \(analysisText)
+          \(spectrumPanels)
         </svg>
         """
+    }
+
+    private static func spectrumPanelElements(
+        spectra: [FFTSpectrum],
+        plotWidth: Double,
+        originY: Double,
+    ) -> String {
+        guard !spectra.isEmpty else {
+            return ""
+        }
+
+        var elements = ""
+        for (index, spectrum) in spectra.enumerated() {
+            let panelTop = originY + Double(index) * (spectrumGap + spectrumHeight + spectrumBottomPad)
+            elements.append(renderSpectrumPanel(
+                spectrum: spectrum,
+                plotWidth: plotWidth,
+                panelTop: panelTop,
+            ))
+        }
+        return elements
+    }
+
+    private static func renderSpectrumPanel(
+        spectrum: FFTSpectrum,
+        plotWidth: Double,
+        panelTop: Double,
+    ) -> String {
+        let titleY = panelTop + 12
+        let chartTop = panelTop + spectrumGap
+        let binCount = spectrum.frequencies.count
+        guard binCount >= 2 else {
+            return """
+            <text class="spectrum-title" x="\(formatCoord(leftMargin))" y="\(formatCoord(titleY))">\(escapeXML("FFT \(spectrum.requestedPointCount) — unavailable"))</text>
+            """
+        }
+
+        let fMax = spectrum.frequencies[binCount - 1]
+        var dbMin = spectrum.magnitudesDB.min() ?? -100
+        var dbMax = spectrum.magnitudesDB.max() ?? 0
+        if dbMin == dbMax {
+            dbMin -= 10
+            dbMax += 1
+        }
+        let dbPadding = (dbMax - dbMin) * 0.06
+        dbMin -= dbPadding
+        dbMax += dbPadding
+        let dbRange = dbMax - dbMin
+
+        func xAtFrequency(_ frequency: Double) -> Double {
+            guard fMax > 0 else {
+                return leftMargin
+            }
+            return leftMargin + (frequency / fMax) * plotWidth
+        }
+
+        func yAtDB(_ db: Double) -> Double {
+            chartTop + (dbMax - db) / dbRange * spectrumHeight
+        }
+
+        var polyline = ""
+        polyline.reserveCapacity(binCount * 14)
+        for index in 0 ..< binCount {
+            let x = xAtFrequency(spectrum.frequencies[index])
+            let y = yAtDB(spectrum.magnitudesDB[index])
+            if index == 0 {
+                polyline.append("\(formatCoord(x)),\(formatCoord(y))")
+            }
+            else {
+                polyline.append(" \(formatCoord(x)),\(formatCoord(y))")
+            }
+        }
+
+        // A few frequency labels across the axis (0 … Nyquist).
+        var xLabels = ""
+        let tickCount = 5
+        for tick in 0 ... tickCount {
+            let frequency = fMax * Double(tick) / Double(tickCount)
+            let x = xAtFrequency(frequency)
+            let label = escapeXML(plotEngineeringFormatter.string(frequency) + "Hz")
+            xLabels.append(
+                """
+                <line class="grid-x" x1="\(formatCoord(x))" y1="\(formatCoord(chartTop))" x2="\(formatCoord(x))" y2="\(formatCoord(chartTop + spectrumHeight))"/>
+                <text class="label-x" x="\(formatCoord(x))" y="\(formatCoord(chartTop + spectrumHeight + 18))">\(label)</text>
+                """,
+            )
+        }
+
+        // dB max / min on the left.
+        let maxLabel = escapeXML(plotEngineeringFormatter.string(dbMax) + "dB")
+        let minLabel = escapeXML(plotEngineeringFormatter.string(dbMin) + "dB")
+        let peakX = xAtFrequency(spectrum.centerFrequency)
+        let title: String
+        if spectrum.usedPointCount < spectrum.requestedPointCount {
+            title = escapeXML(
+                "FFT \(spectrum.usedPointCount) pts (requested \(spectrum.requestedPointCount)) · peak \(plotEngineeringFormatter.string(spectrum.centerFrequency))Hz",
+            )
+        }
+        else {
+            title = escapeXML(
+                "FFT \(spectrum.usedPointCount) pts · peak \(plotEngineeringFormatter.string(spectrum.centerFrequency))Hz",
+            )
+        }
+
+        return """
+        <text class="spectrum-title" x="\(formatCoord(leftMargin))" y="\(formatCoord(titleY))">\(title)</text>
+        <rect class="panel" x="\(formatCoord(leftMargin))" y="\(formatCoord(chartTop))" width="\(formatCoord(plotWidth))" height="\(formatCoord(spectrumHeight))" rx="6"/>
+        \(xLabels)
+        <text class="label-y" x="\(formatCoord(leftMargin - 10))" y="\(formatCoord(chartTop + 4))">\(maxLabel)</text>
+        <text class="label-y" x="\(formatCoord(leftMargin - 10))" y="\(formatCoord(chartTop + spectrumHeight))">\(minLabel)</text>
+        <line class="mark-peak" x1="\(formatCoord(peakX))" y1="\(formatCoord(chartTop))" x2="\(formatCoord(peakX))" y2="\(formatCoord(chartTop + spectrumHeight))"/>
+        <polyline class="spectrum" points="\(polyline)"/>
+        """
+    }
+
+    private static func analysisTextElements(
+        reports: [AnalysisReport],
+        x: Double,
+        y: Double,
+    ) -> String {
+        guard !reports.isEmpty else {
+            return ""
+        }
+
+        var elements = """
+        <text class="analysis-title" x="\(formatCoord(x))" y="\(formatCoord(y + analysisLineHeight - 2))">Analysis</text>
+        """
+        for (index, report) in reports.enumerated() {
+            let lineY = y + analysisLineHeight + Double(index + 1) * analysisLineHeight - 2
+            elements.append(
+                """
+                <text class="analysis-line" x="\(formatCoord(x))" y="\(formatCoord(lineY))">\(escapeXML(report.displayLine))</text>
+                """,
+            )
+        }
+        return elements
     }
 
     static func titleText(sourceFile: String, channel: String) -> String {

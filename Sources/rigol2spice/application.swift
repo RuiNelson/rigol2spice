@@ -14,7 +14,7 @@ enum Rigol2SpiceError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .outputFileNotSpecified:
-            "Please specify a PWL output file, or use --list-channels and/or --plot"
+            "Please specify a PWL output file, or use --list-channels, --plot, and/or --analysis"
         case .inputFileContainsNoPoints: "Input file contains zero samples"
         case let .invalidDownsampleValue(value): "Invalid downsample value: \(value)"
         case .mustHaveAtLeastTwoPointsToRepeat: "Must have at least two original samples to repeat capture"
@@ -34,6 +34,7 @@ struct ApplicationOptions {
     let listChannels: Bool
     let channel: String
     let transformations: String?
+    let analysis: String?
     let downsample: Int?
     let keepAll: Bool
     let plotFile: String?
@@ -51,7 +52,7 @@ struct Rigol2SpiceApplication {
     }
 
     func run() throws {
-        let transformations = try validateOptions()
+        let (transformations, analyses) = try validateOptions()
         let data = try loadInput()
         let capture = try parseCapture(data)
 
@@ -71,6 +72,11 @@ struct Rigol2SpiceApplication {
             sampleInterval: capture.sampleInterval,
         )
 
+        let analysisReports = AnalysisReport.reports(for: analyses, on: processedPoints)
+        if !analysisReports.isEmpty {
+            reportAnalysis(analysisReports)
+        }
+
         // Plot the dense processed waveform (before collinear optimization).
         if let plotFile = options.plotFile {
             try writePlot(
@@ -78,11 +84,12 @@ struct Rigol2SpiceApplication {
                 to: plotFile,
                 sourceFile: options.inputFile,
                 channel: capture.selectedChannel ?? options.channel,
+                analysisReports: analysisReports,
             )
         }
 
         let outputPoints: [Point]
-        if !options.keepAll, processedPoints.count >= 3 {
+        if !options.keepAll, processedPoints.count >= 3, options.outputFile != nil {
             Console.section("Removing redundant sample points (optimize)...")
             let countBefore = processedPoints.count
             outputPoints = removeRedundant(processedPoints)
@@ -100,8 +107,9 @@ struct Rigol2SpiceApplication {
         print("")
     }
 
-    private func validateOptions() throws -> [Transformation] {
-        guard options.listChannels || options.outputFile != nil || options.plotFile != nil else {
+    private func validateOptions() throws -> (transformations: [Transformation], analyses: [Analysis]) {
+        let hasAnalysis = options.analysis != nil
+        guard options.listChannels || options.outputFile != nil || options.plotFile != nil || hasAnalysis else {
             throw Rigol2SpiceError.outputFileNotSpecified
         }
 
@@ -109,10 +117,37 @@ struct Rigol2SpiceApplication {
             throw Rigol2SpiceError.invalidDownsampleValue(value: downsample)
         }
 
-        guard let source = options.transformations else {
-            return []
+        let transformations: [Transformation]
+        if let source = options.transformations {
+            transformations = try Transformation.parseList(source)
         }
-        return try Transformation.parseList(source)
+        else {
+            transformations = []
+        }
+
+        let analyses: [Analysis]
+        if let source = options.analysis {
+            analyses = try Analysis.parseList(source)
+        }
+        else {
+            analyses = []
+        }
+
+        return (transformations, analyses)
+    }
+
+    private func reportAnalysis(_ reports: [AnalysisReport]) {
+        Console.section("Analysis...")
+        for report in reports {
+            Console.detail(report.displayLine)
+            if case let .fft(spectrum) = report.outcome,
+               spectrum.usedPointCount < spectrum.requestedPointCount {
+                Console.detail(
+                    "Using all \(spectrum.usedPointCount) available samples (fewer than requested \(spectrum.requestedPointCount))",
+                    level: 2,
+                )
+            }
+        }
     }
 
     private func loadInput() throws -> Data {
@@ -472,6 +507,7 @@ struct Rigol2SpiceApplication {
         to filename: String,
         sourceFile: String,
         channel: String,
+        analysisReports: [AnalysisReport] = [],
     ) throws {
         if points.count > PlotWriter.largePlotPointThreshold {
             Console.warning(
@@ -487,6 +523,9 @@ struct Rigol2SpiceApplication {
         Console.detail("Channel / expression: \(channel)")
         Console.detail("Number of sample points: \(numberOfPointsFormatter.string(for: points.count)!)")
         Console.detail("Plot width: \(points.count)px (1 px per sample)")
+        if !analysisReports.isEmpty {
+            Console.detail("Including \(analysisReports.count) analysis result(s)")
+        }
 
         let url = fileURL(for: filename)
         let byteCount = try PlotWriter.write(
@@ -494,6 +533,7 @@ struct Rigol2SpiceApplication {
             to: url,
             sourceFile: sourceFile,
             channel: channel,
+            analysisReports: analysisReports,
         )
         Console.detail(
             "Saving file: \(ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))...",

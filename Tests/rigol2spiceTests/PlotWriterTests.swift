@@ -91,6 +91,39 @@ struct PlotWriterTests {
     }
 
     @Test
+    func `render embeds analysis results when provided`() {
+        let points = [
+            Point(time: 0, value: -1),
+            Point(time: 1, value: 1),
+            Point(time: 2, value: -1),
+            Point(time: 3, value: 1),
+            Point(time: 4, value: -1),
+            Point(time: 5, value: 1),
+        ]
+        let reports = AnalysisReport.reports(
+            for: [.max, .min, .rms, .pkPk, .crossing(0), .dc],
+            on: points,
+        )
+
+        let svg = PlotWriter.render(
+            points,
+            sourceFile: "wave.csv",
+            channel: "CH1",
+            analysisReports: reports,
+        )
+
+        #expect(svg.contains("Analysis"))
+        #expect(svg.contains("class=\"analysis-line\""))
+        for report in reports {
+            #expect(svg.contains(report.displayLine))
+        }
+        // Analysis is footer text only — no mid-plot analysis guides.
+        #expect(!svg.contains("mark-analysis"))
+        // Taller canvas to fit the analysis block under the axes.
+        #expect(svg.contains("height=\"") && !svg.contains("height=\"492.00\""))
+    }
+
+    @Test
     func `normalizePlotArguments inserts default path for bare plot flags`() {
         // Bare -p / --plot (nothing after, or next token is another flag) → plot.svg
         #expect(normalizePlotArguments(["input.csv", "-p"]) == ["input.csv", "--plot", "plot.svg"])

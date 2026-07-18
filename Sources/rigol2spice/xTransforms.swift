@@ -125,6 +125,101 @@ func triggerAtPoints(
     throw Rigol2SpiceError.edgeNotFound(rising: rising, threshold: threshold)
 }
 
+/// Interpolated time when the segment from `previous` to `current` meets `threshold`.
+private func interpolatedCrossingTime(
+    previous: Point,
+    current: Point,
+    threshold: Double,
+) -> Double {
+    let delta = current.value - previous.value
+    if delta == 0 {
+        return current.time
+    }
+    let fraction = (threshold - previous.value) / delta
+    return previous.time + fraction * (current.time - previous.time)
+}
+
+/// Rising threshold crossings (linear interpolation between samples).
+/// A crossing is recorded when a pair goes from strictly below `threshold` to at or above it.
+func risingCrossingTimes(_ points: [Point], threshold: Double) -> [Double] {
+    guard points.count >= 2 else {
+        return []
+    }
+
+    var crossings: [Double] = []
+    for index in 1 ..< points.count {
+        let previous = points[index - 1]
+        let current = points[index]
+        guard previous.value < threshold, current.value >= threshold else {
+            continue
+        }
+        crossings.append(interpolatedCrossingTime(
+            previous: previous,
+            current: current,
+            threshold: threshold,
+        ))
+    }
+    return crossings
+}
+
+/// All level crossings of `threshold` (rising and falling), linearly interpolated.
+/// Used by frequency analysis so incomplete half-waves at the ends can be discarded.
+func levelCrossingTimes(_ points: [Point], threshold: Double) -> [Double] {
+    guard points.count >= 2 else {
+        return []
+    }
+
+    var crossings: [Double] = []
+    for index in 1 ..< points.count {
+        let previous = points[index - 1]
+        let current = points[index]
+        let crossedUp = previous.value < threshold && current.value >= threshold
+        let crossedDown = previous.value > threshold && current.value <= threshold
+        guard crossedUp || crossedDown else {
+            continue
+        }
+        crossings.append(interpolatedCrossingTime(
+            previous: previous,
+            current: current,
+            threshold: threshold,
+        ))
+    }
+    return crossings
+}
+
+/// Average period and frequency from **complete** waves only.
+///
+/// Crossings are level passages (rise + fall). The first complete wave needs 3 crossings;
+/// each further wave reuses the last crossing of the previous wave and needs 2 more:
+/// periods = t₂−t₀, t₄−t₂, t₆−t₄, … Partial waves at the start/end are ignored.
+func averagePeriodAndFrequency(
+    from crossings: [Double],
+) -> (period: Double, frequency: Double)? {
+    guard crossings.count >= 3 else {
+        return nil
+    }
+
+    var sum = 0.0
+    var completeWaves = 0
+    var waveStart = 0
+    while waveStart + 2 < crossings.count {
+        let period = crossings[waveStart + 2] - crossings[waveStart]
+        guard period > 0, period.isFinite else {
+            return nil
+        }
+        sum += period
+        completeWaves += 1
+        waveStart += 2
+    }
+
+    guard completeWaves > 0 else {
+        return nil
+    }
+
+    let period = sum / Double(completeWaves)
+    return (period, 1 / period)
+}
+
 /// Detect one fundamental period via rising threshold crossings and keep it.
 /// Default threshold is the midpoint of min/max. Result is shifted so t starts at 0.
 func extractPeriodPoints(_ points: [Point], threshold: Double?) throws -> [Point] {
@@ -137,35 +232,13 @@ func extractPeriodPoints(_ points: [Point], threshold: Double?) throws -> [Point
         thresh = threshold
     }
     else {
-        var minimum = points[0].value
-        var maximum = points[0].value
-        for point in points {
-            minimum = min(minimum, point.value)
-            maximum = max(maximum, point.value)
-        }
-        guard maximum > minimum else {
+        guard let range = valueRange(points), range.maximum > range.minimum else {
             throw Rigol2SpiceError.periodNotDetected
         }
-        thresh = 0.5 * (minimum + maximum)
+        thresh = 0.5 * (range.minimum + range.maximum)
     }
 
-    var crossings: [Double] = []
-    for index in 1 ..< points.count {
-        let previous = points[index - 1]
-        let current = points[index]
-        guard previous.value < thresh, current.value >= thresh else {
-            continue
-        }
-        let delta = current.value - previous.value
-        if delta == 0 {
-            crossings.append(current.time)
-        }
-        else {
-            let fraction = (thresh - previous.value) / delta
-            crossings.append(previous.time + fraction * (current.time - previous.time))
-        }
-    }
-
+    let crossings = risingCrossingTimes(points, threshold: thresh)
     guard crossings.count >= 2 else {
         throw Rigol2SpiceError.periodNotDetected
     }

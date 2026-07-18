@@ -24,3 +24,10 @@ let engineeringFormatter = EngineeringNumberFormatter(
     locale: usLocale,
     useGreekMu: false,
 )
+
+/// Console analysis output (scopes-style one fractional digit).
+let analysisFormatter = EngineeringNumberFormatter(
+    maximumFractionDigits: 1,
+    locale: usLocale,
+    useGreekMu: false,
+)

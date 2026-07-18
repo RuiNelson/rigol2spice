@@ -274,9 +274,10 @@ func scalePeakTo(_ points: [Point], target: Double) -> [Point] {
     return multiplyValueOfPoints(points, factor: target / peak)
 }
 
-func peakToPeakValue(_ points: [Point]) -> Double {
+/// Minimum and maximum sample values, or `nil` when the capture is empty.
+func valueRange(_ points: [Point]) -> (minimum: Double, maximum: Double)? {
     guard let first = points.first else {
-        return 0
+        return nil
     }
     var minimum = first.value
     var maximum = first.value
@@ -284,7 +285,26 @@ func peakToPeakValue(_ points: [Point]) -> Double {
         minimum = min(minimum, point.value)
         maximum = max(maximum, point.value)
     }
-    return maximum - minimum
+    return (minimum, maximum)
+}
+
+func peakToPeakValue(_ points: [Point]) -> Double {
+    guard let range = valueRange(points) else {
+        return 0
+    }
+    return range.maximum - range.minimum
+}
+
+/// Arithmetic mean of sample values. Empty captures return 0.
+func averageValue(_ points: [Point]) -> Double {
+    guard !points.isEmpty else {
+        return 0
+    }
+    var sum = 0.0
+    for point in points {
+        sum += point.value
+    }
+    return sum / Double(points.count)
 }
 
 /// Scale so max − min equals `target`. Unchanged if the span is zero.

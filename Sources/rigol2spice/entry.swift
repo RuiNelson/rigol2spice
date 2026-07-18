@@ -63,6 +63,12 @@ struct Rigol2SpiceCommand: ParsableCommand {
     @Option(name: .shortAndLong, help: "Ordered transformations separated by semicolons.")
     var transformations: String?
 
+    @Option(
+        name: .shortAndLong,
+        help: "Analyses separated by semicolons (order independent; printed to the console after transforms).",
+    )
+    var analysis: String?
+
     @Option(name: .shortAndLong, help: "Downsample ratio.")
     var downsample: Int?
 
@@ -83,7 +89,7 @@ struct Rigol2SpiceCommand: ParsableCommand {
     var inputFile: String
 
     @Argument(
-        help: "The PWL file to write (optional with --list-channels or --plot).",
+        help: "The PWL file to write (optional with --list-channels, --plot, or --analysis).",
         completion: nil,
     )
     var outputFile: String?
@@ -95,6 +101,7 @@ struct Rigol2SpiceCommand: ParsableCommand {
                 listChannels: listChannels,
                 channel: channel,
                 transformations: transformations,
+                analysis: analysis,
                 downsample: downsample,
                 keepAll: keepAll,
                 plotFile: plot.map { $0.isEmpty ? "plot.svg" : $0 },

@@ -147,6 +147,31 @@ The first sample seeds the state (`≥ rise` → high, otherwise low). With a si
 
 ⁶ `TVDenoise λ` solves min_x ½‖x − y‖² + λ · TV(x) with TV(x) = Σ |xᵢ₊₁ − xᵢ| (Condat’s direct 1D algorithm). Larger λ flattens plateaus more aggressively while keeping large jumps; λ = 0 is a no-op. λ has the same units as the sample amplitude. Not an inverse of `AddNoise`.
 
+### Analysis
+
+Pass measurement commands with `-a` or `--analysis`. Syntax matches `-t` (semicolon-separated, case-insensitive, engineering scalars). Results print to the console with one fractional digit (engineering notation). Analyses always run **after** transformations (and downsample), on the processed waveform. When `-a` is used, the PWL output file is optional (same as `-l` / `-p`).
+
+```
+rigol2spice input.csv -a 'Max; Min; RMS; PkPk; Frequency'
+rigol2spice input.csv output.txt -t 'RemoveDC' -a 'DC; Avg; ZeroCrossing'
+rigol2spice input.csv -p -a 'FFT 1024; Frequency'
+```
+
+| Operation | Example | Result |
+|---|---|---|
+| `Max` | `Max` | Maximum sample value |
+| `Min` | `Min` | Minimum sample value |
+| `HiPeak` | `HiPeak` | Alias of `Max` |
+| `LowPeak` | `LowPeak` | Alias of `Min` |
+| `Avg` | `Avg` | Arithmetic mean of sample values |
+| `DC` | `DC` | DC estimate (same k-means method as `RemoveDC`)¹ |
+| `Crossing` | `Crossing 0` · `Crossing 1.5` | Average period/frequency of **complete** waves at that level (rise+fall crossings; first wave needs 3 crossings, each next wave +2, sharing the boundary; partial start/end ignored) |
+| `ZeroCrossing` | `ZeroCrossing` | Alias of `Crossing 0` |
+| `Frequency` | `Frequency` | Same as `Crossing` at the sample average (`Avg`) |
+| `RMS` | `RMS` | Sample RMS (same definition as `ScaleRMS`) |
+| `PkPk` | `PkPk` | Peak-to-peak (`max − min`, same as `PeakToPeak`) |
+| `FFT` | `FFT` · `FFT 1024` · `FFT 1k` | Real FFT: remove mean (DC), Hann window, zero-pad to next 2ⁿ. Bare `FFT` uses **all** samples. `FFT N` uses a **centered** window of up to N samples; if the capture is shorter than N, all available samples are used. Peak is the strongest local AC maximum (sub-bin refined). Console prints that frequency and the N actually used; with `-p`, the SVG also shows the magnitude spectrum in dB. |
+
 ### Post-processing Options
 
 | Option | Effect |
@@ -154,8 +179,9 @@ The first sample seeds the state (`≥ rise` → high, otherwise low). With a si
 | `-d, --downsample N` | Keep every Nth sample (e.g. `2` halves the sample rate) |
 | `-k, --keep-all` | Disable removal of redundant (collinear) points |
 | `-p, --plot [file]` | Write an SVG plot of the processed signal (default: `plot.svg`) |
+| `-a, --analysis <list>` | Print measurements to the console (see above) |
 
-The PWL output file is optional when using `--list-channels` or `--plot`. The plot uses 1 pixel per sample, auto-scaled Y (min / avg / max markers), and decade-spaced X time markers. A console warning is emitted above 10 000 points (prefer downsample or a shorter time window).
+The PWL output file is optional when using `--list-channels`, `--plot`, or `--analysis`. The plot uses 1 pixel per sample, auto-scaled Y (min / avg / max markers), and decade-spaced X time markers. When `-a` is combined with `-p`, analysis results are listed in a text block under the time plot (not drawn over the waveform). An `FFT` analysis also appends a spectrum panel (dB vs frequency, peak marker). A console warning is emitted above 10 000 points (prefer downsample or a shorter time window).
 
 ## Example: Extract One Period and Repeat
 
@@ -177,13 +203,14 @@ OPTIONS:
   -l,  --list-channels            List channels and exit
   -c,  --channel <channel>        Channel or math expression (default: CH1)
   -t,  --transformations <value>  Ordered transformations separated by semicolons
+  -a,  --analysis <value>         Analyses separated by semicolons (console; order independent)
   -d,  --downsample <ratio>       Downsample ratio
   -k,  --keep-all                 Keep all sample points
   -p,  --plot [<file>]            Write SVG plot (default: plot.svg)
   -h,  --help                     Show help
 ```
 
-`output-file` is optional with `-l` or `-p`.
+`output-file` is optional with `-l`, `-p`, or `-a`.
 
 ## Building from Source
 
