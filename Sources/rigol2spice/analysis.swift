@@ -67,6 +67,7 @@ enum Analysis: Equatable {
     case duty(threshold: Double?)
     case period
     case edgeCount(threshold: Double?)
+    case jitter(threshold: Double?)
 
 
 
@@ -241,6 +242,8 @@ enum Analysis: Equatable {
                 return .period
             case "edgecount":
                 return .edgeCount(threshold: try parseOptionalThreshold())
+            case "jitter", "periodstd":
+                return .jitter(threshold: try parseOptionalThreshold())
 
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
@@ -325,6 +328,13 @@ enum Analysis: Equatable {
             }
             else {
                 "EdgeCount"
+            }
+        case let .jitter(threshold):
+            if let threshold {
+                "Jitter \(analysisFormatter.string(threshold))"
+            }
+            else {
+                "Jitter"
             }
         }
     }
@@ -495,6 +505,13 @@ extension Analysis {
         case let .edgeCount(threshold):
             let level = threshold ?? averageValue(points)
             return .scalar(Double(directedLevelCrossings(points, threshold: level).count))
+        case let .jitter(threshold):
+            let level = threshold ?? averageValue(points)
+            let crossings = levelCrossingTimes(points, threshold: level)
+            guard let jitter = periodStandardDeviation(from: crossings) else {
+                return .unavailable
+            }
+            return .scalar(jitter)
 
         }
     }
