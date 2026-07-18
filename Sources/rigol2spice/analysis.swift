@@ -76,8 +76,6 @@ enum Analysis: Equatable {
     case pulseWidth(threshold: Double?)
     /// Duty cycle (0…1) at threshold (`nil` → sample average).
     case duty(threshold: Double?)
-    /// Average period at sample average (same threshold as `Frequency`).
-    case period
     /// Number of level crossings at threshold (`nil` → sample average).
     case edgeCount(threshold: Double?)
     /// Std. dev. of complete-wave periods at threshold (`nil` → sample average).
@@ -259,9 +257,6 @@ enum Analysis: Equatable {
                 return try .pulseWidth(threshold: parseOptionalThreshold())
             case "duty":
                 return try .duty(threshold: parseOptionalThreshold())
-            case "period":
-                try requireArgumentCount(0)
-                return .period
             case "edgecount":
                 return try .edgeCount(threshold: parseOptionalThreshold())
             case "jitter",
@@ -360,7 +355,6 @@ enum Analysis: Equatable {
             else {
                 "Duty"
             }
-        case .period: "Period"
         case let .edgeCount(threshold):
             if let threshold {
                 "EdgeCount \(analysisFormatter.string(threshold))"
@@ -562,8 +556,6 @@ extension Analysis {
                 return .unavailable
             }
             return .scalar(duty)
-        case .period:
-            return periodOnlyOutcome(points, threshold: averageValue(points))
         case let .edgeCount(threshold):
             let level = threshold ?? averageValue(points)
             return .scalar(Double(directedLevelCrossings(points, threshold: level).count))
@@ -602,16 +594,5 @@ extension Analysis {
             return .insufficientCrossings
         }
         return .periodAndFrequency(period: result.period, frequency: result.frequency)
-    }
-
-    private func periodOnlyOutcome(
-        _ points: [Point],
-        threshold: Double,
-    ) -> AnalysisOutcome {
-        let crossings = levelCrossingTimes(points, threshold: threshold)
-        guard let result = averagePeriodAndFrequency(from: crossings) else {
-            return .insufficientCrossings
-        }
-        return .scalar(result.period)
     }
 }

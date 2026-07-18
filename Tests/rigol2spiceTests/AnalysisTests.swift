@@ -348,7 +348,7 @@ struct AnalysisTests {
     }
 
     @Test
-    func `pulse width duty period edge count jitter`() throws {
+    func `pulse width duty edge count jitter`() throws {
         // 50% duty square, period 2: high 1.0s, low 1.0s
         let points = [
             Point(time: 0, value: -1),
@@ -372,12 +372,6 @@ struct AnalysisTests {
         }
         #expect(abs(duty - 0.5) < 1e-12)
 
-        guard case let .scalar(period) = Analysis.period.evaluate(on: points) else {
-            Issue.record("Expected period")
-            return
-        }
-        #expect(abs(period - 2) < 1e-12)
-
         #expect(Analysis.edgeCount(threshold: 0).evaluate(on: points) == .scalar(6))
 
         // Perfect periods → jitter 0 (need ≥2 complete waves)
@@ -387,11 +381,10 @@ struct AnalysisTests {
         }
         #expect(abs(jitter) < 1e-12)
 
-        #expect(try Analysis.parseList("PulseWidth; Duty 0.5; Period; EdgeCount; Jitter; PeriodStd")
+        #expect(try Analysis.parseList("PulseWidth; Duty 0.5; EdgeCount; Jitter; PeriodStd")
             == [
                 .pulseWidth(threshold: nil),
                 .duty(threshold: 0.5),
-                .period,
                 .edgeCount(threshold: nil),
                 .jitter(threshold: nil),
                 .jitter(threshold: nil),
