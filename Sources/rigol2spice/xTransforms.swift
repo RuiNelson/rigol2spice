@@ -147,7 +147,7 @@ func triggerPoints(
 }
 
 /// Interpolated time when the segment from `previous` to `current` meets `threshold`.
-private func interpolatedCrossingTime(
+func interpolatedCrossingTime(
     previous: Point,
     current: Point,
     threshold: Double,
@@ -186,26 +186,7 @@ func risingCrossingTimes(_ points: [Point], threshold: Double) -> [Double] {
 /// All level crossings of `threshold` (rising and falling), linearly interpolated.
 /// Used by frequency analysis so incomplete half-waves at the ends can be discarded.
 func levelCrossingTimes(_ points: [Point], threshold: Double) -> [Double] {
-    guard points.count >= 2 else {
-        return []
-    }
-
-    var crossings: [Double] = []
-    for index in 1 ..< points.count {
-        let previous = points[index - 1]
-        let current = points[index]
-        let crossedUp = previous.value < threshold && current.value >= threshold
-        let crossedDown = previous.value > threshold && current.value <= threshold
-        guard crossedUp || crossedDown else {
-            continue
-        }
-        crossings.append(interpolatedCrossingTime(
-            previous: previous,
-            current: current,
-            threshold: threshold,
-        ))
-    }
-    return crossings
+    directedLevelCrossings(points, threshold: threshold).map(\.time)
 }
 
 /// Average period and frequency from **complete** waves only.
