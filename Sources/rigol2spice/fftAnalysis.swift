@@ -13,8 +13,14 @@ struct FFTSpectrum: Equatable {
     let sampleRate: Double
     /// Frequency of the dominant AC peak (bin 0 / DC is ignored when possible).
     let centerFrequency: Double
+    /// Linear magnitude of the dominant AC peak (same scale as `magnitudes`).
+    let centerMagnitude: Double
+    /// Magnitude of the dominant peak in dB: `20 · log₁₀(|X|)`.
+    let centerMagnitudeDB: Double
     /// Bin centre frequencies from 0 to Nyquist (Hz).
     let frequencies: [Double]
+    /// Linear magnitudes `|X[k]|`.
+    let magnitudes: [Double]
     /// Magnitude in dB: `20 · log₁₀(|X[k|)` with a small floor.
     let magnitudesDB: [Double]
 }
@@ -89,6 +95,7 @@ func computeFFTSpectrum(
         frequencies: frequencies,
         peakBin: peakBin,
     )
+    let centerMagnitudeDB = 20 * log10(max(peakMagnitude, magnitudeFloor))
 
     return FFTSpectrum(
         requestedPointCount: requestedPointCount,
@@ -96,7 +103,10 @@ func computeFFTSpectrum(
         fftSize: fftSize,
         sampleRate: sampleRate,
         centerFrequency: centerFrequency,
+        centerMagnitude: peakMagnitude,
+        centerMagnitudeDB: centerMagnitudeDB,
         frequencies: frequencies,
+        magnitudes: magnitudes,
         magnitudesDB: magnitudesDB,
     )
 }
