@@ -35,6 +35,38 @@ struct Point: Equatable {
     var value: Double
 }
 
+// MARK: - CaptureChannelMetadata
+
+struct CaptureChannelMetadata: Equatable {
+    let name: String
+    let coupling: String
+    let bandwidth: String
+    let probeRatio: Double
+    let voltsPerDivision: Double
+    let verticalOffset: Double
+    let inverted: Bool
+    let unit: String
+}
+
+// MARK: - CaptureMetadata
+
+struct CaptureMetadata: Equatable {
+    let format: String
+    let model: String
+    let serialNumber: String?
+    let firmware: String
+    let fileVersion: UInt16
+    let structureVersion: UInt16
+    let acquisitionMode: String
+    let timeMode: String
+    let horizontalScale: Double
+    let horizontalOffset: Double
+    let memoryDepth: Int
+    let rawDataOffset: Int
+    let channels: [CaptureChannelMetadata]
+    let voltageConversion: String?
+}
+
 // MARK: - Capture
 
 struct Capture: Equatable {
@@ -42,6 +74,21 @@ struct Capture: Equatable {
     let selectedChannel: String?
     let points: [Point]
     let sampleInterval: Double?
+    let metadata: CaptureMetadata?
+
+    init(
+        channels: [String],
+        selectedChannel: String?,
+        points: [Point],
+        sampleInterval: Double?,
+        metadata: CaptureMetadata? = nil,
+    ) {
+        self.channels = channels
+        self.selectedChannel = selectedChannel
+        self.points = points
+        self.sampleInterval = sampleInterval
+        self.metadata = metadata
+    }
 
     var duration: Double? {
         guard let lastPoint = points.last else {
@@ -59,14 +106,53 @@ protocol CaptureParser {
 
 // MARK: - CaptureFormat
 
-enum CaptureFormat {
+enum CaptureFormat: Equatable {
     case legacy
     case centaurus
+    case rigolWFM
+    private static let csvInspectionByteLimit = 4096
+
+    static func detect(in data: Data) -> CaptureFormat {
+        if RigolWFMFamily.detect(in: data) != nil {
+            return .rigolWFM
+        }
+
+        // Rigol's Centaurus CSV starts with a time column (normally `Time(s)`).
+        // Legacy CSV instead starts with `X` and advertises `Start` and `Increment`.
+        // Only inspect a small prefix so detection does not scale with capture size.
+        let prefix = Data(data.prefix(csvInspectionByteLimit))
+        guard let text = String(data: prefix, encoding: .isoLatin1),
+              let firstLine = text.split(whereSeparator: \Character.isNewline).first else {
+            return .legacy
+        }
+
+        let fields = csvFields(in: String(firstLine))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        if let firstField = fields.first,
+           firstField == "time" || firstField.hasPrefix("time(") {
+            return .centaurus
+        }
+        if fields.contains("increment"), fields.contains("start") {
+            return .legacy
+        }
+
+        // Preserve compatibility with CSV exports predating the known layouts.
+        return .legacy
+    }
+
+    var displayName: String {
+        switch self {
+        case .legacy: "Legacy CSV"
+        case .centaurus: "Centaurus CSV"
+        case .rigolWFM: "Rigol WFM"
+        }
+    }
 
     var parser: any CaptureParser {
         switch self {
         case .legacy: LegacyCSVParser()
         case .centaurus: CentaurusCSVParser()
+        case .rigolWFM: RigolWFMParser()
         }
     }
 }

@@ -2,11 +2,25 @@
 
 **Import real oscilloscope captures into your SPICE simulations.**
 
-Converts Rigol oscilloscope CSV exports to PWL (Piece-Wise Linear) files for LTspice and other SPICE simulators. Supports both legacy and newer Centaurus-platform Rigol scopes.
+Converts Rigol oscilloscope CSV and WFM exports to PWL (piece-wise linear) files for LTspice, ngspice, and other SPICE simulators. Supports multi-channel captures, channel math, and a pipeline of waveform transformations (offset, filter, clip, resample, and others). Optional analaysis/measurements (RMS, frequency, rise time, FFT, THD, etc.) and SVG plots.
+
+Written in Swift as a compiled native binary for high performance; runs on Windows, macOS, and Linux.
 
 [![YouTube video](https://img.youtube.com/vi/AaCvPtJ-cZM/0.jpg)](https://www.youtube.com/watch?v=AaCvPtJ-cZM)
 
 [Watch on YouTube](https://www.youtube.com/watch?v=AaCvPtJ-cZM)
+
+## Supported File Formats
+
+Input format is detected from the file contents, not its filename extension.
+
+| Format | Oscilloscope families |
+|---|---|
+| Legacy Rigol CSV | Legacy Rigol oscilloscopes |
+| Centaurus CSV | Newer Centaurus-platform oscilloscopes, including DHO800/DHO900 |
+| Rigol WFM | DS1000B, DS1000C, DS1000D/E, DS1000Z, DS2000/MSO2000, DS4000/MSO4000 |
+
+DHO `.wfm`, logic-only WFM payloads, and Rigol `.trc` files are not supported.
 
 ## Quick Start
 
@@ -16,17 +30,17 @@ Converts Rigol oscilloscope CSV exports to PWL (Piece-Wise Linear) files for LTs
 rigol2spice input.csv output.txt
 ```
 
-For newer Centaurus-platform scopes (e.g. DHO800/900 series), add `-n`:
-
-```
-rigol2spice -n input.csv output.txt
-```
-
 The output `.txt` file can be loaded directly as a PWL source in LTspice and other SPICE simulators.
+
+WFM captures use the same command:
+
+```
+rigol2spice capture.wfm output.txt
+```
 
 ## Channel Selection
 
-List available channels in a CSV with `-l` or `--list-channels`:
+List available channels in a capture with `-l` or `--list-channels`:
 
 ```
 rigol2spice -l input.csv
@@ -260,7 +274,6 @@ rigol2spice -t 'TimeShift -5m; CutAfter 7.5m; Repeat 2' input.csv output.txt
 USAGE: rigol2spice [<options>] <input-file> [<output-file>]
 
 OPTIONS:
-  -n,  --new-models               Newer Rigol Centaurus platform format
   -l,  --list-channels            List channels and exit
   -c,  --channel <channel>        Channel or math expression (default: CH1)
   -t,  --transformations <value>  Ordered transformations separated by semicolons
@@ -278,10 +291,15 @@ OPTIONS:
 Requires Swift 6.2+.
 
 ```
+git submodule update --init --recursive
 swift build
 ```
 
 Builds on macOS, Windows, and Linux.
+
+## Acknowledgements
+
+Special thanks to [Scott Prahl](https://github.com/scottprahl), author of [RigolWFM](https://github.com/scottprahl/RigolWFM), for publishing the reverse-engineering research and Kaitai Struct schema that made DS1000Z WFM support possible.
 
 ## Legal
 
