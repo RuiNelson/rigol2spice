@@ -94,83 +94,47 @@ struct Rigol2spiceTests {
     }
 
     @Test
-    func `remove noise flattens plateaus while keeping large edges`() throws {
-        #expect(try Transformation.parseList("RemoveNoise") == [.removeNoise(threshold: nil)])
-        #expect(try Transformation.parseList("RemoveNoise 0.05") == [.removeNoise(threshold: 0.05)])
-        #expect(try Transformation.parseList("RemoveNoise 0") == [.removeNoise(threshold: 0)])
+    func `tv denoise flattens noisy plateaus while keeping large jumps`() throws {
+        #expect(try Transformation.parseList("TVDenoise 0.05") == [.tvDenoise(0.05)])
+        #expect(try Transformation.parseList("TVDenoise 0") == [.tvDenoise(0)])
         #expect(throws: (any Error).self) {
-            try Transformation.parseList("RemoveNoise -1")
+            try Transformation.parseList("TVDenoise -1")
         }
         #expect(throws: (any Error).self) {
-            try Transformation.parseList("RemoveNoise 1, 2")
+            try Transformation.parseList("TVDenoise")
         }
 
-        // Noisy low plateau, sharp edge, noisy high plateau
-        let digital = [
-            Point(time: 0, value: 0.00),
-            Point(time: 1, value: 0.04),
-            Point(time: 2, value: -0.03),
-            Point(time: 3, value: 0.02),
-            Point(time: 4, value: 1.00),
-            Point(time: 5, value: 1.03),
-            Point(time: 6, value: 0.97),
-            Point(time: 7, value: 1.02),
-        ]
-        let cleaned = try Transformation.removeNoise(threshold: 0.1).applying(to: digital)
-        #expect(cleaned.count == digital.count)
-        #expect(cleaned.map(\.time) == digital.map(\.time))
-        let lowPlateau = cleaned.prefix(4).map(\.value)
-        let highPlateau = cleaned.suffix(4).map(\.value)
-        #expect(lowPlateau.allSatisfy { abs($0 - lowPlateau[0]) < 1e-12 })
-        #expect(highPlateau.allSatisfy { abs($0 - highPlateau[0]) < 1e-12 })
-        #expect(abs(highPlateau[0] - lowPlateau[0]) > 0.5)
-        // Re-mean should sit near the plateau averages, not lock to a single noisy sample
-        #expect(abs(lowPlateau[0]) < 0.05)
-        #expect(abs(highPlateau[0] - 1.0) < 0.05)
+        let quiet = [Point(time: 0, value: 1), Point(time: 1, value: 2)]
+        #expect(try Transformation.tvDenoise(0).applying(to: quiet) == quiet)
 
-        // Single-sample glitch is removed by the median stage
-        let withGlitch = [
-            Point(time: 0, value: 0),
-            Point(time: 1, value: 0),
-            Point(time: 2, value: 0),
-            Point(time: 3, value: 3.3),
-            Point(time: 4, value: 0),
-            Point(time: 5, value: 0),
-            Point(time: 6, value: 0),
-            Point(time: 7, value: 3.3),
-            Point(time: 8, value: 3.3),
-            Point(time: 9, value: 3.3),
-        ]
-        let deglitched = try Transformation.removeNoise(threshold: 0.2).applying(to: withGlitch)
-        #expect(deglitched.prefix(7).allSatisfy { abs($0.value) < 1e-9 })
-        #expect(deglitched.suffix(3).allSatisfy { abs($0.value - 3.3) < 1e-9 })
-
-        // Fine slew becomes a staircase of height ~T but still reaches the end
-        let ramp = (0 ... 20).map { Point(time: Double($0), value: Double($0) * 0.05) }
-        let ramped = try Transformation.removeNoise(threshold: 0.1).applying(to: ramp)
-        #expect(ramped.last!.value - ramped.first!.value > 0.8)
-        // Plateaus inside the staircase are perfectly flat
-        var runLength = 1
-        for index in 1 ..< ramped.count {
-            if ramped[index].value == ramped[index - 1].value {
-                runLength += 1
-            }
-            else {
-                runLength = 1
-            }
+        // Piecewise-constant signal + small noise
+        let clean = [0.0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0]
+        let noise: [Double] = [0.02, -0.03, 0.01, -0.02, 0.03, -0.01, 0.02, -0.02, 0.01, -0.03, 0.02, -0.01]
+        let noisy = zip(clean, noise).enumerated().map { index, pair in
+            Point(time: Double(index), value: pair.0 + pair.1)
         }
-        #expect(runLength >= 1)
+        let denoised = try Transformation.tvDenoise(0.15).applying(to: noisy)
+        #expect(denoised.map(\.time) == noisy.map(\.time))
 
-        // Auto threshold uses 5% of peak-to-peak after median
-        let probe = [
-            Point(time: 0, value: 0),
-            Point(time: 1, value: 0.01),
-            Point(time: 2, value: 2),
-        ]
-        let auto = removeNoisePoints(probe, threshold: nil)
-        let span = peakToPeakValue(medianPoints(probe, window: 3))
-        let explicit = removeNoisePoints(probe, threshold: 0.05 * span)
-        #expect(auto == explicit)
+        let inputTV = totalVariation(noisy.map(\.value))
+        let outputTV = totalVariation(denoised.map(\.value))
+        #expect(outputTV < inputTV)
+
+        // Plateaus should be nearly constant; the mid jump near 1 should survive
+        let lowStart = denoised.prefix(4).map(\.value)
+        let highMid = denoised[4 ..< 8].map(\.value)
+        let lowEnd = denoised.suffix(4).map(\.value)
+        #expect(lowStart.max()! - lowStart.min()! < 0.05)
+        #expect(highMid.max()! - highMid.min()! < 0.05)
+        #expect(lowEnd.max()! - lowEnd.min()! < 0.05)
+        let lowLevel = lowStart.reduce(0, +) / Double(lowStart.count)
+        let highLevel = highMid.reduce(0, +) / Double(highMid.count)
+        #expect(highLevel - lowLevel > 0.7)
+
+        // Constant signal is unchanged
+        let constant = (0 ..< 20).map { Point(time: Double($0), value: 3.3) }
+        let still = try Transformation.tvDenoise(1).applying(to: constant)
+        #expect(still.allSatisfy { abs($0.value - 3.3) < 1e-9 })
     }
 
     @Test

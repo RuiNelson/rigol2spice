@@ -233,17 +233,10 @@ struct Rigol2SpiceApplication {
             Console.section(
                 "Adding Gaussian noise (σ=\(engineeringFormatter.string(value)))...",
             )
-        case let .removeNoise(threshold):
-            if let threshold {
-                Console.section(
-                    "Removing digital noise (deadband \(engineeringFormatter.string(threshold)))...",
-                )
-            }
-            else {
-                Console.section(
-                    "Removing digital noise (deadband auto 5% peak-to-peak)...",
-                )
-            }
+        case let .tvDenoise(value):
+            Console.section(
+                "Total variation denoising (λ=\(engineeringFormatter.string(value)))...",
+            )
         case let .multiply(value):
             Console.section("Multiplying the signal by a factor of \(engineeringFormatter.string(value))...")
         case .invert:

@@ -43,7 +43,7 @@ enum Transformation: Equatable {
     case gate(Double)
     case offset(Double)
     case addNoise(Double)
-    case removeNoise(threshold: Double?)
+    case tvDenoise(Double)
     case multiply(Double)
     case invert
     case abs
@@ -195,25 +195,15 @@ enum Transformation: Equatable {
                     )
                 }
                 return .addNoise(value)
-            case "removenoise":
-                guard arguments.count <= 1 else {
-                    throw TransformationParseError.invalidArgumentCount(
-                        operation: operation,
-                        expected: 0,
-                        actual: arguments.count,
-                    )
-                }
-                if arguments.isEmpty {
-                    return .removeNoise(threshold: nil)
-                }
-                let value = try parseScalarArgument(arguments[0])
+            case "tvdenoise":
+                let value = try scalar()
                 guard value >= 0 else {
                     throw TransformationParseError.invalidPositiveScalar(
                         operation: operation,
                         value: arguments[0],
                     )
                 }
-                return .removeNoise(threshold: value)
+                return .tvDenoise(value)
             case "multiply":
                 return try .multiply(scalar())
             case "invert":
@@ -656,8 +646,8 @@ enum Transformation: Equatable {
             return offsetPoints(points, offset: value)
         case let .addNoise(value):
             return addNoisePoints(points, amplitude: value)
-        case let .removeNoise(threshold):
-            return removeNoisePoints(points, threshold: threshold)
+        case let .tvDenoise(value):
+            return tvDenoisePoints(points, lambda: value)
         case let .multiply(value):
             return multiplyValueOfPoints(points, factor: value)
         case .invert:

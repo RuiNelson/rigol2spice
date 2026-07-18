@@ -50,69 +50,141 @@ func addNoisePoints(_ points: [Point], amplitude: Double) -> [Point] {
     return output
 }
 
-/// Default fraction of peak-to-peak used when `RemoveNoise` has no explicit threshold.
-let removeNoiseAutoThresholdFraction = 0.05
+/// 1D total variation of a value sequence: Σ |x[i+1] − x[i]|.
+func totalVariation(_ values: [Double]) -> Double {
+    guard values.count >= 2 else {
+        return 0
+    }
+    var total = 0.0
+    for index in 1 ..< values.count {
+        total += abs(values[index] - values[index - 1])
+    }
+    return total
+}
 
-/// Clean digital-ish captures: median-3, deadband hold, then plateau re-mean.
+/// 1D total variation denoising (Condat, 2013).
+/// Solves: min_x  ½‖x − y‖² + λ · TV(x), with TV(x) = Σ |x[i+1] − x[i]|.
+/// Larger `lambda` yields a more piecewise-constant result (stronger denoising).
+/// `lambda == 0` leaves the signal unchanged.
 ///
-/// - Parameter threshold: Maximum step treated as plateau chatter. When `nil`, uses
-///   5% of the capture's peak-to-peak after the median stage. `0` skips hold + re-mean.
-///
-/// 1. **Median 3** — remove single-sample spikes.
-/// 2. **Deadband hold** — if `|sample − held| < T`, keep the held level; otherwise accept
-///    the sample as the new level. Large edges jump cleanly; fine slews become steps of ~T.
-/// 3. **Re-mean** — each constant held run is replaced by the mean of the post-median
-///    samples in that run, so plateaus settle to the true rail instead of the first sample.
-func removeNoisePoints(_ points: [Point], threshold: Double?) -> [Point] {
-    guard points.count >= 2 else {
+/// Algorithm: L. Condat, “A Direct Algorithm for 1-D Total Variation Denoising”,
+/// IEEE Signal Processing Letters, 2013. Ported from the author's reference C code.
+func tvDenoiseValues(_ input: [Double], lambda: Double) -> [Double] {
+    let width = input.count
+    guard width > 0 else {
+        return input
+    }
+    guard lambda > 0 else {
+        return input
+    }
+
+    var output = [Double](repeating: 0, count: width)
+    var k = 0
+    var k0 = 0
+    var umin = lambda
+    var umax = -lambda
+    var vmin = input[0] - lambda
+    var vmax = input[0] + lambda
+    var kplus = 0
+    var kminus = 0
+    let twoLambda = 2 * lambda
+    let minLambda = -lambda
+
+    while true {
+        while k == width - 1 {
+            if umin < 0 {
+                // vmin too high → negative jump
+                repeat {
+                    output[k0] = vmin
+                    k0 += 1
+                } while k0 <= kminus
+                k = k0
+                kminus = k0
+                vmin = input[k0]
+                umin = lambda
+                umax = vmin + umin - vmax
+            }
+            else if umax > 0 {
+                // vmax too low → positive jump
+                repeat {
+                    output[k0] = vmax
+                    k0 += 1
+                } while k0 <= kplus
+                k = k0
+                kplus = k0
+                vmax = input[k0]
+                umax = minLambda
+                umin = vmax + umax - vmin
+            }
+            else {
+                vmin += umin / Double(k - k0 + 1)
+                repeat {
+                    output[k0] = vmin
+                    k0 += 1
+                } while k0 <= k
+                return output
+            }
+        }
+
+        umin += input[k + 1] - vmin
+        if umin < minLambda {
+            // negative jump
+            repeat {
+                output[k0] = vmin
+                k0 += 1
+            } while k0 <= kminus
+            k = k0
+            kminus = k0
+            kplus = k0
+            vmin = input[k0]
+            vmax = vmin + twoLambda
+            umin = lambda
+            umax = minLambda
+            continue
+        }
+
+        umax += input[k + 1] - vmax
+        if umax > lambda {
+            // positive jump
+            repeat {
+                output[k0] = vmax
+                k0 += 1
+            } while k0 <= kplus
+            k = k0
+            kminus = k0
+            kplus = k0
+            vmax = input[k0]
+            vmin = vmax - twoLambda
+            umin = lambda
+            umax = minLambda
+            continue
+        }
+
+        // no jump — continue the segment
+        k += 1
+        if umin >= lambda {
+            kminus = k
+            vmin += (umin - lambda) / Double(kminus - k0 + 1)
+            umin = lambda
+        }
+        if umax <= minLambda {
+            kplus = k
+            vmax += (umax + lambda) / Double(kplus - k0 + 1)
+            umax = minLambda
+        }
+    }
+}
+
+/// Apply 1D total variation denoising to sample values; times are unchanged.
+func tvDenoisePoints(_ points: [Point], lambda: Double) -> [Point] {
+    guard !points.isEmpty else {
         return points
     }
-
-    // Stage 1: kill single-sample spikes without a full low-pass smear.
-    let source = medianPoints(points, window: 3)
-
-    let holdThreshold: Double
-    if let threshold {
-        holdThreshold = threshold
-    }
-    else {
-        holdThreshold = removeNoiseAutoThresholdFraction * peakToPeakValue(source)
-    }
-
-    guard holdThreshold > 0 else {
-        return source
-    }
-
-    // Stage 2: deadband hold against the previous *held* level (not the raw neighbour).
-    var held = source
-    for index in 1 ..< source.count {
-        if abs(source[index].value - held[index - 1].value) < holdThreshold {
-            held[index].value = held[index - 1].value
-        }
-        else {
-            held[index].value = source[index].value
-        }
-    }
-
-    // Stage 3: each constant run → mean of the post-median samples in that run.
-    var output = held
-    var runStart = 0
-    while runStart < output.count {
-        let level = held[runStart].value
-        var runEnd = runStart + 1
-        while runEnd < held.count, held[runEnd].value == level {
-            runEnd += 1
-        }
-
-        var sum = 0.0
-        for index in runStart ..< runEnd {
-            sum += source[index].value
-        }
-        let mean = sum / Double(runEnd - runStart)
-        for index in runStart ..< runEnd {
-            output[index].value = mean
-        }
-        runStart = runEnd
+    let values = points.map(\.value)
+    let denoised = tvDenoiseValues(values, lambda: lambda)
+    var output = points
+    for index in output.indices {
+        output[index].value = denoised[index]
     }
     return output
 }
