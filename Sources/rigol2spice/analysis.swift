@@ -63,6 +63,7 @@ enum Analysis: Equatable {
     case undershoot
     case riseTime(lowPercent: Double, highPercent: Double)
     case fallTime(lowPercent: Double, highPercent: Double)
+    case pulseWidth(threshold: Double?)
 
 
 
@@ -102,6 +103,14 @@ enum Analysis: Equatable {
                     throw AnalysisParseError.invalidScalar(operation: operation, value: argument)
                 }
                 return value
+            }
+
+            func parseOptionalThreshold() throws -> Double? {
+                if arguments.isEmpty {
+                    return nil
+                }
+                try requireArgumentCount(1)
+                return try parseScalarArgument(arguments[0])
             }
 
             func parsePercentPair(defaultLow: Double, defaultHigh: Double) throws -> (Double, Double) {
@@ -220,6 +229,8 @@ enum Analysis: Equatable {
             case "falltime":
                 let pair = try parsePercentPair(defaultLow: 10, defaultHigh: 90)
                 return .fallTime(lowPercent: pair.0, highPercent: pair.1)
+            case "pulsewidth":
+                return .pulseWidth(threshold: try parseOptionalThreshold())
 
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
@@ -282,6 +293,13 @@ enum Analysis: Equatable {
             }
             else {
                 "FallTime \(analysisFormatter.string(low)), \(analysisFormatter.string(high))"
+            }
+        case let .pulseWidth(threshold):
+            if let threshold {
+                "PulseWidth \(analysisFormatter.string(threshold))"
+            }
+            else {
+                "PulseWidth"
             }
         }
     }
@@ -435,6 +453,12 @@ extension Analysis {
                 return .unavailable
             }
             return .scalar(dt)
+        case let .pulseWidth(threshold):
+            let level = threshold ?? averageValue(points)
+            guard let width = averagePulseWidth(points, threshold: level, high: true) else {
+                return .unavailable
+            }
+            return .scalar(width)
 
         }
     }
