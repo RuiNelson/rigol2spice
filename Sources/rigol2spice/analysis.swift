@@ -64,6 +64,7 @@ enum Analysis: Equatable {
     case riseTime(lowPercent: Double, highPercent: Double)
     case fallTime(lowPercent: Double, highPercent: Double)
     case pulseWidth(threshold: Double?)
+    case duty(threshold: Double?)
 
 
 
@@ -231,6 +232,8 @@ enum Analysis: Equatable {
                 return .fallTime(lowPercent: pair.0, highPercent: pair.1)
             case "pulsewidth":
                 return .pulseWidth(threshold: try parseOptionalThreshold())
+            case "duty":
+                return .duty(threshold: try parseOptionalThreshold())
 
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
@@ -300,6 +303,13 @@ enum Analysis: Equatable {
             }
             else {
                 "PulseWidth"
+            }
+        case let .duty(threshold):
+            if let threshold {
+                "Duty \(analysisFormatter.string(threshold))"
+            }
+            else {
+                "Duty"
             }
         }
     }
@@ -459,6 +469,12 @@ extension Analysis {
                 return .unavailable
             }
             return .scalar(width)
+        case let .duty(threshold):
+            let level = threshold ?? averageValue(points)
+            guard let duty = dutyCycleFraction(points, threshold: level) else {
+                return .unavailable
+            }
+            return .scalar(duty)
 
         }
     }
