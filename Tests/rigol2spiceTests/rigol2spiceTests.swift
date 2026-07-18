@@ -526,15 +526,17 @@ struct Rigol2spiceTests {
     }
 
     @Test
-    func `normalize is an alias of peakTo 1`() throws {
+    func `normalize is an alias of peakToPeak 1`() throws {
         #expect(try Transformation.parseList("Normalize") == [.normalize])
 
         let points = [Point(time: 0, value: -2), Point(time: 1, value: 1)]
         let normalized = try Transformation.normalize.applying(to: points)
-        let peakToOne = try Transformation.peakTo(1).applying(to: points)
+        let peakToPeakOne = try Transformation.peakToPeak(1).applying(to: points)
 
-        #expect(normalized == peakToOne)
-        #expect(normalized.map(\.value) == [-1, 0.5])
+        #expect(normalized == peakToPeakOne)
+        // span = 3 → scale to 1 → factor 1/3
+        #expect(abs(normalized[0].value - (-2.0 / 3.0)) < 1e-12)
+        #expect(abs(normalized[1].value - (1.0 / 3.0)) < 1e-12)
         #expect(try Transformation.normalize.applying(to: [Point(time: 0, value: 0)]).map(\.value) == [0])
     }
 

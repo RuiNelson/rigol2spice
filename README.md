@@ -65,8 +65,8 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `Multiply` | `Multiply 10` | Multiply every value by the scalar |
 | `Invert` | `Invert` | Multiply every value by −1 (alias of `Multiply -1`) |
 | `PeakTo` | `PeakTo 3.3` | Scale so the peak absolute value equals the scalar |
-| `Normalize` | `Normalize` | Alias of `PeakTo 1` |
 | `PeakToPeak` | `PeakToPeak 2` | Scale so max − min equals the scalar |
+| `Normalize` | `Normalize` | Alias of `PeakToPeak 1` |
 | `ScaleRMS` | `ScaleRMS 0.707` | Scale so the sample RMS equals the scalar |
 | `dB` | `dB 6` | Scale amplitude by the given voltage dB (×10^(dB/20)) |
 | `dBmW` | `dBmW 10` · `dBmW 0, 75` | × volts for that power into R Ω (e.g. 10 dBm @ 50 Ω ≈ 0.707 V)³ |

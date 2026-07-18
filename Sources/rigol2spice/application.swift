@@ -238,7 +238,7 @@ struct Rigol2SpiceApplication {
         case .rectify:
             Console.section("Half-wave rectifying the signal...")
         case .normalize:
-            Console.section("Normalizing the signal to unit peak (PeakTo 1)...")
+            Console.section("Normalizing the signal to unit peak-to-peak (PeakToPeak 1)...")
         case let .peakTo(value):
             Console.section("Scaling peak absolute value to \(engineeringFormatter.string(value))...")
         case let .peakToPeak(value):

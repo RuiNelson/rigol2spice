@@ -633,7 +633,7 @@ enum Transformation: Equatable {
         case .rectify:
             return rectifyPoints(points)
         case .normalize:
-            return scalePeakTo(points, target: 1)
+            return scalePeakToPeak(points, target: 1)
         case let .peakTo(value):
             return scalePeakTo(points, target: value)
         case let .peakToPeak(value):
