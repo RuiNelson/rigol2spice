@@ -53,6 +53,7 @@ enum Analysis: Equatable {
     case acRms
     case stdDev
     case crest
+    case median
 
 
 
@@ -176,6 +177,9 @@ enum Analysis: Equatable {
             case "crest":
                 try requireArgumentCount(0)
                 return .crest
+            case "median":
+                try requireArgumentCount(0)
+                return .median
 
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
@@ -220,6 +224,7 @@ enum Analysis: Equatable {
         case .acRms: "ACRms"
         case .stdDev: "StdDev"
         case .crest: "Crest"
+        case .median: "Median"
         }
     }
 }
@@ -340,6 +345,8 @@ extension Analysis {
                 return .unavailable
             }
             return .scalar(crest)
+        case .median:
+            return .scalar(medianValue(points))
 
         }
     }
