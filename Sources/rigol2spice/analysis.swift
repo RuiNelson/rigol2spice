@@ -41,6 +41,9 @@ enum Analysis: Equatable {
     /// Real FFT over a centered window of up to `pointCount` samples (Hann + zero-pad to 2ⁿ).
     /// `pointCount == nil` means use every sample in the capture.
     case fft(pointCount: Int?)
+    case duration
+
+
 
     static func parseList(_ source: String) throws -> [Analysis] {
         let commands = source.split(separator: ";", omittingEmptySubsequences: false)
@@ -80,6 +83,22 @@ enum Analysis: Equatable {
                 return value
             }
 
+            func parseOptionalPointCount() throws -> Int? {
+                if arguments.isEmpty {
+                    return nil
+                }
+                try requireArgumentCount(1)
+                let raw = arguments[0]
+                let value = try parseScalarArgument(raw)
+                guard value >= 1,
+                      value <= Double(Int.max),
+                      value == value.rounded(.towardZero) || abs(value - value.rounded()) < 1e-12 else {
+                    throw AnalysisParseError.invalidPositiveInteger(operation: operation, value: raw)
+                }
+                return Int(value.rounded())
+            }
+
+
             switch operation.lowercased() {
             case "max", "hipeak":
                 try requireArgumentCount(0)
@@ -109,31 +128,19 @@ enum Analysis: Equatable {
                 try requireArgumentCount(0)
                 return .pkPk
             case "fft":
-                if arguments.isEmpty {
-                    return .fft(pointCount: nil)
-                }
-                guard arguments.count == 1 else {
-                    throw AnalysisParseError.invalidArgumentCount(
-                        operation: operation,
-                        expected: 1,
-                        actual: arguments.count,
-                    )
-                }
-                let raw = arguments[0]
-                let value = try parseScalarArgument(raw)
-                guard value >= 1,
-                      value <= Double(Int.max),
-                      value == value.rounded(.towardZero) || abs(value - value.rounded()) < 1e-12 else {
-                    throw AnalysisParseError.invalidPositiveInteger(operation: operation, value: raw)
-                }
-                return .fft(pointCount: Int(value.rounded()))
+                return .fft(pointCount: try parseOptionalPointCount())
+            case "duration":
+                try requireArgumentCount(0)
+                return .duration
+
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
             }
+
         }
     }
 
-    /// Display name used in console output.
+
     var label: String {
         switch self {
         case .max: "Max"
@@ -157,11 +164,13 @@ enum Analysis: Equatable {
             else {
                 "FFT"
             }
+        case .duration: "Duration"
         }
     }
 }
 
 // MARK: - AnalysisOutcome
+
 
 enum AnalysisOutcome: Equatable {
     case scalar(Double)
@@ -174,13 +183,13 @@ enum AnalysisOutcome: Equatable {
 // MARK: - AnalysisReport
 
 /// One evaluated analysis, shared by console output and the SVG plot footer.
+
 struct AnalysisReport: Equatable {
     let analysis: Analysis
     let outcome: AnalysisOutcome
 
     var label: String { analysis.label }
 
-    /// Spectrum payload when this report is a successful FFT analysis.
     var fftSpectrum: FFTSpectrum? {
         if case let .fft(spectrum) = outcome {
             return spectrum
@@ -188,9 +197,6 @@ struct AnalysisReport: Equatable {
         return nil
     }
 
-    /// Console / plot line using the analysis engineering formatter (1 decimal).
-    /// FFT reports only the dominant (center) frequency; the N shown is samples actually used
-    /// (capped to the capture length when the request exceeds available points).
     var displayLine: String {
         switch outcome {
         case let .scalar(value):
@@ -201,7 +207,6 @@ struct AnalysisReport: Equatable {
             return "\(label): no complete wave (need ≥ 3 level crossings)"
         case let .fft(spectrum):
             let freq = analysisFormatter.string(spectrum.centerFrequency)
-            // N is samples actually used (capped to capture length when the request is larger).
             if spectrum.usedPointCount < spectrum.requestedPointCount {
                 return "FFT \(spectrum.usedPointCount): \(freq)Hz (requested \(spectrum.requestedPointCount))"
             }
@@ -211,7 +216,6 @@ struct AnalysisReport: Equatable {
         }
     }
 
-    /// Evaluate every analysis on `points` (order preserved only for display).
     static func reports(for analyses: [Analysis], on points: [Point]) -> [AnalysisReport] {
         analyses.map { analysis in
             AnalysisReport(analysis: analysis, outcome: analysis.evaluate(on: points))
@@ -219,8 +223,8 @@ struct AnalysisReport: Equatable {
     }
 }
 
+
 extension Analysis {
-    /// Evaluate using the same measurement helpers as amplitude transforms / period extract.
     func evaluate(on points: [Point]) -> AnalysisOutcome {
         switch self {
         case .max:
@@ -240,12 +244,14 @@ extension Analysis {
         case .pkPk:
             return .scalar(peakToPeakValue(points))
         case let .fft(pointCount):
-            // Bare `FFT` → every sample; `FFT N` → up to N (capped to available).
             let requested = pointCount ?? points.count
             guard let spectrum = computeFFTSpectrum(points: points, requestedPointCount: requested) else {
                 return .fftUnavailable
             }
             return .fft(spectrum)
+        case .duration:
+            return .scalar(captureDuration(points))
+
         }
     }
 
@@ -253,7 +259,6 @@ extension Analysis {
         _ points: [Point],
         threshold: Double,
     ) -> AnalysisOutcome {
-        // Level crossings (rise + fall); only complete waves contribute to T/f.
         let crossings = levelCrossingTimes(points, threshold: threshold)
         guard let result = averagePeriodAndFrequency(from: crossings) else {
             return .insufficientCrossings
@@ -261,3 +266,4 @@ extension Analysis {
         return .periodAndFrequency(period: result.period, frequency: result.frequency)
     }
 }
+
