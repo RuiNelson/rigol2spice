@@ -50,6 +50,71 @@ func addNoisePoints(_ points: [Point], amplitude: Double) -> [Point] {
     return output
 }
 
+/// Default fraction of peak-to-peak used when `RemoveNoise` has no explicit threshold.
+let removeNoiseAutoThresholdFraction = 0.05
+
+/// Clean digital-ish captures: median-3 spike removal, then plateau hold.
+///
+/// - Parameter threshold: Maximum step treated as plateau chatter. When `nil`, uses
+///   5% of the capture's peak-to-peak after the median stage. `0` skips the hold stage.
+///
+/// Hold rule (left → right): if `|v[i]−v[i−1]| < T` and the step is **not** part of a
+/// monotonic run (look-behind, or look-ahead at the first step), set `v[i] = v[i−1]`.
+/// Direction is judged on the post-median samples so holds do not destroy ramps.
+/// Large steps and monotonic slews are kept intact.
+func removeNoisePoints(_ points: [Point], threshold: Double?) -> [Point] {
+    guard points.count >= 2 else {
+        return points
+    }
+
+    // Stage 1: kill single-sample spikes without rounding large edges.
+    let source = medianPoints(points, window: 3)
+
+    let holdThreshold: Double
+    if let threshold {
+        holdThreshold = threshold
+    }
+    else {
+        holdThreshold = removeNoiseAutoThresholdFraction * peakToPeakValue(source)
+    }
+
+    guard holdThreshold > 0, source.count >= 2 else {
+        return source
+    }
+
+    // Stage 2: plateau hold with monotonic-ramp exception.
+    var output = source
+    for index in 1 ..< source.count {
+        let delta = source[index].value - source[index - 1].value
+        if abs(delta) >= holdThreshold {
+            output[index].value = source[index].value
+            continue
+        }
+
+        let sameDirection: Bool
+        if index >= 2 {
+            let previousDelta = source[index - 1].value - source[index - 2].value
+            sameDirection = delta * previousDelta > 0
+        }
+        else if index + 1 < source.count {
+            // First step: look ahead so the start of a ramp is not held flat.
+            let nextDelta = source[index + 1].value - source[index].value
+            sameDirection = delta * nextDelta > 0
+        }
+        else {
+            sameDirection = false
+        }
+
+        if sameDirection {
+            output[index].value = source[index].value
+        }
+        else {
+            output[index].value = output[index - 1].value
+        }
+    }
+    return output
+}
+
 func clamp(_ points: [Point], lowerLimit: Double?, upperLimit: Double?) -> [Point] {
     guard lowerLimit != nil || upperLimit != nil else {
         return points

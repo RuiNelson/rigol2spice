@@ -94,6 +94,59 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `remove noise flattens plateaus while keeping edges and ramps`() throws {
+        #expect(try Transformation.parseList("RemoveNoise") == [.removeNoise(threshold: nil)])
+        #expect(try Transformation.parseList("RemoveNoise 0.05") == [.removeNoise(threshold: 0.05)])
+        #expect(try Transformation.parseList("RemoveNoise 0") == [.removeNoise(threshold: 0)])
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("RemoveNoise -1")
+        }
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("RemoveNoise 1, 2")
+        }
+
+        // Noisy low plateau, sharp edge, noisy high plateau
+        let digital = [
+            Point(time: 0, value: 0.00),
+            Point(time: 1, value: 0.04),
+            Point(time: 2, value: -0.03),
+            Point(time: 3, value: 0.02),
+            Point(time: 4, value: 1.00),
+            Point(time: 5, value: 1.03),
+            Point(time: 6, value: 0.97),
+            Point(time: 7, value: 1.02),
+        ]
+        let cleaned = try Transformation.removeNoise(threshold: 0.1).applying(to: digital)
+        // After median-3 + hold, plateaus should be flat-ish and the large edge kept
+        #expect(cleaned.count == digital.count)
+        #expect(cleaned.map(\.time) == digital.map(\.time))
+        let lowPlateau = cleaned.prefix(4).map(\.value)
+        let highPlateau = cleaned.suffix(4).map(\.value)
+        #expect(lowPlateau.allSatisfy { abs($0 - lowPlateau[0]) < 1e-12 })
+        #expect(highPlateau.allSatisfy { abs($0 - highPlateau[0]) < 1e-12 })
+        #expect(abs(highPlateau[0] - lowPlateau[0]) > 0.5)
+
+        // Monotonic ramp with sub-threshold steps must keep rising (slew preserved)
+        let ramp = (0 ... 10).map { Point(time: Double($0), value: Double($0) * 0.05) }
+        let ramped = try Transformation.removeNoise(threshold: 0.1).applying(to: ramp)
+        for index in 1 ..< ramped.count {
+            #expect(ramped[index].value >= ramped[index - 1].value - 1e-12)
+        }
+        #expect(ramped.last!.value - ramped.first!.value > 0.4)
+
+        // Auto threshold uses 5% of peak-to-peak
+        let auto = removeNoisePoints(
+            [Point(time: 0, value: 0), Point(time: 1, value: 0.01), Point(time: 2, value: 2)],
+            threshold: nil,
+        )
+        let explicit = removeNoisePoints(
+            [Point(time: 0, value: 0), Point(time: 1, value: 0.01), Point(time: 2, value: 2)],
+            threshold: 0.05 * 2,
+        )
+        #expect(auto == explicit)
+    }
+
+    @Test
     func `add noise injects zero mean gaussian samples`() throws {
         #expect(try Transformation.parseList("AddNoise 0.01") == [.addNoise(0.01)])
         #expect(try Transformation.parseList("AddNoise 0") == [.addNoise(0)])

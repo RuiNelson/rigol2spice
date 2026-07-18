@@ -63,6 +63,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `RemoveDC` | `RemoveDC` | Estimate and subtract the DC component¹ |
 | `Offset` | `Offset -1.5` | Add the scalar to every value |
 | `AddNoise` | `AddNoise 10m` | Add zero-mean Gaussian noise with standard deviation equal to the scalar |
+| `RemoveNoise` | `RemoveNoise` · `RemoveNoise 50m` | Clean digital plateaus (median-3 + hold); keeps large edges and monotonic ramps⁶ |
 | `Multiply` | `Multiply 10` | Multiply every value by the scalar |
 | `Invert` | `Invert` | Multiply every value by −1 (alias of `Multiply -1`) |
 | `PeakTo` | `PeakTo 3.3` | Scale so the peak absolute value equals the scalar |
@@ -143,6 +144,8 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `Digitize fall, rise, low, high` | Schmitt trigger: go high when the sample is ≥ `rise`, go low when ≤ `fall`; stay put while between the two (hysteresis). `fall` and `rise` may be given in either order |
 
 The first sample seeds the state (`≥ rise` → high, otherwise low). With a single threshold the compare is hard (no band between levels). Use hysteresis when the analog edge is noisy so the digital output does not chatter.
+
+⁶ `RemoveNoise` cleans digital-ish captures without forcing two logic levels (unlike `Digitize`). It always applies a centered median of 3 samples, then a left-to-right plateau hold: if the step from the previous sample is smaller than the threshold **and** is not continuing a monotonic ramp, the sample is held at the previous value. Large steps and same-direction multi-sample slews are left unchanged. With no argument the threshold is 5% of peak-to-peak after the median stage; `RemoveNoise 0` runs only the median. Not an inverse of `AddNoise`.
 
 ### Post-processing Options
 
