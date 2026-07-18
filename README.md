@@ -193,6 +193,7 @@ rigol2spice input.csv -p -a 'FFT 1024; Frequency'
 | `PeriodStd` | `PeriodStd` | Alias of `Jitter` |
 | `Integral` | `Integral` | Trapezoidal ∫v dt over the capture |
 | `Energy` | `Energy` | Trapezoidal ∫v² dt (energy proxy at 1 Ω) |
+| `dBm` | `dBm` · `dBm 75` | RMS power in dBm into R Ω (default 50): `10·log₁₀(Vrms²/R / 1mW)` |
 | `Crossing` | `Crossing 0` · `Crossing 1.5` | Average period/frequency of **complete** waves at that level (rise+fall crossings; first wave needs 3 crossings, each next wave +2, sharing the boundary; partial start/end ignored) |
 | `ZeroCrossing` | `ZeroCrossing` | Alias of `Crossing 0` |
 | `Frequency` | `Frequency` | Same as `Crossing` at the sample average (`Avg`) |

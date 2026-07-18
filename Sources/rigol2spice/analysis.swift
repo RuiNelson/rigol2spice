@@ -70,6 +70,7 @@ enum Analysis: Equatable {
     case jitter(threshold: Double?)
     case integral
     case energy
+    case dbm(resistance: Double)
 
 
 
@@ -252,6 +253,16 @@ enum Analysis: Equatable {
             case "energy":
                 try requireArgumentCount(0)
                 return .energy
+            case "dbm":
+                if arguments.isEmpty {
+                    return .dbm(resistance: powerReferenceResistance)
+                }
+                try requireArgumentCount(1)
+                let resistance = try parseScalarArgument(arguments[0])
+                guard resistance > 0 else {
+                    throw AnalysisParseError.invalidScalar(operation: operation, value: arguments[0])
+                }
+                return .dbm(resistance: resistance)
 
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
@@ -346,6 +357,13 @@ enum Analysis: Equatable {
             }
         case .integral: "Integral"
         case .energy: "Energy"
+        case let .dbm(resistance):
+            if resistance == powerReferenceResistance {
+                "dBm"
+            }
+            else {
+                "dBm \(analysisFormatter.string(resistance))"
+            }
         }
     }
 }
@@ -526,6 +544,11 @@ extension Analysis {
             return .scalar(integralValue(points))
         case .energy:
             return .scalar(energyValue(points))
+        case let .dbm(resistance):
+            guard let dbm = dbmFromRMS(points, resistance: resistance) else {
+                return .unavailable
+            }
+            return .scalar(dbm)
 
         }
     }
