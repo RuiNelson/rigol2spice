@@ -229,6 +229,10 @@ struct Rigol2SpiceApplication {
         case let .offset(value):
             let sign = value >= 0 ? "+" : ""
             Console.section("Offsetting signal by \(sign)\(engineeringFormatter.string(value))...")
+        case let .addNoise(value):
+            Console.section(
+                "Adding Gaussian noise (σ=\(engineeringFormatter.string(value)))...",
+            )
         case let .multiply(value):
             Console.section("Multiplying the signal by a factor of \(engineeringFormatter.string(value))...")
         case .invert:

@@ -62,6 +62,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 |---|---|---|
 | `RemoveDC` | `RemoveDC` | Estimate and subtract the DC component¹ |
 | `Offset` | `Offset -1.5` | Add the scalar to every value |
+| `AddNoise` | `AddNoise 10m` | Add zero-mean Gaussian noise with standard deviation equal to the scalar |
 | `Multiply` | `Multiply 10` | Multiply every value by the scalar |
 | `Invert` | `Invert` | Multiply every value by −1 (alias of `Multiply -1`) |
 | `PeakTo` | `PeakTo 3.3` | Scale so the peak absolute value equals the scalar |

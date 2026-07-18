@@ -42,6 +42,7 @@ enum Transformation: Equatable {
     case clampMax(Double)
     case gate(Double)
     case offset(Double)
+    case addNoise(Double)
     case multiply(Double)
     case invert
     case abs
@@ -184,6 +185,15 @@ enum Transformation: Equatable {
                 return try .gate(scalar())
             case "offset":
                 return try .offset(scalar())
+            case "addnoise":
+                let value = try scalar()
+                guard value >= 0 else {
+                    throw TransformationParseError.invalidPositiveScalar(
+                        operation: operation,
+                        value: arguments[0],
+                    )
+                }
+                return .addNoise(value)
             case "multiply":
                 return try .multiply(scalar())
             case "invert":
@@ -624,6 +634,8 @@ enum Transformation: Equatable {
             return gatePoints(points, threshold: value)
         case let .offset(value):
             return offsetPoints(points, offset: value)
+        case let .addNoise(value):
+            return addNoisePoints(points, amplitude: value)
         case let .multiply(value):
             return multiplyValueOfPoints(points, factor: value)
         case .invert:

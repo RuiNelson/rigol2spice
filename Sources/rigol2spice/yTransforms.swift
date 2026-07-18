@@ -28,6 +28,28 @@ func offsetPoints(_ points: [Point], offset: Double) -> [Point] {
     return output
 }
 
+/// Sample from the standard normal distribution N(0, 1) via Box–Muller.
+func unitGaussianSample() -> Double {
+    let u1 = Double.random(in: Double.leastNonzeroMagnitude ... 1)
+    let u2 = Double.random(in: 0 ..< 1)
+    return sqrt(-2 * log(u1)) * cos(2 * Double.pi * u2)
+}
+
+/// Add zero-mean Gaussian noise with standard deviation `amplitude` to every sample.
+func addNoisePoints(_ points: [Point], amplitude: Double) -> [Point] {
+    guard amplitude != 0, !points.isEmpty else {
+        return points
+    }
+
+    var output = points
+    output.withUnsafeMutableBufferPointer { buffer in
+        for index in buffer.indices {
+            buffer[index].value += amplitude * unitGaussianSample()
+        }
+    }
+    return output
+}
+
 func clamp(_ points: [Point], lowerLimit: Double?, upperLimit: Double?) -> [Point] {
     guard lowerLimit != nil || upperLimit != nil else {
         return points

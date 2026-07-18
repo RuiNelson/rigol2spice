@@ -94,6 +94,31 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `add noise injects zero mean gaussian samples`() throws {
+        #expect(try Transformation.parseList("AddNoise 0.01") == [.addNoise(0.01)])
+        #expect(try Transformation.parseList("AddNoise 0") == [.addNoise(0)])
+        #expect(throws: (any Error).self) {
+            try Transformation.parseList("AddNoise -1")
+        }
+
+        let quiet = [Point(time: 0, value: 5), Point(time: 1, value: 5)]
+        #expect(try Transformation.addNoise(0).applying(to: quiet) == quiet)
+
+        // Large constant capture: sample mean ≈ 0 noise, sample std ≈ amplitude
+        let count = 20_000
+        let amplitude = 2.0
+        let points = (0 ..< count).map { Point(time: Double($0), value: 0) }
+        let noisy = try Transformation.addNoise(amplitude).applying(to: points)
+        #expect(noisy.map(\.time) == points.map(\.time))
+
+        let mean = noisy.reduce(0.0) { $0 + $1.value } / Double(count)
+        let variance = noisy.reduce(0.0) { $0 + ($1.value - mean) * ($1.value - mean) } / Double(count)
+        let std = sqrt(variance)
+        #expect(abs(mean) < 0.1)
+        #expect(abs(std - amplitude) < 0.1)
+    }
+
+    @Test
     func `clamp limits values on the correct side`() throws {
         let points = [Point(time: 0, value: -1), Point(time: 1, value: 2)]
 
