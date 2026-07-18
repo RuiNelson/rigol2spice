@@ -43,6 +43,7 @@ enum Analysis: Equatable {
     case fft(pointCount: Int?)
     case duration
     case points
+    case sampleRate
 
 
 
@@ -136,6 +137,9 @@ enum Analysis: Equatable {
             case "points":
                 try requireArgumentCount(0)
                 return .points
+            case "samplerate":
+                try requireArgumentCount(0)
+                return .sampleRate
 
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
@@ -170,6 +174,7 @@ enum Analysis: Equatable {
             }
         case .duration: "Duration"
         case .points: "Points"
+        case .sampleRate: "SampleRate"
         }
     }
 }
@@ -183,6 +188,7 @@ enum AnalysisOutcome: Equatable {
     case insufficientCrossings
     case fft(FFTSpectrum)
     case fftUnavailable
+    case unavailable
 }
 
 // MARK: - AnalysisReport
@@ -217,6 +223,8 @@ struct AnalysisReport: Equatable {
             }
             return "FFT \(spectrum.usedPointCount): \(freq)Hz"
         case .fftUnavailable:
+            return "\(label): unavailable"
+        case .unavailable:
             return "\(label): unavailable"
         }
     }
@@ -258,6 +266,11 @@ extension Analysis {
             return .scalar(captureDuration(points))
         case .points:
             return .scalar(Double(points.count))
+        case .sampleRate:
+            guard let rate = captureSampleRate(points) else {
+                return .unavailable
+            }
+            return .scalar(rate)
 
         }
     }

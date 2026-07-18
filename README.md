@@ -167,6 +167,7 @@ rigol2spice input.csv -p -a 'FFT 1024; Frequency'
 | `DC` | `DC` | DC estimate (same k-means method as `RemoveDC`)¹ |
 | `Duration` | `Duration` | Capture time span `t_last − t_first` |
 | `Points` | `Points` | Number of samples |
+| `SampleRate` | `SampleRate` | Estimated sample rate `(N−1) / Duration` |
 | `Crossing` | `Crossing 0` · `Crossing 1.5` | Average period/frequency of **complete** waves at that level (rise+fall crossings; first wave needs 3 crossings, each next wave +2, sharing the boundary; partial start/end ignored) |
 | `ZeroCrossing` | `ZeroCrossing` | Alias of `Crossing 0` |
 | `Frequency` | `Frequency` | Same as `Crossing` at the sample average (`Avg`) |
