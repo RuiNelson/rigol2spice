@@ -4,11 +4,23 @@
 
 Converts Rigol oscilloscope CSV and WFM exports to PWL (piece-wise linear) files for LTspice, ngspice, and other SPICE simulators. Supports multi-channel captures, channel math, and a pipeline of waveform transformations (offset, filter, clip, resample, and others). Optional analaysis/measurements (RMS, frequency, rise time, FFT, THD, etc.) and SVG plots.
 
-Works with legacy Rigol CSV formats and newer Centaurus-platform scopes (e.g. DHO800/DHO900 series). CSV layout is detected automatically from its header. Written in Swift as a compiled native binary for high performance; runs on Windows, macOS, and Linux.
+Written in Swift as a compiled native binary for high performance; runs on Windows, macOS, and Linux.
 
 [![YouTube video](https://img.youtube.com/vi/AaCvPtJ-cZM/0.jpg)](https://www.youtube.com/watch?v=AaCvPtJ-cZM)
 
 [Watch on YouTube](https://www.youtube.com/watch?v=AaCvPtJ-cZM)
+
+## Supported File Formats
+
+Input format is detected from the file contents, not its filename extension.
+
+| Format | Oscilloscope families |
+|---|---|
+| Legacy Rigol CSV | Legacy Rigol oscilloscopes |
+| Centaurus CSV | Newer Centaurus-platform oscilloscopes, including DHO800/DHO900 |
+| Rigol WFM | DS1000B, DS1000C, DS1000D/E, DS1000Z, DS2000/MSO2000, DS4000/MSO4000 |
+
+DHO `.wfm`, logic-only WFM payloads, and Rigol `.trc` files are not supported.
 
 ## Quick Start
 
@@ -20,17 +32,11 @@ rigol2spice input.csv output.txt
 
 The output `.txt` file can be loaded directly as a PWL source in LTspice and other SPICE simulators.
 
-Rigol `.wfm` files are detected automatically from their binary signature; the filename extension is not used for detection:
+WFM captures use the same command:
 
 ```
 rigol2spice capture.wfm output.txt
 ```
-
-Supported WFM families are DS1000B, DS1000C, DS1000D/E, DS1000Z, DS2000/MSO2000, and DS4000/MSO4000. Analog channels are imported; logic-only payloads are not. DHO waveform files are deliberately not supported.
-
-The console also reports WFM metadata such as the oscilloscope family, model or serial number, firmware, acquisition mode, time base, channel coupling, probe ratio, vertical scale, and raw memory layout. DS1000Z voltage conversion uses the reverse-engineered empirical `volts/div ÷ 20` scaling. Because Rigol firmware revisions do not store a consistently usable vertical reference, validate absolute DC offsets against a known measurement when they matter.
-
-Rigol `.trc` files are not currently supported.
 
 ## Channel Selection
 
