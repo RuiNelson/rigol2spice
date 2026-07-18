@@ -236,12 +236,12 @@ struct Rigol2SpiceApplication {
         case let .removeNoise(threshold):
             if let threshold {
                 Console.section(
-                    "Removing digital noise (threshold \(engineeringFormatter.string(threshold)))...",
+                    "Removing digital noise (deadband \(engineeringFormatter.string(threshold)))...",
                 )
             }
             else {
                 Console.section(
-                    "Removing digital noise (auto threshold 5% peak-to-peak)...",
+                    "Removing digital noise (deadband auto 5% peak-to-peak)...",
                 )
             }
         case let .multiply(value):

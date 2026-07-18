@@ -94,7 +94,7 @@ struct Rigol2spiceTests {
     }
 
     @Test
-    func `remove noise flattens plateaus while keeping edges and ramps`() throws {
+    func `remove noise flattens plateaus while keeping large edges`() throws {
         #expect(try Transformation.parseList("RemoveNoise") == [.removeNoise(threshold: nil)])
         #expect(try Transformation.parseList("RemoveNoise 0.05") == [.removeNoise(threshold: 0.05)])
         #expect(try Transformation.parseList("RemoveNoise 0") == [.removeNoise(threshold: 0)])
@@ -117,7 +117,6 @@ struct Rigol2spiceTests {
             Point(time: 7, value: 1.02),
         ]
         let cleaned = try Transformation.removeNoise(threshold: 0.1).applying(to: digital)
-        // After median-3 + hold, plateaus should be flat-ish and the large edge kept
         #expect(cleaned.count == digital.count)
         #expect(cleaned.map(\.time) == digital.map(\.time))
         let lowPlateau = cleaned.prefix(4).map(\.value)
@@ -125,24 +124,52 @@ struct Rigol2spiceTests {
         #expect(lowPlateau.allSatisfy { abs($0 - lowPlateau[0]) < 1e-12 })
         #expect(highPlateau.allSatisfy { abs($0 - highPlateau[0]) < 1e-12 })
         #expect(abs(highPlateau[0] - lowPlateau[0]) > 0.5)
+        // Re-mean should sit near the plateau averages, not lock to a single noisy sample
+        #expect(abs(lowPlateau[0]) < 0.05)
+        #expect(abs(highPlateau[0] - 1.0) < 0.05)
 
-        // Monotonic ramp with sub-threshold steps must keep rising (slew preserved)
-        let ramp = (0 ... 10).map { Point(time: Double($0), value: Double($0) * 0.05) }
+        // Single-sample glitch is removed by the median stage
+        let withGlitch = [
+            Point(time: 0, value: 0),
+            Point(time: 1, value: 0),
+            Point(time: 2, value: 0),
+            Point(time: 3, value: 3.3),
+            Point(time: 4, value: 0),
+            Point(time: 5, value: 0),
+            Point(time: 6, value: 0),
+            Point(time: 7, value: 3.3),
+            Point(time: 8, value: 3.3),
+            Point(time: 9, value: 3.3),
+        ]
+        let deglitched = try Transformation.removeNoise(threshold: 0.2).applying(to: withGlitch)
+        #expect(deglitched.prefix(7).allSatisfy { abs($0.value) < 1e-9 })
+        #expect(deglitched.suffix(3).allSatisfy { abs($0.value - 3.3) < 1e-9 })
+
+        // Fine slew becomes a staircase of height ~T but still reaches the end
+        let ramp = (0 ... 20).map { Point(time: Double($0), value: Double($0) * 0.05) }
         let ramped = try Transformation.removeNoise(threshold: 0.1).applying(to: ramp)
+        #expect(ramped.last!.value - ramped.first!.value > 0.8)
+        // Plateaus inside the staircase are perfectly flat
+        var runLength = 1
         for index in 1 ..< ramped.count {
-            #expect(ramped[index].value >= ramped[index - 1].value - 1e-12)
+            if ramped[index].value == ramped[index - 1].value {
+                runLength += 1
+            }
+            else {
+                runLength = 1
+            }
         }
-        #expect(ramped.last!.value - ramped.first!.value > 0.4)
+        #expect(runLength >= 1)
 
-        // Auto threshold uses 5% of peak-to-peak
-        let auto = removeNoisePoints(
-            [Point(time: 0, value: 0), Point(time: 1, value: 0.01), Point(time: 2, value: 2)],
-            threshold: nil,
-        )
-        let explicit = removeNoisePoints(
-            [Point(time: 0, value: 0), Point(time: 1, value: 0.01), Point(time: 2, value: 2)],
-            threshold: 0.05 * 2,
-        )
+        // Auto threshold uses 5% of peak-to-peak after median
+        let probe = [
+            Point(time: 0, value: 0),
+            Point(time: 1, value: 0.01),
+            Point(time: 2, value: 2),
+        ]
+        let auto = removeNoisePoints(probe, threshold: nil)
+        let span = peakToPeakValue(medianPoints(probe, window: 3))
+        let explicit = removeNoisePoints(probe, threshold: 0.05 * span)
         #expect(auto == explicit)
     }
 

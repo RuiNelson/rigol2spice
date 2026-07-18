@@ -53,21 +53,22 @@ func addNoisePoints(_ points: [Point], amplitude: Double) -> [Point] {
 /// Default fraction of peak-to-peak used when `RemoveNoise` has no explicit threshold.
 let removeNoiseAutoThresholdFraction = 0.05
 
-/// Clean digital-ish captures: median-3 spike removal, then plateau hold.
+/// Clean digital-ish captures: median-3, deadband hold, then plateau re-mean.
 ///
 /// - Parameter threshold: Maximum step treated as plateau chatter. When `nil`, uses
-///   5% of the capture's peak-to-peak after the median stage. `0` skips the hold stage.
+///   5% of the capture's peak-to-peak after the median stage. `0` skips hold + re-mean.
 ///
-/// Hold rule (left → right): if `|v[i]−v[i−1]| < T` and the step is **not** part of a
-/// monotonic run (look-behind, or look-ahead at the first step), set `v[i] = v[i−1]`.
-/// Direction is judged on the post-median samples so holds do not destroy ramps.
-/// Large steps and monotonic slews are kept intact.
+/// 1. **Median 3** — remove single-sample spikes.
+/// 2. **Deadband hold** — if `|sample − held| < T`, keep the held level; otherwise accept
+///    the sample as the new level. Large edges jump cleanly; fine slews become steps of ~T.
+/// 3. **Re-mean** — each constant held run is replaced by the mean of the post-median
+///    samples in that run, so plateaus settle to the true rail instead of the first sample.
 func removeNoisePoints(_ points: [Point], threshold: Double?) -> [Point] {
     guard points.count >= 2 else {
         return points
     }
 
-    // Stage 1: kill single-sample spikes without rounding large edges.
+    // Stage 1: kill single-sample spikes without a full low-pass smear.
     let source = medianPoints(points, window: 3)
 
     let holdThreshold: Double
@@ -78,39 +79,40 @@ func removeNoisePoints(_ points: [Point], threshold: Double?) -> [Point] {
         holdThreshold = removeNoiseAutoThresholdFraction * peakToPeakValue(source)
     }
 
-    guard holdThreshold > 0, source.count >= 2 else {
+    guard holdThreshold > 0 else {
         return source
     }
 
-    // Stage 2: plateau hold with monotonic-ramp exception.
-    var output = source
+    // Stage 2: deadband hold against the previous *held* level (not the raw neighbour).
+    var held = source
     for index in 1 ..< source.count {
-        let delta = source[index].value - source[index - 1].value
-        if abs(delta) >= holdThreshold {
-            output[index].value = source[index].value
-            continue
-        }
-
-        let sameDirection: Bool
-        if index >= 2 {
-            let previousDelta = source[index - 1].value - source[index - 2].value
-            sameDirection = delta * previousDelta > 0
-        }
-        else if index + 1 < source.count {
-            // First step: look ahead so the start of a ramp is not held flat.
-            let nextDelta = source[index + 1].value - source[index].value
-            sameDirection = delta * nextDelta > 0
+        if abs(source[index].value - held[index - 1].value) < holdThreshold {
+            held[index].value = held[index - 1].value
         }
         else {
-            sameDirection = false
+            held[index].value = source[index].value
+        }
+    }
+
+    // Stage 3: each constant run → mean of the post-median samples in that run.
+    var output = held
+    var runStart = 0
+    while runStart < output.count {
+        let level = held[runStart].value
+        var runEnd = runStart + 1
+        while runEnd < held.count, held[runEnd].value == level {
+            runEnd += 1
         }
 
-        if sameDirection {
-            output[index].value = source[index].value
+        var sum = 0.0
+        for index in runStart ..< runEnd {
+            sum += source[index].value
         }
-        else {
-            output[index].value = output[index - 1].value
+        let mean = sum / Double(runEnd - runStart)
+        for index in runStart ..< runEnd {
+            output[index].value = mean
         }
+        runStart = runEnd
     }
     return output
 }
