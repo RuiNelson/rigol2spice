@@ -52,6 +52,7 @@ enum Analysis: Equatable {
     case mid
     case acRms
     case stdDev
+    case crest
 
 
 
@@ -172,6 +173,9 @@ enum Analysis: Equatable {
             case "stddev", "stdev":
                 try requireArgumentCount(0)
                 return .stdDev
+            case "crest":
+                try requireArgumentCount(0)
+                return .crest
 
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
@@ -215,6 +219,7 @@ enum Analysis: Equatable {
         case .mid: "Mid"
         case .acRms: "ACRms"
         case .stdDev: "StdDev"
+        case .crest: "Crest"
         }
     }
 }
@@ -330,6 +335,11 @@ extension Analysis {
             return .scalar(acRmsValue(points))
         case .stdDev:
             return .scalar(standardDeviationValue(points))
+        case .crest:
+            guard let crest = crestFactorValue(points) else {
+                return .unavailable
+            }
+            return .scalar(crest)
 
         }
     }
