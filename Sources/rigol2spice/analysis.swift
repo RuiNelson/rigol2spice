@@ -407,10 +407,16 @@ struct AnalysisReport: Equatable {
             return "\(label): no complete wave (need ≥ 3 level crossings)"
         case let .fft(spectrum):
             let freq = analysisFormatter.string(spectrum.centerFrequency)
+            let mag = analysisFormatter.string(spectrum.centerMagnitudeDB)
+            let body: String
             if spectrum.usedPointCount < spectrum.requestedPointCount {
-                return "FFT \(spectrum.usedPointCount): \(freq)Hz (requested \(spectrum.requestedPointCount))"
+                body =
+                    "FFT \(spectrum.usedPointCount): \(freq)Hz \(mag)dB (requested \(spectrum.requestedPointCount))"
             }
-            return "FFT \(spectrum.usedPointCount): \(freq)Hz"
+            else {
+                body = "FFT \(spectrum.usedPointCount): \(freq)Hz \(mag)dB"
+            }
+            return body
         case .fftUnavailable:
             return "\(label): unavailable"
         case .unavailable:

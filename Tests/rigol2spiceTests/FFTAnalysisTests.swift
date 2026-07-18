@@ -86,8 +86,9 @@ struct FFTAnalysisTests {
         let report = AnalysisReport.reports(for: [.fft(pointCount: count)], on: points)[0]
         #expect(report.displayLine.hasPrefix("FFT \(count):"))
         #expect(report.displayLine.contains("Hz"))
-        // Console line is center frequency only — no full spectrum dump.
-        #expect(!report.displayLine.contains("dB"))
+        #expect(report.displayLine.contains("dB"))
+        #expect(spectrum.centerMagnitude > 0)
+        #expect(spectrum.centerMagnitudeDB.isFinite)
     }
 
     @Test

@@ -199,7 +199,7 @@ rigol2spice input.csv -p -a 'FFT 1024; Frequency'
 | `Frequency` | `Frequency` | Same as `Crossing` at the sample average (`Avg`) |
 | `RMS` | `RMS` | Sample RMS (same definition as `ScaleRMS`) |
 | `PkPk` | `PkPk` | Peak-to-peak (`max − min`, same as `PeakToPeak`) |
-| `FFT` | `FFT` · `FFT 1024` · `FFT 1k` | Real FFT: remove mean (DC), Hann window, zero-pad to next 2ⁿ. Bare `FFT` uses **all** samples. `FFT N` uses a **centered** window of up to N samples; if the capture is shorter than N, all available samples are used. Peak is the strongest local AC maximum (sub-bin refined). Console prints that frequency and the N actually used; with `-p`, the SVG also shows the magnitude spectrum in dB. |
+| `FFT` | `FFT` · `FFT 1024` · `FFT 1k` | Real FFT: remove mean (DC), Hann window, zero-pad to next 2ⁿ. Bare `FFT` uses **all** samples. `FFT N` uses a **centered** window of up to N samples; if the capture is shorter than N, all available samples are used. Peak is the strongest local AC maximum (sub-bin refined). Console prints frequency, peak magnitude in dB, and the N actually used; with `-p`, the SVG also shows the magnitude spectrum in dB. |
 
 ### Post-processing Options
 
