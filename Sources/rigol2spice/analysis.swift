@@ -62,6 +62,7 @@ enum Analysis: Equatable {
     case overshoot
     case undershoot
     case riseTime(lowPercent: Double, highPercent: Double)
+    case fallTime(lowPercent: Double, highPercent: Double)
 
 
 
@@ -216,6 +217,9 @@ enum Analysis: Equatable {
             case "risetime":
                 let pair = try parsePercentPair(defaultLow: 10, defaultHigh: 90)
                 return .riseTime(lowPercent: pair.0, highPercent: pair.1)
+            case "falltime":
+                let pair = try parsePercentPair(defaultLow: 10, defaultHigh: 90)
+                return .fallTime(lowPercent: pair.0, highPercent: pair.1)
 
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
@@ -271,6 +275,13 @@ enum Analysis: Equatable {
             }
             else {
                 "RiseTime \(analysisFormatter.string(low)), \(analysisFormatter.string(high))"
+            }
+        case let .fallTime(low, high):
+            if low == 10, high == 90 {
+                "FallTime"
+            }
+            else {
+                "FallTime \(analysisFormatter.string(low)), \(analysisFormatter.string(high))"
             }
         }
     }
@@ -416,6 +427,11 @@ extension Analysis {
             return .scalar(ratio)
         case let .riseTime(low, high):
             guard let dt = transitionTime(points, lowPercent: low, highPercent: high, rising: true) else {
+                return .unavailable
+            }
+            return .scalar(dt)
+        case let .fallTime(low, high):
+            guard let dt = transitionTime(points, lowPercent: low, highPercent: high, rising: false) else {
                 return .unavailable
             }
             return .scalar(dt)
