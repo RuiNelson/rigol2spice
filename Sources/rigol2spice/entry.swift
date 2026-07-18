@@ -45,12 +45,6 @@ struct Rigol2SpiceCommand: ParsableCommand {
         abstract: "Convert Rigol oscilloscope CSV and WFM captures to SPICE PWL files.",
     )
 
-    @Flag(
-        name: .shortAndLong,
-        help: "Adopts the CSV format used by newer Rigol Centaurus platform oscilloscopes. WFM is detected automatically.",
-    )
-    var newModels = false
-
     @Flag(name: .shortAndLong, help: "Only list channels present in the file and quit.")
     var listChannels = false
 
@@ -83,7 +77,7 @@ struct Rigol2SpiceCommand: ParsableCommand {
     var plot: String?
 
     @Argument(
-        help: "The Rigol CSV or WFM file to read (WFM is detected by magic).",
+        help: "The Rigol CSV or WFM file to read (format detected automatically).",
         completion: .file(extensions: ["csv", "wfm"]),
     )
     var inputFile: String
@@ -97,7 +91,6 @@ struct Rigol2SpiceCommand: ParsableCommand {
     mutating func run() throws {
         try Rigol2SpiceApplication(
             options: ApplicationOptions(
-                format: newModels ? .centaurus : .legacy,
                 listChannels: listChannels,
                 channel: channel,
                 transformations: transformations,

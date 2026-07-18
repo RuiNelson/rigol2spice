@@ -34,6 +34,7 @@ struct DS1000ZWFMParser: CaptureParser {
         let metadata = CaptureMetadata(
             format: "Rigol DS1000Z WFM",
             model: header.model,
+            serialNumber: nil,
             firmware: header.firmware,
             fileVersion: header.fileVersion,
             structureVersion: header.structureVersion,
@@ -140,7 +141,7 @@ struct DS1000ZWFMParser: CaptureParser {
     }
 
     private func parseHeader(_ reader: WFMByteReader) throws -> WFMHeader {
-        guard try reader.bytes(at: 0, count: 4) == CaptureFormat.ds1000ZWFMRequestMagic,
+        guard try reader.bytes(at: 0, count: 4) == RigolWFMFamily.ds1000Z.magic,
               try [0xA5A5, 0xA5A6].contains(reader.uint16(at: 4)),
               try reader.uint16(at: 6) == 0x38,
               try reader.bytes(at: 0x30, count: 2) == [0x01, 0x00],
@@ -335,7 +336,7 @@ private struct WFMDecodedChannel {
 
 // MARK: - WFMByteReader
 
-private struct WFMByteReader {
+struct WFMByteReader {
     private let data: Data
 
     init(_ data: Data) {
@@ -354,6 +355,10 @@ private struct WFMByteReader {
         return UInt16(bytes[0]) | UInt16(bytes[1]) << 8
     }
 
+    func int16(at offset: Int) throws -> Int16 {
+        try Int16(bitPattern: uint16(at: offset))
+    }
+
     func uint32(at offset: Int) throws -> UInt32 {
         let bytes = try bytes(at: offset, count: 4)
         return bytes.enumerated().reduce(0) { result, item in
@@ -361,11 +366,19 @@ private struct WFMByteReader {
         }
     }
 
+    func int32(at offset: Int) throws -> Int32 {
+        try Int32(bitPattern: uint32(at: offset))
+    }
+
     func uint64(at offset: Int) throws -> UInt64 {
         let bytes = try bytes(at: offset, count: 8)
         return bytes.enumerated().reduce(0) { result, item in
             result | UInt64(item.element) << UInt64(item.offset * 8)
         }
+    }
+
+    func int64(at offset: Int) throws -> Int64 {
+        try Int64(bitPattern: uint64(at: offset))
     }
 
     func float32(at offset: Int) throws -> Float {

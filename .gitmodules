@@ -1,0 +1,3 @@
+[submodule "Reference/RigolWFM"]
+	path = Reference/RigolWFM
+	url = https://github.com/scottprahl/RigolWFM.git

@@ -57,6 +57,19 @@ struct CLITests {
     }
 
     @Test
+    func `cli auto detects Centaurus CSV without an option`() throws {
+        let result = try runCLI([
+            samplePath(named: "Centaurus"),
+            "-l",
+        ])
+
+        #expect(result.status == 0)
+        #expect(result.stderr.isEmpty)
+        #expect(result.stdout.contains("Detected format: Centaurus CSV"))
+        #expect(result.stdout.contains("- CH4V"))
+    }
+
+    @Test
     func `invalid transformation returns failure without producing output`() throws {
         let output = FileManager.default.temporaryDirectory
             .appendingPathComponent("rigol2spice-invalid-\(UUID().uuidString).txt")
@@ -82,7 +95,7 @@ struct CLITests {
 
         #expect(result.status == 0)
         #expect(result.stderr.isEmpty)
-        #expect(result.stdout.contains("Detected format: Rigol DS1000Z WFM"))
+        #expect(result.stdout.contains("Detected format: Rigol WFM"))
         #expect(result.stdout.contains("Model               : DS1104Z"))
         #expect(result.stdout.contains("Firmware            : 00.04.05.SP2"))
         #expect(result.stdout.contains("Horizontal scale    : 20us/div"))

@@ -4,13 +4,14 @@ import Testing
 
 struct WFMParserTests {
     @Test
-    func `capture format detects WFM from magic and otherwise keeps CSV fallback`() throws {
+    func `capture format detects WFM magic and both CSV layouts from a short prefix`() throws {
         let wfm = try sampleData(named: "reverse", extension: "wfm")
-        let csv = try sampleData(named: "reverse", extension: "csv")
+        let legacy = try sampleData(named: "reverse", extension: "csv")
+        let centaurus = try sampleData(named: "Centaurus", extension: "csv")
 
-        #expect(CaptureFormat.detect(in: wfm, csvFallback: .legacy) == .ds1000ZWFM)
-        #expect(CaptureFormat.detect(in: csv, csvFallback: .legacy) == .legacy)
-        #expect(CaptureFormat.detect(in: csv, csvFallback: .centaurus) == .centaurus)
+        #expect(CaptureFormat.detect(in: Data(wfm.prefix(4))) == .rigolWFM)
+        #expect(CaptureFormat.detect(in: Data(legacy.prefix(64))) == .legacy)
+        #expect(CaptureFormat.detect(in: Data(centaurus.prefix(64))) == .centaurus)
     }
 
     @Test

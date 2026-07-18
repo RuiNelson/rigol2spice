@@ -53,6 +53,7 @@ struct CaptureChannelMetadata: Equatable {
 struct CaptureMetadata: Equatable {
     let format: String
     let model: String
+    let serialNumber: String?
     let firmware: String
     let fileVersion: UInt16
     let structureVersion: UInt16
@@ -108,27 +109,42 @@ protocol CaptureParser {
 enum CaptureFormat: Equatable {
     case legacy
     case centaurus
-    case ds1000ZWFM
+    case rigolWFM
+    private static let csvInspectionByteLimit = 4096
 
-    static let ds1000ZWFMRequestMagic: [UInt8] = [0x01, 0xFF, 0xFF, 0xFF]
-
-    static func detect(in data: Data, csvFallback: CaptureFormat) -> CaptureFormat {
-        guard data.count >= ds1000ZWFMRequestMagic.count else {
-            return csvFallback
+    static func detect(in data: Data) -> CaptureFormat {
+        if RigolWFMFamily.detect(in: data) != nil {
+            return .rigolWFM
         }
 
-        let prefix = data.prefix(ds1000ZWFMRequestMagic.count)
-        if prefix.elementsEqual(ds1000ZWFMRequestMagic) {
-            return .ds1000ZWFM
+        // Rigol's Centaurus CSV starts with a time column (normally `Time(s)`).
+        // Legacy CSV instead starts with `X` and advertises `Start` and `Increment`.
+        // Only inspect a small prefix so detection does not scale with capture size.
+        let prefix = Data(data.prefix(csvInspectionByteLimit))
+        guard let text = String(data: prefix, encoding: .isoLatin1),
+              let firstLine = text.split(whereSeparator: \Character.isNewline).first else {
+            return .legacy
         }
-        return csvFallback
+
+        let fields = csvFields(in: String(firstLine))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+        if let firstField = fields.first,
+           firstField == "time" || firstField.hasPrefix("time(") {
+            return .centaurus
+        }
+        if fields.contains("increment"), fields.contains("start") {
+            return .legacy
+        }
+
+        // Preserve compatibility with CSV exports predating the known layouts.
+        return .legacy
     }
 
     var displayName: String {
         switch self {
         case .legacy: "Legacy CSV"
         case .centaurus: "Centaurus CSV"
-        case .ds1000ZWFM: "Rigol DS1000Z WFM"
+        case .rigolWFM: "Rigol WFM"
         }
     }
 
@@ -136,7 +152,7 @@ enum CaptureFormat: Equatable {
         switch self {
         case .legacy: LegacyCSVParser()
         case .centaurus: CentaurusCSVParser()
-        case .ds1000ZWFM: DS1000ZWFMParser()
+        case .rigolWFM: RigolWFMParser()
         }
     }
 }

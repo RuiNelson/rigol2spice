@@ -30,7 +30,6 @@ enum Rigol2SpiceError: LocalizedError, Equatable {
 // MARK: - ApplicationOptions
 
 struct ApplicationOptions {
-    let format: CaptureFormat
     let listChannels: Bool
     let channel: String
     let transformations: String?
@@ -162,7 +161,7 @@ struct Rigol2SpiceApplication {
             Console.detail("(This might take a while)")
         }
 
-        let detectedFormat = CaptureFormat.detect(in: data, csvFallback: options.format)
+        let detectedFormat = CaptureFormat.detect(in: data)
         Console.detail("Detected format: \(detectedFormat.displayName)")
         let requestedChannel = options.listChannels ? nil : options.channel
         return try detectedFormat.parser.parse(data, channel: requestedChannel)
@@ -174,7 +173,11 @@ struct Rigol2SpiceApplication {
         }
 
         Console.detail("WFM information:")
+        Console.detail("Format              : \(metadata.format)", level: 2)
         Console.detail("Model               : \(metadata.model)", level: 2)
+        if let serialNumber = metadata.serialNumber {
+            Console.detail("Serial number       : \(serialNumber)", level: 2)
+        }
         Console.detail("Firmware            : \(metadata.firmware)", level: 2)
         Console.detail("File version        : \(metadata.fileVersion)", level: 2)
         Console.detail(

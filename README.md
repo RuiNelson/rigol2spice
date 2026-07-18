@@ -2,9 +2,9 @@
 
 **Import real oscilloscope captures into your SPICE simulations.**
 
-Converts Rigol oscilloscope CSV and DS1000Z-family WFM exports to PWL (piece-wise linear) files for LTspice, ngspice, and other SPICE simulators. Supports multi-channel captures, channel math, and a pipeline of waveform transformations (offset, filter, clip, resample, and others). Optional analaysis/measurements (RMS, frequency, rise time, FFT, THD, etc.) and SVG plots.
+Converts Rigol oscilloscope CSV and WFM exports to PWL (piece-wise linear) files for LTspice, ngspice, and other SPICE simulators. Supports multi-channel captures, channel math, and a pipeline of waveform transformations (offset, filter, clip, resample, and others). Optional analaysis/measurements (RMS, frequency, rise time, FFT, THD, etc.) and SVG plots.
 
-Works with legacy Rigol CSV formats and newer Centaurus-platform scopes (e.g. DHO800/DHO900 series). Written in Swift as a compiled native binary for high performance; runs on Windows, macOS, and Linux.
+Works with legacy Rigol CSV formats and newer Centaurus-platform scopes (e.g. DHO800/DHO900 series). CSV layout is detected automatically from its header. Written in Swift as a compiled native binary for high performance; runs on Windows, macOS, and Linux.
 
 [![YouTube video](https://img.youtube.com/vi/AaCvPtJ-cZM/0.jpg)](https://www.youtube.com/watch?v=AaCvPtJ-cZM)
 
@@ -18,21 +18,17 @@ Works with legacy Rigol CSV formats and newer Centaurus-platform scopes (e.g. DH
 rigol2spice input.csv output.txt
 ```
 
-For newer Centaurus-platform scopes (e.g. DHO800/900 series), add `-n`:
-
-```
-rigol2spice -n input.csv output.txt
-```
-
 The output `.txt` file can be loaded directly as a PWL source in LTspice and other SPICE simulators.
 
-DS1000Z-family `.wfm` files are detected automatically from their binary magic; the filename extension is not used for detection:
+Rigol `.wfm` files are detected automatically from their binary signature; the filename extension is not used for detection:
 
 ```
 rigol2spice capture.wfm output.txt
 ```
 
-The console also reports WFM metadata such as the oscilloscope model and firmware, acquisition mode, time base, channel coupling, probe ratio, vertical scale, and raw memory layout. DS1000Z voltage conversion uses the reverse-engineered empirical `volts/div ÷ 20` scaling. Because Rigol firmware revisions do not store a consistently usable vertical reference, validate absolute DC offsets against a known measurement when they matter.
+Supported WFM families are DS1000B, DS1000C, DS1000D/E, DS1000Z, DS2000/MSO2000, and DS4000/MSO4000. Analog channels are imported; logic-only payloads are not. DHO waveform files are deliberately not supported.
+
+The console also reports WFM metadata such as the oscilloscope family, model or serial number, firmware, acquisition mode, time base, channel coupling, probe ratio, vertical scale, and raw memory layout. DS1000Z voltage conversion uses the reverse-engineered empirical `volts/div ÷ 20` scaling. Because Rigol firmware revisions do not store a consistently usable vertical reference, validate absolute DC offsets against a known measurement when they matter.
 
 Rigol `.trc` files are not currently supported.
 
@@ -272,7 +268,6 @@ rigol2spice -t 'TimeShift -5m; CutAfter 7.5m; Repeat 2' input.csv output.txt
 USAGE: rigol2spice [<options>] <input-file> [<output-file>]
 
 OPTIONS:
-  -n,  --new-models               Newer Rigol Centaurus platform format
   -l,  --list-channels            List channels and exit
   -c,  --channel <channel>        Channel or math expression (default: CH1)
   -t,  --transformations <value>  Ordered transformations separated by semicolons
@@ -290,6 +285,7 @@ OPTIONS:
 Requires Swift 6.2+.
 
 ```
+git submodule update --init --recursive
 swift build
 ```
 
