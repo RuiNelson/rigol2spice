@@ -2,7 +2,9 @@
 
 **Import real oscilloscope captures into your SPICE simulations.**
 
-Converts Rigol oscilloscope CSV exports to PWL (Piece-Wise Linear) files for LTspice and other SPICE simulators. Supports both legacy and newer Centaurus-platform Rigol scopes.
+Converts Rigol oscilloscope CSV exports to PWL (piece-wise linear) files for LTspice, ngspice, and other SPICE simulators. Supports multi-channel captures, channel math, and a pipeline of waveform transformations (offset, filter, clip, resample, and others). Optional analaysis/measurements (RMS, frequency, rise time, FFT, THD, etc.) and SVG plots.
+
+Works with legacy Rigol CSV formats and newer Centaurus-platform scopes (e.g. DHO800/DHO900 series). Written in Swift as a compiled native binary for high performance; runs on Windows, macOS, and Linux.
 
 [![YouTube video](https://img.youtube.com/vi/AaCvPtJ-cZM/0.jpg)](https://www.youtube.com/watch?v=AaCvPtJ-cZM)
 
