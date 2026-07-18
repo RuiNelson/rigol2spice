@@ -67,7 +67,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `PeakTo` | `PeakTo 3.3` | Scale so the peak absolute value equals the scalar |
 | `PeakToPeak` | `PeakToPeak 2` | Scale so max − min equals the scalar |
 | `Normalize` | `Normalize` | Alias of `PeakToPeak 1` |
-| `ScaleRMS` | `ScaleRMS 0.707` | Scale so the sample RMS equals the scalar |
+| `ScaleRMS` | `ScaleRMS 707m` | Scale so the sample RMS equals the scalar |
 | `dB` | `dB 6` | Scale amplitude by the given voltage dB (×10^(dB/20)) |
 | `dBmW` | `dBmW 10` · `dBmW 0, 75` | × volts for that power into R Ω (e.g. 10 dBm @ 50 Ω ≈ 0.707 V)³ |
 | `dBm` | `dBm 10` | Alias of `dBmW` |
@@ -84,7 +84,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `DeadZone` | `DeadZone 0.1` | Zero values inside ±threshold; keep the rest |
 | `Digitize` | `Digitize 1.5` · `Digitize 1.5, 0, 3.3` · `Digitize 1.2, 1.8, 0, 3.3` | Map each sample to one of two levels (hard threshold or Schmitt)⁵ |
 | `Threshold` | `Threshold 1.5` | Alias of `Digitize` |
-| `SlewLimit` | `SlewLimit 100meg` | Limit |dv/dt| to the given rate (V/s) |
+| `SlewLimit` | `SlewLimit 100M` | Limit |dv/dt| to the given rate (V/s) |
 | `SoftClip` | `SoftClip -0.7, 0.7` | Soft-clip into [low, high] via tanh |
 | `Fade` | `Fade 100n` | Linear fade-in and fade-out over the given duration |
 | `FadeIn` | `FadeIn 50n` | Linear fade-in only |
