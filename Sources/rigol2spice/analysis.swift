@@ -8,6 +8,7 @@ enum AnalysisParseError: LocalizedError, Equatable {
     case invalidArgumentCount(operation: String, expected: Int, actual: Int)
     case invalidScalar(operation: String, value: String)
     case invalidPositiveInteger(operation: String, value: String)
+    case invalidPercentPair(operation: String, low: Double, high: Double)
 
     var errorDescription: String? {
         switch self {
@@ -21,6 +22,8 @@ enum AnalysisParseError: LocalizedError, Equatable {
             "Invalid scalar for \(operation): \(value)"
         case let .invalidPositiveInteger(operation, value):
             "\(operation) expects a positive integer point count, but received: \(value)"
+        case let .invalidPercentPair(operation, low, high):
+            "\(operation) expects 0 ≤ low < high ≤ 100, but received \(low), \(high)"
         }
     }
 }
@@ -58,6 +61,7 @@ enum Analysis: Equatable {
     case base
     case overshoot
     case undershoot
+    case riseTime(lowPercent: Double, highPercent: Double)
 
 
 
@@ -97,6 +101,19 @@ enum Analysis: Equatable {
                     throw AnalysisParseError.invalidScalar(operation: operation, value: argument)
                 }
                 return value
+            }
+
+            func parsePercentPair(defaultLow: Double, defaultHigh: Double) throws -> (Double, Double) {
+                if arguments.isEmpty {
+                    return (defaultLow, defaultHigh)
+                }
+                try requireArgumentCount(2)
+                let low = try parseScalarArgument(arguments[0])
+                let high = try parseScalarArgument(arguments[1])
+                guard low >= 0, high <= 100, low < high else {
+                    throw AnalysisParseError.invalidPercentPair(operation: operation, low: low, high: high)
+                }
+                return (low, high)
             }
 
             func parseOptionalPointCount() throws -> Int? {
@@ -196,6 +213,9 @@ enum Analysis: Equatable {
             case "undershoot":
                 try requireArgumentCount(0)
                 return .undershoot
+            case "risetime":
+                let pair = try parsePercentPair(defaultLow: 10, defaultHigh: 90)
+                return .riseTime(lowPercent: pair.0, highPercent: pair.1)
 
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
@@ -245,6 +265,13 @@ enum Analysis: Equatable {
         case .base: "Base"
         case .overshoot: "Overshoot"
         case .undershoot: "Undershoot"
+        case let .riseTime(low, high):
+            if low == 10, high == 90 {
+                "RiseTime"
+            }
+            else {
+                "RiseTime \(analysisFormatter.string(low)), \(analysisFormatter.string(high))"
+            }
         }
     }
 }
@@ -387,6 +414,11 @@ extension Analysis {
                 return .unavailable
             }
             return .scalar(ratio)
+        case let .riseTime(low, high):
+            guard let dt = transitionTime(points, lowPercent: low, highPercent: high, rising: true) else {
+                return .unavailable
+            }
+            return .scalar(dt)
 
         }
     }
