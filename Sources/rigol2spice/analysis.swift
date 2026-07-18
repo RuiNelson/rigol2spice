@@ -69,6 +69,7 @@ enum Analysis: Equatable {
     case edgeCount(threshold: Double?)
     case jitter(threshold: Double?)
     case integral
+    case energy
 
 
 
@@ -248,6 +249,9 @@ enum Analysis: Equatable {
             case "integral":
                 try requireArgumentCount(0)
                 return .integral
+            case "energy":
+                try requireArgumentCount(0)
+                return .energy
 
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
@@ -341,6 +345,7 @@ enum Analysis: Equatable {
                 "Jitter"
             }
         case .integral: "Integral"
+        case .energy: "Energy"
         }
     }
 }
@@ -519,6 +524,8 @@ extension Analysis {
             return .scalar(jitter)
         case .integral:
             return .scalar(integralValue(points))
+        case .energy:
+            return .scalar(energyValue(points))
 
         }
     }
