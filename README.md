@@ -147,7 +147,7 @@ The first sample seeds the state (`≥ rise` → high, otherwise low). With a si
 
 ⁶ `TVDenoise λ` solves min_x ½‖x − y‖² + λ · TV(x) with TV(x) = Σ |xᵢ₊₁ − xᵢ| (Condat’s direct 1D algorithm). Larger λ flattens plateaus more aggressively while keeping large jumps; λ = 0 is a no-op. λ has the same units as the sample amplitude. Not an inverse of `AddNoise`.
 
-### Analysis
+## Analysis
 
 Pass measurement commands with `-a` or `--analysis`. Syntax matches `-t` (semicolon-separated, case-insensitive, engineering scalars). Results print to the console with one fractional digit (engineering notation). Analyses always run **after** transformations (and downsample), on the processed waveform. When `-a` is used, the PWL output file is optional (same as `-l` / `-p`).
 
@@ -157,17 +157,32 @@ rigol2spice input.csv output.txt -t 'RemoveDC' -a 'DC; Avg; ZeroCrossing'
 rigol2spice input.csv -p -a 'FFT 1024; Frequency'
 ```
 
+### Capture
+
+| Operation | Example | Result |
+|---|---|---|
+| `Duration` | `Duration` | Capture time span `t_last − t_first` |
+| `Points` | `Points` | Number of samples |
+| `SampleRate` | `SampleRate` | Estimated sample rate `(N−1) / Duration` |
+| `Interval` | `Interval` | Mean sample interval `1 / SampleRate` |
+| `Start` | `Start` | First sample timestamp |
+| `End` | `End` | Last sample timestamp |
+
+### Amplitude & level
+
 | Operation | Example | Result |
 |---|---|---|
 | `Max` | `Max` | Maximum sample value |
 | `Min` | `Min` | Minimum sample value |
 | `HiPeak` | `HiPeak` | Alias of `Max` |
 | `LowPeak` | `LowPeak` | Alias of `Min` |
-| `Avg` | `Avg` | Arithmetic mean of sample values |
-| `DC` | `DC` | DC estimate (same k-means method as `RemoveDC`)¹ |
+| `PkPk` | `PkPk` | Peak-to-peak (`max − min`, same as `PeakToPeak`) |
 | `Peak` | `Peak` | Peak absolute value `max\|v\|` (same as `PeakTo`) |
 | `Amplitude` | `Amplitude` | Half of peak-to-peak (`PkPk / 2`) |
 | `Mid` | `Mid` | Midpoint of min/max: `(max + min) / 2` |
+| `Avg` | `Avg` | Arithmetic mean of sample values |
+| `DC` | `DC` | DC estimate (same k-means method as `RemoveDC`)¹ |
+| `RMS` | `RMS` | Sample RMS (same definition as `ScaleRMS`) |
 | `ACRms` | `ACRms` | AC RMS: `√max(0, RMS² − Avg²)` |
 | `StdDev` | `StdDev` | Population standard deviation (same value as `ACRms`) |
 | `Stdev` | `Stdev` | Alias of `StdDev` |
@@ -177,14 +192,11 @@ rigol2spice input.csv -p -a 'FFT 1024; Frequency'
 | `Base` | `Base` | Lower histogram mode (scope-style low level) |
 | `Overshoot` | `Overshoot` | `(max − Top) / (Top − Base)` (fraction) |
 | `Undershoot` | `Undershoot` | `(Base − min) / (Top − Base)` (fraction) |
-| `PkPk` | `PkPk` | Peak-to-peak (`max − min`, same as `PeakToPeak`) |
-| `RMS` | `RMS` | Sample RMS (same definition as `ScaleRMS`) |
-| `Duration` | `Duration` | Capture time span `t_last − t_first` |
-| `Points` | `Points` | Number of samples |
-| `SampleRate` | `SampleRate` | Estimated sample rate `(N−1) / Duration` |
-| `Interval` | `Interval` | Mean sample interval `1 / SampleRate` |
-| `Start` | `Start` | First sample timestamp |
-| `End` | `End` | Last sample timestamp |
+
+### Timing
+
+| Operation | Example | Result |
+|---|---|---|
 | `Crossing` | `Crossing 0` · `Crossing 1.5` | Average period/frequency of **complete** waves at that level (rise+fall crossings; first wave needs 3 crossings, each next wave +2, sharing the boundary; partial start/end ignored) |
 | `ZeroCrossing` | `ZeroCrossing` | Alias of `Crossing 0` |
 | `Frequency` | `Frequency` | Same as `Crossing` at the sample average (`Avg`) |
@@ -195,13 +207,23 @@ rigol2spice input.csv -p -a 'FFT 1024; Frequency'
 | `EdgeCount` | `EdgeCount` · `EdgeCount 0` | Number of level crossings at threshold (default `Avg`) |
 | `Jitter` | `Jitter` · `Jitter 0` | Std. dev. of complete-wave periods at threshold (default `Avg`; needs ≥ 2 periods) |
 | `PeriodStd` | `PeriodStd` | Alias of `Jitter` |
+
+### Integrals & power
+
+| Operation | Example | Result |
+|---|---|---|
 | `Integral` | `Integral` | Trapezoidal ∫v dt over the capture |
 | `Energy` | `Energy` | Trapezoidal ∫v² dt (energy proxy at 1 Ω) |
 | `dBm` | `dBm` · `dBm 75` | RMS power in dBm into R Ω (default 50): `10·log₁₀(Vrms²/R / 1mW)` |
+
+### Spectrum
+
+| Operation | Example | Result |
+|---|---|---|
 | `FFT` | `FFT` · `FFT 1024` · `FFT 1k` | Real FFT: remove mean (DC), Hann window, zero-pad to next 2ⁿ. Bare `FFT` uses **all** samples. `FFT N` uses a **centered** window of up to N samples; if the capture is shorter than N, all available samples are used. Peak is the strongest local AC maximum (sub-bin refined). Console prints frequency, peak magnitude in dB, and the N actually used; with `-p`, the SVG also shows the magnitude spectrum in dB. |
 | `THD` | `THD` · `THD 1024` | Total harmonic distortion as a fraction: `√(Σ Aₕ²) / A₁` for harmonics 2…10 of the FFT peak (same window rules as `FFT`) |
 
-### Post-processing Options
+## Post-processing Options
 
 | Option | Effect |
 |---|---|

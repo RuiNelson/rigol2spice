@@ -157,7 +157,11 @@ struct DCEstimatorTests {
         let sampleCount = Int((periods / frequency * sampleRate).rounded(.down))
         return (0 ... sampleCount).map { index in
             let time = Double(index) / sampleRate
-            let noise = noiseAmplitude.isZero ? .zero : Double.random(in: -noiseAmplitude ... noiseAmplitude)
+            // Deterministic, approximately uniform sequence in [-noiseAmplitude, noiseAmplitude].
+            // Keeping synthetic noise reproducible prevents statistical test flakiness.
+            let hash = sin(Double(index) * 12.9898 + 78.233) * 43758.5453
+            let unitNoise = hash - floor(hash)
+            let noise = noiseAmplitude.isZero ? .zero : noiseAmplitude * (2 * unitNoise - 1)
             return Point(
                 time: time,
                 value: dc + amplitude * sin(2 * .pi * frequency * time + phase) + noise,
