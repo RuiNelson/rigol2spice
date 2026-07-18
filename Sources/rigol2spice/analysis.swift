@@ -47,6 +47,7 @@ enum Analysis: Equatable {
     case interval
     case start
     case end
+    case peak
 
 
 
@@ -152,6 +153,9 @@ enum Analysis: Equatable {
             case "end":
                 try requireArgumentCount(0)
                 return .end
+            case "peak":
+                try requireArgumentCount(0)
+                return .peak
 
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
@@ -190,6 +194,7 @@ enum Analysis: Equatable {
         case .interval: "Interval"
         case .start: "Start"
         case .end: "End"
+        case .peak: "Peak"
         }
     }
 }
@@ -295,6 +300,8 @@ extension Analysis {
             return .scalar(points.first?.time ?? 0)
         case .end:
             return .scalar(points.last?.time ?? 0)
+        case .peak:
+            return .scalar(peakValue(points))
 
         }
     }

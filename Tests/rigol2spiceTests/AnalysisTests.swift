@@ -46,7 +46,7 @@ struct AnalysisTests {
     @Test
     func `rejects unknown operations and invalid arity`() {
         #expect(throws: (any Error).self) {
-            try Analysis.parseList("Peak")
+            try Analysis.parseList("NotARealOp")
         }
         #expect(throws: (any Error).self) {
             try Analysis.parseList("Max 1")
