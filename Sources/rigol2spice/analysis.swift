@@ -55,6 +55,7 @@ enum Analysis: Equatable {
     case crest
     case median
     case top
+    case base
 
 
 
@@ -184,6 +185,9 @@ enum Analysis: Equatable {
             case "top":
                 try requireArgumentCount(0)
                 return .top
+            case "base":
+                try requireArgumentCount(0)
+                return .base
 
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
@@ -230,6 +234,7 @@ enum Analysis: Equatable {
         case .crest: "Crest"
         case .median: "Median"
         case .top: "Top"
+        case .base: "Base"
         }
     }
 }
@@ -357,6 +362,11 @@ extension Analysis {
                 return .unavailable
             }
             return .scalar(levels.top)
+        case .base:
+            guard let levels = topBaseLevels(points) else {
+                return .unavailable
+            }
+            return .scalar(levels.base)
 
         }
     }
