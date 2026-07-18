@@ -42,6 +42,7 @@ enum Analysis: Equatable {
     /// `pointCount == nil` means use every sample in the capture.
     case fft(pointCount: Int?)
     case duration
+    case points
 
 
 
@@ -132,6 +133,9 @@ enum Analysis: Equatable {
             case "duration":
                 try requireArgumentCount(0)
                 return .duration
+            case "points":
+                try requireArgumentCount(0)
+                return .points
 
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
@@ -165,6 +169,7 @@ enum Analysis: Equatable {
                 "FFT"
             }
         case .duration: "Duration"
+        case .points: "Points"
         }
     }
 }
@@ -251,6 +256,8 @@ extension Analysis {
             return .fft(spectrum)
         case .duration:
             return .scalar(captureDuration(points))
+        case .points:
+            return .scalar(Double(points.count))
 
         }
     }
