@@ -2,6 +2,8 @@
 import Foundation
 import Testing
 
+// MARK: - AnalysisTests
+
 struct AnalysisTests {
     @Test
     func `parses analyses with aliases`() throws {
@@ -132,8 +134,7 @@ struct AnalysisTests {
 
         // Three level crossings → exactly one complete wave
         let oneWave = Array(points.prefix(4)) // crossings at 0.5, 1.5, 2.5
-        guard case let .periodAndFrequency(onePeriod, _) = Analysis.crossing(0).evaluate(on: oneWave)
-        else {
+        guard case let .periodAndFrequency(onePeriod, _) = Analysis.crossing(0).evaluate(on: oneWave) else {
             Issue.record("Expected one complete wave from 3 crossings")
             return
         }
@@ -162,8 +163,7 @@ struct AnalysisTests {
         let crossings = levelCrossingTimes(points, threshold: 0)
         #expect(crossings.count == 5)
 
-        guard case let .periodAndFrequency(period, frequency) = Analysis.crossing(0).evaluate(on: points)
-        else {
+        guard case let .periodAndFrequency(period, frequency) = Analysis.crossing(0).evaluate(on: points) else {
             Issue.record("Expected period/frequency from complete waves only")
             return
         }
@@ -173,8 +173,7 @@ struct AnalysisTests {
         // Four crossings → one complete wave; trailing half-wave dropped
         let withTrailingHalf = Array(points.prefix(6)) // crossings 1.5, 2.5, 3.5, 4.5
         guard case let .periodAndFrequency(partialEndPeriod, _) =
-            Analysis.crossing(0).evaluate(on: withTrailingHalf)
-        else {
+            Analysis.crossing(0).evaluate(on: withTrailingHalf) else {
             Issue.record("Expected one complete wave when a trailing half-wave remains")
             return
         }
@@ -301,8 +300,7 @@ struct AnalysisTests {
         points[30] = Point(time: 30, value: 1.2)
 
         guard case let .scalar(base) = Analysis.base.evaluate(on: points),
-              case let .scalar(top) = Analysis.top.evaluate(on: points)
-        else {
+              case let .scalar(top) = Analysis.top.evaluate(on: points) else {
             Issue.record("Expected top/base")
             return
         }
@@ -310,8 +308,7 @@ struct AnalysisTests {
         #expect(top > 0.7)
 
         guard case let .scalar(over) = Analysis.overshoot.evaluate(on: points),
-              case let .scalar(under) = Analysis.undershoot.evaluate(on: points)
-        else {
+              case let .scalar(under) = Analysis.undershoot.evaluate(on: points) else {
             Issue.record("Expected over/under")
             return
         }
@@ -333,16 +330,14 @@ struct AnalysisTests {
         ]
 
         // 10%→90% of span 0…1 = 0.1→0.9. Rise: levels at t=1.1 and t=1.9 → 0.8s
-        guard case let .scalar(rise) = Analysis.riseTime(lowPercent: 10, highPercent: 90).evaluate(on: points)
-        else {
+        guard case let .scalar(rise) = Analysis.riseTime(lowPercent: 10, highPercent: 90).evaluate(on: points) else {
             Issue.record("Expected rise time")
             return
         }
         #expect(abs(rise - 0.8) < 1e-9)
 
         // Fall: 0.9 at t=4.2, 0.1 at t=5.8 → 1.6s
-        guard case let .scalar(fall) = Analysis.fallTime(lowPercent: 10, highPercent: 90).evaluate(on: points)
-        else {
+        guard case let .scalar(fall) = Analysis.fallTime(lowPercent: 10, highPercent: 90).evaluate(on: points) else {
             Issue.record("Expected fall time")
             return
         }
@@ -444,8 +439,7 @@ struct AnalysisTests {
         }
 
         guard case let .scalar(thdPure) = Analysis.thd(pointCount: count).evaluate(on: pure),
-              case let .scalar(thdDist) = Analysis.thd(pointCount: count).evaluate(on: distorted)
-        else {
+              case let .scalar(thdDist) = Analysis.thd(pointCount: count).evaluate(on: distorted) else {
             Issue.record("Expected THD scalars")
             return
         }
@@ -459,5 +453,7 @@ struct AnalysisTests {
 
 private extension Analysis {
     /// Convenience for tests: ZeroCrossing parses to `.crossing(0)`.
-    static var zeroCrossingAlias: Analysis { .crossing(0) }
+    static var zeroCrossingAlias: Analysis {
+        .crossing(0)
+    }
 }

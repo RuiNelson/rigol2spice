@@ -117,20 +117,18 @@ struct Rigol2SpiceApplication {
             throw Rigol2SpiceError.invalidDownsampleValue(value: downsample)
         }
 
-        let transformations: [Transformation]
-        if let source = options.transformations {
-            transformations = try Transformation.parseList(source)
+        let transformations: [Transformation] = if let source = options.transformations {
+            try Transformation.parseList(source)
         }
         else {
-            transformations = []
+            []
         }
 
-        let analyses: [Analysis]
-        if let source = options.analysis {
-            analyses = try Analysis.parseList(source)
+        let analyses: [Analysis] = if let source = options.analysis {
+            try Analysis.parseList(source)
         }
         else {
-            analyses = []
+            []
         }
 
         return (transformations, analyses)

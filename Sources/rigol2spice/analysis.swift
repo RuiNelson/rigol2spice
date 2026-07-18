@@ -67,7 +67,7 @@ enum Analysis: Equatable {
     case overshoot
     case undershoot
 
-    // Timing
+    /// Timing
     /// Rise time between low/high percent of min/max span (default 10 → 90).
     case riseTime(lowPercent: Double, highPercent: Double)
     /// Fall time between high/low percent of min/max span (default 90 → 10).
@@ -166,10 +166,12 @@ enum Analysis: Equatable {
             }
 
             switch operation.lowercased() {
-            case "max", "hipeak":
+            case "max",
+                 "hipeak":
                 try requireArgumentCount(0)
                 return .max
-            case "min", "lowpeak":
+            case "min",
+                 "lowpeak":
                 try requireArgumentCount(0)
                 return .min
             case "avg":
@@ -180,7 +182,7 @@ enum Analysis: Equatable {
                 return .dc
             case "crossing":
                 try requireArgumentCount(1)
-                return .crossing(try parseScalarArgument(arguments[0]))
+                return try .crossing(parseScalarArgument(arguments[0]))
             case "zerocrossing":
                 try requireArgumentCount(0)
                 return .crossing(0)
@@ -194,8 +196,7 @@ enum Analysis: Equatable {
                 try requireArgumentCount(0)
                 return .pkPk
             case "fft":
-                return .fft(pointCount: try parseOptionalPointCount())
-
+                return try .fft(pointCount: parseOptionalPointCount())
             case "duration":
                 try requireArgumentCount(0)
                 return .duration
@@ -214,7 +215,6 @@ enum Analysis: Equatable {
             case "end":
                 try requireArgumentCount(0)
                 return .end
-
             case "peak":
                 try requireArgumentCount(0)
                 return .peak
@@ -227,7 +227,8 @@ enum Analysis: Equatable {
             case "acrms":
                 try requireArgumentCount(0)
                 return .acRms
-            case "stddev", "stdev":
+            case "stddev",
+                 "stdev":
                 try requireArgumentCount(0)
                 return .stdDev
             case "crest":
@@ -248,7 +249,6 @@ enum Analysis: Equatable {
             case "undershoot":
                 try requireArgumentCount(0)
                 return .undershoot
-
             case "risetime":
                 let pair = try parsePercentPair(defaultLow: 10, defaultHigh: 90)
                 return .riseTime(lowPercent: pair.0, highPercent: pair.1)
@@ -256,17 +256,17 @@ enum Analysis: Equatable {
                 let pair = try parsePercentPair(defaultLow: 10, defaultHigh: 90)
                 return .fallTime(lowPercent: pair.0, highPercent: pair.1)
             case "pulsewidth":
-                return .pulseWidth(threshold: try parseOptionalThreshold())
+                return try .pulseWidth(threshold: parseOptionalThreshold())
             case "duty":
-                return .duty(threshold: try parseOptionalThreshold())
+                return try .duty(threshold: parseOptionalThreshold())
             case "period":
                 try requireArgumentCount(0)
                 return .period
             case "edgecount":
-                return .edgeCount(threshold: try parseOptionalThreshold())
-            case "jitter", "periodstd":
-                return .jitter(threshold: try parseOptionalThreshold())
-
+                return try .edgeCount(threshold: parseOptionalThreshold())
+            case "jitter",
+                 "periodstd":
+                return try .jitter(threshold: parseOptionalThreshold())
             case "integral":
                 try requireArgumentCount(0)
                 return .integral
@@ -284,8 +284,7 @@ enum Analysis: Equatable {
                 }
                 return .dbm(resistance: resistance)
             case "thd":
-                return .thd(pointCount: try parseOptionalPointCount())
-
+                return try .thd(pointCount: parseOptionalPointCount())
             default:
                 throw AnalysisParseError.unknownOperation(name: operation)
             }
@@ -316,14 +315,12 @@ enum Analysis: Equatable {
             else {
                 "FFT"
             }
-
         case .duration: "Duration"
         case .points: "Points"
         case .sampleRate: "SampleRate"
         case .interval: "Interval"
         case .start: "Start"
         case .end: "End"
-
         case .peak: "Peak"
         case .amplitude: "Amplitude"
         case .mid: "Mid"
@@ -335,7 +332,6 @@ enum Analysis: Equatable {
         case .base: "Base"
         case .overshoot: "Overshoot"
         case .undershoot: "Undershoot"
-
         case let .riseTime(low, high):
             if low == 10, high == 90 {
                 "RiseTime"
@@ -379,7 +375,6 @@ enum Analysis: Equatable {
             else {
                 "Jitter"
             }
-
         case .integral: "Integral"
         case .energy: "Energy"
         case let .dbm(resistance):
@@ -418,7 +413,9 @@ struct AnalysisReport: Equatable {
     let analysis: Analysis
     let outcome: AnalysisOutcome
 
-    var label: String { analysis.label }
+    var label: String {
+        analysis.label
+    }
 
     /// Spectrum payload when this report is a successful FFT analysis.
     var fftSpectrum: FFTSpectrum? {
@@ -441,15 +438,12 @@ struct AnalysisReport: Equatable {
         case let .fft(spectrum):
             let freq = analysisFormatter.string(spectrum.centerFrequency)
             let mag = analysisFormatter.string(spectrum.centerMagnitudeDB)
-            let body: String
-            if spectrum.usedPointCount < spectrum.requestedPointCount {
-                body =
-                    "FFT \(spectrum.usedPointCount): \(freq)Hz \(mag)dB (requested \(spectrum.requestedPointCount))"
+            return if spectrum.usedPointCount < spectrum.requestedPointCount {
+                "FFT \(spectrum.usedPointCount): \(freq)Hz \(mag)dB (requested \(spectrum.requestedPointCount))"
             }
             else {
-                body = "FFT \(spectrum.usedPointCount): \(freq)Hz \(mag)dB"
+                "FFT \(spectrum.usedPointCount): \(freq)Hz \(mag)dB"
             }
-            return body
         case .fftUnavailable:
             return "\(label): unavailable"
         case .unavailable:
@@ -491,7 +485,6 @@ extension Analysis {
                 return .fftUnavailable
             }
             return .fft(spectrum)
-
         case .duration:
             return .scalar(captureDuration(points))
         case .points:
@@ -510,7 +503,6 @@ extension Analysis {
             return .scalar(points.first?.time ?? 0)
         case .end:
             return .scalar(points.last?.time ?? 0)
-
         case .peak:
             return .scalar(peakValue(points))
         case .amplitude:
@@ -548,7 +540,6 @@ extension Analysis {
                 return .unavailable
             }
             return .scalar(ratio)
-
         case let .riseTime(low, high):
             guard let dt = transitionTime(points, lowPercent: low, highPercent: high, rising: true) else {
                 return .unavailable
@@ -583,7 +574,6 @@ extension Analysis {
                 return .unavailable
             }
             return .scalar(jitter)
-
         case .integral:
             return .scalar(integralValue(points))
         case .energy:
@@ -596,8 +586,7 @@ extension Analysis {
         case let .thd(pointCount):
             let requested = pointCount ?? points.count
             guard let spectrum = computeFFTSpectrum(points: points, requestedPointCount: requested),
-                  let thd = thdFraction(spectrum: spectrum)
-            else {
+                  let thd = thdFraction(spectrum: spectrum) else {
                 return .unavailable
             }
             return .scalar(thd)

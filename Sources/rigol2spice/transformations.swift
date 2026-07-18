@@ -461,13 +461,19 @@ enum Transformation: Equatable {
                 let edge: TriggerEdge
                 let thresholdIndex: Int
                 switch first {
-                case "rising", "rise", "up":
+                case "rising",
+                     "rise",
+                     "up":
                     edge = .rising
                     thresholdIndex = 1
-                case "falling", "fall", "down":
+                case "falling",
+                     "fall",
+                     "down":
                     edge = .falling
                     thresholdIndex = 1
-                case "either", "any", "both":
+                case "either",
+                     "any",
+                     "both":
                     edge = .either
                     thresholdIndex = 1
                 default:
@@ -494,12 +500,11 @@ enum Transformation: Equatable {
                 }
 
                 let threshold = try parseScalarArgument(arguments[thresholdIndex])
-                let after: Double?
-                if arguments.count > thresholdIndex + 1 {
-                    after = try parseScalarArgument(arguments[thresholdIndex + 1])
+                let after: Double? = if arguments.count > thresholdIndex + 1 {
+                    try parseScalarArgument(arguments[thresholdIndex + 1])
                 }
                 else {
-                    after = nil
+                    nil
                 }
                 return .trigger(edge: edge, threshold: threshold, after: after)
             case "seamless",
@@ -538,12 +543,11 @@ enum Transformation: Equatable {
                         value: arguments[0],
                     )
                 }
-                let holdValue: Double?
-                if arguments.count == 2 {
-                    holdValue = try parseScalarArgument(arguments[1])
+                let holdValue: Double? = if arguments.count == 2 {
+                    try parseScalarArgument(arguments[1])
                 }
                 else {
-                    holdValue = nil
+                    nil
                 }
                 return .pad(duration: duration, value: holdValue)
             case "extendto":
@@ -555,12 +559,11 @@ enum Transformation: Equatable {
                     )
                 }
                 let endTime = try parseScalarArgument(arguments[0])
-                let holdValue: Double?
-                if arguments.count == 2 {
-                    holdValue = try parseScalarArgument(arguments[1])
+                let holdValue: Double? = if arguments.count == 2 {
+                    try parseScalarArgument(arguments[1])
                 }
                 else {
-                    holdValue = nil
+                    nil
                 }
                 return .extendTo(endTime: endTime, value: holdValue)
             case "resample":
@@ -583,7 +586,7 @@ enum Transformation: Equatable {
                 if arguments.isEmpty {
                     return .extractPeriod(threshold: nil)
                 }
-                return .extractPeriod(threshold: try parseScalarArgument(arguments[0]))
+                return try .extractPeriod(threshold: parseScalarArgument(arguments[0]))
             case "cutafter":
                 let value = try scalar()
                 guard value > 0 else {

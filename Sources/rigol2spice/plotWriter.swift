@@ -64,7 +64,7 @@ enum PlotWriter {
         let analysisBlockHeight = analysisReports.isEmpty
             ? 0
             : analysisBlockPadding + analysisLineHeight
-                + Double(analysisReports.count) * analysisLineHeight
+            + Double(analysisReports.count) * analysisLineHeight
         let spectraBlockHeight = spectra.isEmpty
             ? 0
             : Double(spectra.count) * (spectrumGap + spectrumHeight + spectrumBottomPad)
@@ -137,7 +137,10 @@ enum PlotWriter {
                     let x = xPixel(index)
                     xSubscales.append(
                         """
-                        <line class="grid-x-sub" x1="\(formatCoord(x))" y1="\(formatCoord(topMargin))" x2="\(formatCoord(x))" y2="\(formatCoord(topMargin + plotHeight))"/>
+                        <line class="grid-x-sub" x1="\(formatCoord(
+                            x,
+                        ))" y1="\(formatCoord(topMargin))" x2="\(formatCoord(x))" y2="\(formatCoord(topMargin +
+                                plotHeight))"/>
                         """,
                     )
                 }
@@ -148,18 +151,22 @@ enum PlotWriter {
             let startMajor = (firstTime / majorInterval).rounded(.up) * majorInterval
             var majorTick = startMajor
             var majorGuard = 0
-            while majorTick <= lastTime + majorInterval * 1e-9, majorGuard < 10_000 {
+            while majorTick <= lastTime + majorInterval * 1e-9, majorGuard < 10000 {
                 let index = nearestIndex(forTime: majorTick, in: points)
                 let x = xPixel(index)
                 xGrid.append(
                     """
-                    <line class="grid-x" x1="\(formatCoord(x))" y1="\(formatCoord(topMargin))" x2="\(formatCoord(x))" y2="\(formatCoord(topMargin + plotHeight))"/>
+                    <line class="grid-x" x1="\(formatCoord(
+                        x,
+                    ))" y1="\(formatCoord(topMargin))" x2="\(formatCoord(x))" y2="\(formatCoord(topMargin +
+                            plotHeight))"/>
                     """,
                 )
                 let label = escapeXML(plotEngineeringFormatter.string(majorTick) + "s")
                 xLabels.append(
                     """
-                    <text class="label-x" x="\(formatCoord(x))" y="\(formatCoord(topMargin + plotHeight + 20))">\(label)</text>
+                    <text class="label-x" x="\(formatCoord(x))" y="\(formatCoord(topMargin + plotHeight +
+                            20))">\(label)</text>
                     """,
                 )
                 majorTick += majorInterval
@@ -171,7 +178,8 @@ enum PlotWriter {
             let label = escapeXML(plotEngineeringFormatter.string(firstTime) + "s")
             xLabels.append(
                 """
-                <text class="label-x" x="\(formatCoord(x))" y="\(formatCoord(topMargin + plotHeight + 20))">\(label)</text>
+                <text class="label-x" x="\(formatCoord(x))" y="\(formatCoord(topMargin + plotHeight +
+                        20))">\(label)</text>
                 """,
             )
         }
@@ -279,7 +287,9 @@ enum PlotWriter {
         let binCount = spectrum.frequencies.count
         guard binCount >= 2 else {
             return """
-            <text class="spectrum-title" x="\(formatCoord(leftMargin))" y="\(formatCoord(titleY))">\(escapeXML("FFT \(spectrum.requestedPointCount) — unavailable"))</text>
+            <text class="spectrum-title" x="\(formatCoord(
+                leftMargin,
+            ))" y="\(formatCoord(titleY))">\(escapeXML("FFT \(spectrum.requestedPointCount) — unavailable"))</text>
             """
         }
 
@@ -328,8 +338,12 @@ enum PlotWriter {
             let label = escapeXML(plotEngineeringFormatter.string(frequency) + "Hz")
             xLabels.append(
                 """
-                <line class="grid-x" x1="\(formatCoord(x))" y1="\(formatCoord(chartTop))" x2="\(formatCoord(x))" y2="\(formatCoord(chartTop + spectrumHeight))"/>
-                <text class="label-x" x="\(formatCoord(x))" y="\(formatCoord(chartTop + spectrumHeight + 18))">\(label)</text>
+                <line class="grid-x" x1="\(formatCoord(
+                    x,
+                ))" y1="\(formatCoord(chartTop))" x2="\(formatCoord(x))" y2="\(formatCoord(chartTop +
+                        spectrumHeight))"/>
+                <text class="label-x" x="\(formatCoord(x))" y="\(formatCoord(chartTop + spectrumHeight +
+                        18))">\(label)</text>
                 """,
             )
         }
@@ -338,25 +352,32 @@ enum PlotWriter {
         let maxLabel = escapeXML(plotEngineeringFormatter.string(dbMax) + "dB")
         let minLabel = escapeXML(plotEngineeringFormatter.string(dbMin) + "dB")
         let peakX = xAtFrequency(spectrum.centerFrequency)
-        let title: String
-        if spectrum.usedPointCount < spectrum.requestedPointCount {
-            title = escapeXML(
+        let title: String = if spectrum.usedPointCount < spectrum.requestedPointCount {
+            escapeXML(
                 "FFT \(spectrum.usedPointCount) pts (requested \(spectrum.requestedPointCount)) · peak \(plotEngineeringFormatter.string(spectrum.centerFrequency))Hz",
             )
         }
         else {
-            title = escapeXML(
+            escapeXML(
                 "FFT \(spectrum.usedPointCount) pts · peak \(plotEngineeringFormatter.string(spectrum.centerFrequency))Hz",
             )
         }
 
         return """
         <text class="spectrum-title" x="\(formatCoord(leftMargin))" y="\(formatCoord(titleY))">\(title)</text>
-        <rect class="panel" x="\(formatCoord(leftMargin))" y="\(formatCoord(chartTop))" width="\(formatCoord(plotWidth))" height="\(formatCoord(spectrumHeight))" rx="6"/>
+        <rect class="panel" x="\(formatCoord(
+            leftMargin,
+        ))" y="\(formatCoord(
+            chartTop,
+        ))" width="\(formatCoord(plotWidth))" height="\(formatCoord(spectrumHeight))" rx="6"/>
         \(xLabels)
         <text class="label-y" x="\(formatCoord(leftMargin - 10))" y="\(formatCoord(chartTop + 4))">\(maxLabel)</text>
-        <text class="label-y" x="\(formatCoord(leftMargin - 10))" y="\(formatCoord(chartTop + spectrumHeight))">\(minLabel)</text>
-        <line class="mark-peak" x1="\(formatCoord(peakX))" y1="\(formatCoord(chartTop))" x2="\(formatCoord(peakX))" y2="\(formatCoord(chartTop + spectrumHeight))"/>
+        <text class="label-y" x="\(formatCoord(leftMargin - 10))" y="\(formatCoord(chartTop +
+                spectrumHeight))">\(minLabel)</text>
+        <line class="mark-peak" x1="\(formatCoord(
+            peakX,
+        ))" y1="\(formatCoord(chartTop))" x2="\(formatCoord(peakX))" y2="\(formatCoord(chartTop +
+                spectrumHeight))"/>
         <polyline class="spectrum" points="\(polyline)"/>
         """
     }
@@ -371,13 +392,15 @@ enum PlotWriter {
         }
 
         var elements = """
-        <text class="analysis-title" x="\(formatCoord(x))" y="\(formatCoord(y + analysisLineHeight - 2))">Analysis</text>
+        <text class="analysis-title" x="\(formatCoord(x))" y="\(formatCoord(y + analysisLineHeight -
+                2))">Analysis</text>
         """
         for (index, report) in reports.enumerated() {
             let lineY = y + analysisLineHeight + Double(index + 1) * analysisLineHeight - 2
             elements.append(
                 """
-                <text class="analysis-line" x="\(formatCoord(x))" y="\(formatCoord(lineY))">\(escapeXML(report.displayLine))</text>
+                <text class="analysis-line" x="\(formatCoord(x))" y="\(formatCoord(lineY))">\(escapeXML(report
+                        .displayLine))</text>
                 """,
             )
         }

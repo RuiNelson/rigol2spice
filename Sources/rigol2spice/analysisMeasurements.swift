@@ -207,7 +207,7 @@ func dbmFromRMS(_ points: [Point], resistance: Double = powerReferenceResistance
     return dbm.isFinite ? dbm : nil
 }
 
-// MARK: - Directed crossings & timing
+// MARK: - DirectedCrossing
 
 struct DirectedCrossing: Equatable {
     let time: Double
@@ -282,8 +282,7 @@ func transitionTime(
 
     if rising {
         guard let tLow = firstDirectedCrossing(points, level: lowLevel, rising: true),
-              let tHigh = firstDirectedCrossing(points, level: highLevel, rising: true, after: tLow)
-        else {
+              let tHigh = firstDirectedCrossing(points, level: highLevel, rising: true, after: tLow) else {
             return nil
         }
         let dt = tHigh - tLow
@@ -291,8 +290,7 @@ func transitionTime(
     }
 
     guard let tHigh = firstDirectedCrossing(points, level: highLevel, rising: false),
-          let tLow = firstDirectedCrossing(points, level: lowLevel, rising: false, after: tHigh)
-    else {
+          let tLow = firstDirectedCrossing(points, level: lowLevel, rising: false, after: tHigh) else {
         return nil
     }
     let dt = tLow - tHigh
@@ -422,8 +420,7 @@ func thdFraction(spectrum: FFTSpectrum, maxHarmonic: Int = 10) -> Double? {
     guard spectrum.frequencies.count == spectrum.magnitudes.count,
           spectrum.magnitudes.count > 2,
           spectrum.centerFrequency > 0,
-          maxHarmonic >= 2
-    else {
+          maxHarmonic >= 2 else {
         return nil
     }
 

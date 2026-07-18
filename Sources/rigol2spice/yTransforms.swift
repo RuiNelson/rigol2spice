@@ -97,7 +97,8 @@ func tvDenoiseValues(_ input: [Double], lambda: Double) -> [Double] {
                 repeat {
                     output[k0] = vmin
                     k0 += 1
-                } while k0 <= kminus
+                }
+                while k0 <= kminus
                 k = k0
                 kminus = k0
                 vmin = input[k0]
@@ -109,7 +110,8 @@ func tvDenoiseValues(_ input: [Double], lambda: Double) -> [Double] {
                 repeat {
                     output[k0] = vmax
                     k0 += 1
-                } while k0 <= kplus
+                }
+                while k0 <= kplus
                 k = k0
                 kplus = k0
                 vmax = input[k0]
@@ -121,7 +123,8 @@ func tvDenoiseValues(_ input: [Double], lambda: Double) -> [Double] {
                 repeat {
                     output[k0] = vmin
                     k0 += 1
-                } while k0 <= k
+                }
+                while k0 <= k
                 return output
             }
         }
@@ -132,7 +135,8 @@ func tvDenoiseValues(_ input: [Double], lambda: Double) -> [Double] {
             repeat {
                 output[k0] = vmin
                 k0 += 1
-            } while k0 <= kminus
+            }
+            while k0 <= kminus
             k = k0
             kminus = k0
             kplus = k0
@@ -149,7 +153,8 @@ func tvDenoiseValues(_ input: [Double], lambda: Double) -> [Double] {
             repeat {
                 output[k0] = vmax
                 k0 += 1
-            } while k0 <= kplus
+            }
+            while k0 <= kplus
             k = k0
             kminus = k0
             kplus = k0

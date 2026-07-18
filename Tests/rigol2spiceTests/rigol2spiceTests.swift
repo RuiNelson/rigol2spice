@@ -124,9 +124,9 @@ struct Rigol2spiceTests {
         let lowStart = denoised.prefix(4).map(\.value)
         let highMid = denoised[4 ..< 8].map(\.value)
         let lowEnd = denoised.suffix(4).map(\.value)
-        #expect(lowStart.max()! - lowStart.min()! < 0.05)
-        #expect(highMid.max()! - highMid.min()! < 0.05)
-        #expect(lowEnd.max()! - lowEnd.min()! < 0.05)
+        #expect(try #require(lowStart.max()) - lowStart.min()! < 0.05)
+        #expect(try #require(highMid.max()) - highMid.min()! < 0.05)
+        #expect(try #require(lowEnd.max()) - lowEnd.min()! < 0.05)
         let lowLevel = lowStart.reduce(0, +) / Double(lowStart.count)
         let highLevel = highMid.reduce(0, +) / Double(highMid.count)
         #expect(highLevel - lowLevel > 0.7)
@@ -149,7 +149,7 @@ struct Rigol2spiceTests {
         #expect(try Transformation.addNoise(0).applying(to: quiet) == quiet)
 
         // Large constant capture: sample mean ≈ 0 noise, sample std ≈ amplitude
-        let count = 20_000
+        let count = 20000
         let amplitude = 2.0
         let points = (0 ..< count).map { Point(time: Double($0), value: 0) }
         let noisy = try Transformation.addNoise(amplitude).applying(to: points)

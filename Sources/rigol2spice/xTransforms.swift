@@ -86,12 +86,11 @@ func triggerPoints(
         throw Rigol2SpiceError.edgeNotFound(edge: edge, threshold: threshold)
     }
 
-    let searchStart: Int
-    if let after {
-        searchStart = firstPointIndex(atOrAfter: after, in: points)
+    let searchStart: Int = if let after {
+        firstPointIndex(atOrAfter: after, in: points)
     }
     else {
-        searchStart = 0
+        0
     }
 
     guard searchStart < points.count else {
@@ -105,14 +104,13 @@ func triggerPoints(
         let current = points[index]
         let crossedUp = previous.value < threshold && current.value >= threshold
         let crossedDown = previous.value > threshold && current.value <= threshold
-        let crossed: Bool
-        switch edge {
+        let crossed: Bool = switch edge {
         case .rising:
-            crossed = crossedUp
+            crossedUp
         case .falling:
-            crossed = crossedDown
+            crossedDown
         case .either:
-            crossed = crossedUp || crossedDown
+            crossedUp || crossedDown
         }
         guard crossed else {
             continue
