@@ -56,6 +56,7 @@ struct Rigol2SpiceApplication {
         let data = try loadInput()
         let capture = try parseCapture(data)
 
+        reportMetadata(capture.metadata)
         reportChannels(capture.channels)
         guard !options.listChannels else {
             return
@@ -161,8 +162,54 @@ struct Rigol2SpiceApplication {
             Console.detail("(This might take a while)")
         }
 
+        let detectedFormat = CaptureFormat.detect(in: data, csvFallback: options.format)
+        Console.detail("Detected format: \(detectedFormat.displayName)")
         let requestedChannel = options.listChannels ? nil : options.channel
-        return try options.format.parser.parse(data, channel: requestedChannel)
+        return try detectedFormat.parser.parse(data, channel: requestedChannel)
+    }
+
+    private func reportMetadata(_ metadata: CaptureMetadata?) {
+        guard let metadata else {
+            return
+        }
+
+        Console.detail("WFM information:")
+        Console.detail("Model               : \(metadata.model)", level: 2)
+        Console.detail("Firmware            : \(metadata.firmware)", level: 2)
+        Console.detail("File version        : \(metadata.fileVersion)", level: 2)
+        Console.detail(
+            "Structure version   : \(String(format: "0x%04X", metadata.structureVersion))",
+            level: 2,
+        )
+        Console.detail("Acquisition mode    : \(metadata.acquisitionMode)", level: 2)
+        Console.detail("Time mode           : \(metadata.timeMode)", level: 2)
+        Console.detail(
+            "Horizontal scale    : \(engineeringFormatter.string(metadata.horizontalScale))s/div",
+            level: 2,
+        )
+        Console.detail(
+            "Horizontal offset   : \(engineeringFormatter.string(metadata.horizontalOffset))s",
+            level: 2,
+        )
+        Console.detail(
+            "Raw memory depth    : \(numberOfPointsFormatter.string(for: metadata.memoryDepth)!) bytes",
+            level: 2,
+        )
+        Console.detail(
+            "Raw data file offset: \(String(format: "0x%X", metadata.rawDataOffset))",
+            level: 2,
+        )
+
+        for channel in metadata.channels {
+            let inversion = channel.inverted ? ", inverted" : ""
+            Console.detail(
+                "\(channel.name): \(channel.coupling), \(engineeringFormatter.string(channel.voltsPerDivision))\(channel.unit)/div, offset \(engineeringFormatter.string(channel.verticalOffset))\(channel.unit), probe \(engineeringFormatter.string(channel.probeRatio))×, \(channel.bandwidth)\(inversion)",
+                level: 2,
+            )
+        }
+        if let conversion = metadata.voltageConversion {
+            Console.detail("Voltage conversion  : \(conversion)", level: 2)
+        }
     }
 
     private func reportChannels(_ channels: [String]) {

@@ -2,7 +2,7 @@
 
 **Import real oscilloscope captures into your SPICE simulations.**
 
-Converts Rigol oscilloscope CSV exports to PWL (piece-wise linear) files for LTspice, ngspice, and other SPICE simulators. Supports multi-channel captures, channel math, and a pipeline of waveform transformations (offset, filter, clip, resample, and others). Optional analaysis/measurements (RMS, frequency, rise time, FFT, THD, etc.) and SVG plots.
+Converts Rigol oscilloscope CSV and DS1000Z-family WFM exports to PWL (piece-wise linear) files for LTspice, ngspice, and other SPICE simulators. Supports multi-channel captures, channel math, and a pipeline of waveform transformations (offset, filter, clip, resample, and others). Optional analaysis/measurements (RMS, frequency, rise time, FFT, THD, etc.) and SVG plots.
 
 Works with legacy Rigol CSV formats and newer Centaurus-platform scopes (e.g. DHO800/DHO900 series). Written in Swift as a compiled native binary for high performance; runs on Windows, macOS, and Linux.
 
@@ -26,9 +26,19 @@ rigol2spice -n input.csv output.txt
 
 The output `.txt` file can be loaded directly as a PWL source in LTspice and other SPICE simulators.
 
+DS1000Z-family `.wfm` files are detected automatically from their binary magic; the filename extension is not used for detection:
+
+```
+rigol2spice capture.wfm output.txt
+```
+
+The console also reports WFM metadata such as the oscilloscope model and firmware, acquisition mode, time base, channel coupling, probe ratio, vertical scale, and raw memory layout. DS1000Z voltage conversion uses the reverse-engineered empirical `volts/div ÷ 20` scaling. Because Rigol firmware revisions do not store a consistently usable vertical reference, validate absolute DC offsets against a known measurement when they matter.
+
+Rigol `.trc` files are not currently supported.
+
 ## Channel Selection
 
-List available channels in a CSV with `-l` or `--list-channels`:
+List available channels in a capture with `-l` or `--list-channels`:
 
 ```
 rigol2spice -l input.csv
@@ -284,6 +294,10 @@ swift build
 ```
 
 Builds on macOS, Windows, and Linux.
+
+## Acknowledgements
+
+Special thanks to [Scott Prahl](https://github.com/scottprahl), author of [RigolWFM](https://github.com/scottprahl/RigolWFM), for publishing the reverse-engineering research and Kaitai Struct schema that made DS1000Z WFM support possible.
 
 ## Legal
 

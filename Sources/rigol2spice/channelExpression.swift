@@ -95,18 +95,23 @@ indirect enum ChannelExpression: Equatable {
     }
 
     func evaluate(channels: [String: Double]) throws -> Double {
-        switch self {
-        case let .channel(name):
+        try evaluate { name in
             if let value = channels[name] {
                 return value
             }
-            let match = channels.first { $0.key.caseInsensitiveCompare(name) == .orderedSame }
-            return match?.value ?? 0
+            return channels.first { $0.key.caseInsensitiveCompare(name) == .orderedSame }?.value
+        }
+    }
+
+    func evaluate(valueForChannel: (String) -> Double?) throws -> Double {
+        switch self {
+        case let .channel(name):
+            return valueForChannel(name) ?? 0
         case let .unaryMinus(expression):
-            return try -expression.evaluate(channels: channels)
+            return try -expression.evaluate(valueForChannel: valueForChannel)
         case let .binary(op, lhs, rhs):
-            let left = try lhs.evaluate(channels: channels)
-            let right = try rhs.evaluate(channels: channels)
+            let left = try lhs.evaluate(valueForChannel: valueForChannel)
+            let right = try rhs.evaluate(valueForChannel: valueForChannel)
             switch op {
             case .add:
                 return left + right

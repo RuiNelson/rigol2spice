@@ -73,6 +73,43 @@ struct CLITests {
         #expect((result.stdout + result.stderr).contains("NotARealTransformation"))
     }
 
+    @Test
+    func `cli auto detects WFM and prints instrument metadata`() throws {
+        let result = try runCLI([
+            samplePath(named: "reverse", extension: "wfm"),
+            "-l",
+        ])
+
+        #expect(result.status == 0)
+        #expect(result.stderr.isEmpty)
+        #expect(result.stdout.contains("Detected format: Rigol DS1000Z WFM"))
+        #expect(result.stdout.contains("Model               : DS1104Z"))
+        #expect(result.stdout.contains("Firmware            : 00.04.05.SP2"))
+        #expect(result.stdout.contains("Horizontal scale    : 20us/div"))
+        #expect(result.stdout.contains("Raw data file offset: 0xC91"))
+        #expect(result.stdout.contains("- CH1"))
+    }
+
+    @Test
+    func `cli converts WFM samples to PWL end to end`() throws {
+        let output = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rigol2spice-wfm-cli-\(UUID().uuidString).txt")
+        defer { try? FileManager.default.removeItem(at: output) }
+
+        let result = try runCLI([
+            samplePath(named: "reverse", extension: "wfm"),
+            output.path,
+            "-k",
+        ])
+
+        #expect(result.status == 0)
+        #expect(result.stderr.isEmpty)
+        let text = try String(contentsOf: output, encoding: .ascii)
+        let lines = text.split(whereSeparator: \Character.isNewline)
+        #expect(lines.count == 12512)
+        #expect(lines.first == "0\t0.05")
+    }
+
     private func runCLI(_ arguments: [String]) throws -> CLIResult {
         let process = Process()
         let stdout = Pipe()
@@ -101,9 +138,13 @@ struct CLITests {
     }
 
     private func samplePath(named name: String) throws -> String {
+        try samplePath(named: name, extension: "csv")
+    }
+
+    private func samplePath(named name: String, extension fileExtension: String) throws -> String {
         guard let url = Bundle.module.url(
             forResource: name,
-            withExtension: "csv",
+            withExtension: fileExtension,
             subdirectory: "SampleFiles",
         ) else {
             throw CLITestError.missingSample(name)

@@ -42,12 +42,12 @@ func normalizePlotArguments(_ arguments: [String]) -> [String] {
 struct Rigol2SpiceCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "rigol2spice",
-        abstract: "Convert Rigol oscilloscope CSV captures to SPICE PWL files.",
+        abstract: "Convert Rigol oscilloscope CSV and WFM captures to SPICE PWL files.",
     )
 
     @Flag(
         name: .shortAndLong,
-        help: "Adopts the format used by newer Rigol Centaurus platform oscilloscopes.",
+        help: "Adopts the CSV format used by newer Rigol Centaurus platform oscilloscopes. WFM is detected automatically.",
     )
     var newModels = false
 
@@ -83,8 +83,8 @@ struct Rigol2SpiceCommand: ParsableCommand {
     var plot: String?
 
     @Argument(
-        help: "The Rigol CSV file to read.",
-        completion: .file(extensions: ["csv"]),
+        help: "The Rigol CSV or WFM file to read (WFM is detected by magic).",
+        completion: .file(extensions: ["csv", "wfm"]),
     )
     var inputFile: String
 
