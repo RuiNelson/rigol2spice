@@ -5,4 +5,6 @@ enum OutputFormat: String, CaseIterable, ExpressibleByArgument {
     case matlab
     case wav32
     case wav16
+    case npy
+    case npz
 }

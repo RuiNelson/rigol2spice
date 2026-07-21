@@ -7,6 +7,7 @@ Converts Rigol oscilloscope CSV and WFM exports to:
 - PWL (piece-wise linear) files for LTspice, Cadence, ngspice, and other SPICE simulators.
 - MATLAB vectors for numerical analysis and further processing.
 - Mono WAV files in 32-bit floating-point or 16-bit PCM format.
+- NumPy arrays and archives for Python-based processing.
 
 Supports multi-channel captures, channel selection, and channel math.
 
@@ -48,63 +49,33 @@ rigol2spice capture.wfm output.txt
 
 ## Output Formats
 
-Select the output format with `-f` or `--format`. The default is `pwl`.
-The waveform output file is optional when using `--list-channels`, `--plot`, or `--analysis`.
+| Format | Output | Requirements |
+| --- | --- | --- |
+| `pwl` (default) | Tab-separated timestamp/value pairs for SPICE | None |
+| `matlab` | MATLAB column vector `points` containing vertical values | None |
+| `wav32` | Mono 32-bit IEEE floating-point WAV | Finite values in `-1...1`; at least two uniformly spaced samples at a whole-number sampling rate |
+| `wav16` | Mono signed 16-bit PCM WAV | Finite values in `-1...1`; at least two uniformly spaced samples at a whole-number sampling rate |
+| `npy` | One-dimensional little-endian Float64 array of vertical values | None |
+| `npz` | Uncompressed archive with little-endian Float64 arrays `timestamps` and `values` | None |
 
-### PWL
-
-PWL output contains one tab-separated time/value pair per line and can be loaded directly by LTspice, ngspice, and other SPICE simulators:
-
-```
-0    1
-0.5  -2
-```
-
-```
-rigol2spice --format pwl input.csv output.txt
-```
-
-By default, redundant collinear points are removed to reduce the output size. Use `-k` or `--keep-all` to retain every processed point.
-
-### MATLAB
-
-MATLAB output is a column vector named `points` containing only the vertical sample values:
+MATLAB:
 
 ```matlab
-points = [
-1;
--2;
-];
+run("output.m");
+plot(points);
 ```
 
+NumPy:
+
+```python
+import numpy as np
+
+values = np.load("output.npy")
+
+capture = np.load("output.npz")
+timestamps = capture["timestamps"]
+values = capture["values"]
 ```
-rigol2spice --format matlab input.csv output.m
-```
-
-MATLAB output always retains every processed point, as if `--keep-all` were enabled.
-
-### WAV
-
-`wav32` writes mono 32-bit IEEE floating-point samples. `wav16` writes mono signed 16-bit PCM samples:
-
-```sh
-rigol2spice --format wav32 input.csv output.wav
-rigol2spice --format wav16 input.csv output.wav
-```
-
-WAV output does not normalize or resample automatically. Before conversion:
-
-- Every vertical value must be finite and within `-1...1`. Apply an explicit amplitude transformation such as `PeakTo 1` when required.
-- Timestamps must form a uniform grid at a whole-number sampling frequency. Apply `ResampleF`, normally as the final transformation, when required.
-- At least two processed samples must remain.
-
-For example, this explicitly scales the peak amplitude and converts the sampling grid to 48 kSa/s:
-
-```sh
-rigol2spice --format wav32 -t 'PeakTo 1; ResampleF 48k' input.csv output.wav
-```
-
-Timestamp validation allows small floating-point rounding errors but rejects genuinely nonuniform grids. If the signal is not ready for WAV conversion, the command exits without creating the output file and suggests the relevant transformation. WAV output always retains all processed samples; PWL point optimization is not applied.
 
 ## Channel Selection
 
@@ -489,16 +460,6 @@ Wave-type analysis compares measured harmonic-amplitude ratios, up to harmonic 1
 
 The plot uses 1 pixel per sample, auto-scaled Y (min / avg / max markers), and decade-spaced X time markers. When `-a` is combined with `-p`, analysis results are listed in a text block under the time plot (not drawn over the waveform). An `FFT` analysis also appends a spectrum panel (dB vs frequency, peak marker). A console warning is emitted above 10 000 points (prefer downsample or a shorter time window).
 
-## Example: Extract One Period and Repeat
-
-```
-rigol2spice -t 'TimeShift -5m; CutAfter 7.5m; Repeat 2' input.csv output.txt
-```
-
-1. Shift waveform 5 ms left (removes the first 5 ms, then time starts at 0)
-2. Cut at 7.5 ms (keeps only 0 -- 7.5 ms of the shifted waveform)
-3. Repeat 2 times (creates 3 total copies -- original + 2 repetitions = 22.5 ms total)
-
 ## Full Usage Reference
 
 ```
@@ -510,7 +471,7 @@ OPTIONS:
   -t,  --transformations <value>  Ordered transformations separated by semicolons
   -a,  --analysis <value>         Ordered analyses separated by semicolons; FFT dependants follow FFT
   -d,  --downsample <ratio>       Downsample ratio
-  -f,  --format <format>          Output format: pwl, matlab, wav32, or wav16 (default: pwl)
+  -f,  --format <format>          Output format: pwl, matlab, wav32, wav16, npy, or npz (default: pwl)
   -k,  --keep-all                 Keep all sample points
   -p,  --plot [<file>]            Write SVG plot (default: plot.svg)
   -h,  --help                     Show help

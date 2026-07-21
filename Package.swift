@@ -10,6 +10,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", exact: "1.5.0"),
         .package(url: "https://github.com/RuiNelson/SwiftEngineeringNumberFormatter", exact: "3.0.1"),
+        .package(url: "https://github.com/weichsel/ZIPFoundation", exact: "0.9.20"),
     ],
     targets: [
         .executableTarget(
@@ -17,6 +18,7 @@ let package = Package(
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "SwiftEngineeringNumberFormatter", package: "SwiftEngineeringNumberFormatter"),
+                .product(name: "ZIPFoundation", package: "ZIPFoundation"),
             ],
         ),
         .testTarget(

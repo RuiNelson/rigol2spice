@@ -42,7 +42,7 @@ func normalizePlotArguments(_ arguments: [String]) -> [String] {
 struct Rigol2SpiceCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "rigol2spice",
-        abstract: "Convert Rigol oscilloscope CSV and WFM captures to PWL, MATLAB, or WAV files.",
+        abstract: "Convert Rigol oscilloscope CSV and WFM captures to PWL, MATLAB, WAV, or NumPy files.",
     )
 
     @Flag(name: .shortAndLong, help: "Only list channels present in the file and quit.")
@@ -66,7 +66,7 @@ struct Rigol2SpiceCommand: ParsableCommand {
     @Option(name: .shortAndLong, help: "Downsample ratio.")
     var downsample: Int?
 
-    @Option(name: .shortAndLong, help: "Output format: pwl, matlab, wav32, or wav16.")
+    @Option(name: .shortAndLong, help: "Output format: pwl, matlab, wav32, wav16, npy, or npz.")
     var format: OutputFormat = .pwl
 
     @Flag(name: .shortAndLong, help: "Keep redundant sample points in the output.")

@@ -134,6 +134,29 @@ struct CLITests {
     }
 
     @Test
+    func `npy output keeps every vertical value`() throws {
+        let output = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rigol2spice-cli-\(UUID().uuidString).npy")
+        defer { try? FileManager.default.removeItem(at: output) }
+
+        let result = try runCLI([
+            samplePath(named: "Legacy"),
+            output.path,
+            "--format", "npy",
+            "--channel", "CH2",
+        ])
+
+        #expect(result.status == 0)
+        #expect(!result.stdout.contains("Removing redundant sample points"))
+        let data = try Data(contentsOf: output)
+        let headerLength = Int(data[8]) | Int(data[9]) << 8
+        #expect(data.count == 10 + headerLength + 1200 * 8)
+        #expect((10 + headerLength).isMultiple(of: 64))
+        #expect(data[0] == 0x93)
+        #expect(String(decoding: data[1 ..< 6], as: UTF8.self) == "NUMPY")
+    }
+
+    @Test
     func `cli auto detects Centaurus CSV without an option`() throws {
         let result = try runCLI([
             samplePath(named: "Centaurus"),

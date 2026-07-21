@@ -616,6 +616,10 @@ struct Rigol2SpiceApplication {
             try WAVWriter(encoding: .float32).write(points, to: outputURL)
         case .wav16:
             try WAVWriter(encoding: .pcm16).write(points, to: outputURL)
+        case .npy:
+            try NPYWriter().write(points.map(\.value), to: outputURL)
+        case .npz:
+            try NPZWriter().write(points, to: outputURL)
         }
 
         let firstTime = points[0].time
