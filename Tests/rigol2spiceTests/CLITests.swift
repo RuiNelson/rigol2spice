@@ -91,6 +91,49 @@ struct CLITests {
     }
 
     @Test
+    func `wav16 output keeps every point and writes source sample rate`() throws {
+        let output = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rigol2spice-cli-\(UUID().uuidString).wav")
+        defer { try? FileManager.default.removeItem(at: output) }
+
+        let result = try runCLI([
+            samplePath(named: "Legacy"),
+            output.path,
+            "--format", "wav16",
+            "--channel", "CH2",
+        ])
+
+        #expect(result.status == 0)
+        #expect(!result.stdout.contains("Removing redundant sample points"))
+        let data = try Data(contentsOf: output)
+        #expect(data.count == 44 + 1200 * 2)
+        #expect(String(decoding: data[0 ..< 4], as: UTF8.self) == "RIFF")
+        let sampleRate = UInt32(data[24])
+            | UInt32(data[25]) << 8
+            | UInt32(data[26]) << 16
+            | UInt32(data[27]) << 24
+        #expect(sampleRate == 500_000)
+    }
+
+    @Test
+    func `wav output rejects unnormalized samples with transformation suggestion`() throws {
+        let output = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rigol2spice-cli-invalid-\(UUID().uuidString).wav")
+        defer { try? FileManager.default.removeItem(at: output) }
+
+        let result = try runCLI([
+            samplePath(named: "Legacy"),
+            output.path,
+            "--format", "wav32",
+            "--transformations", "Multiply 1000",
+        ])
+
+        #expect(result.status != 0)
+        #expect(!FileManager.default.fileExists(atPath: output.path))
+        #expect((result.stdout + result.stderr).contains("PeakTo 1"))
+    }
+
+    @Test
     func `cli auto detects Centaurus CSV without an option`() throws {
         let result = try runCLI([
             samplePath(named: "Centaurus"),

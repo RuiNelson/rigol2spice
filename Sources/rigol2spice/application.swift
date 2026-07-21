@@ -612,6 +612,10 @@ struct Rigol2SpiceApplication {
             try PWLWriter().write(points, to: outputURL)
         case .matlab:
             try MATLABWriter().write(points, to: outputURL)
+        case .wav32:
+            try WAVWriter(encoding: .float32).write(points, to: outputURL)
+        case .wav16:
+            try WAVWriter(encoding: .pcm16).write(points, to: outputURL)
         }
 
         let firstTime = points[0].time

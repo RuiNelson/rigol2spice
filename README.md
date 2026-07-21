@@ -6,6 +6,7 @@ Converts Rigol oscilloscope CSV and WFM exports to:
 
 - PWL (piece-wise linear) files for LTspice, Cadence, ngspice, and other SPICE simulators.
 - MATLAB vectors for numerical analysis and further processing.
+- Mono WAV files in 32-bit floating-point or 16-bit PCM format.
 
 Supports multi-channel captures, channel selection, and channel math.
 
@@ -81,6 +82,29 @@ rigol2spice --format matlab input.csv output.m
 ```
 
 MATLAB output always retains every processed point, as if `--keep-all` were enabled.
+
+### WAV
+
+`wav32` writes mono 32-bit IEEE floating-point samples. `wav16` writes mono signed 16-bit PCM samples:
+
+```sh
+rigol2spice --format wav32 input.csv output.wav
+rigol2spice --format wav16 input.csv output.wav
+```
+
+WAV output does not normalize or resample automatically. Before conversion:
+
+- Every vertical value must be finite and within `-1...1`. Apply an explicit amplitude transformation such as `PeakTo 1` when required.
+- Timestamps must form a uniform grid at a whole-number sampling frequency. Apply `ResampleF`, normally as the final transformation, when required.
+- At least two processed samples must remain.
+
+For example, this explicitly scales the peak amplitude and converts the sampling grid to 48 kSa/s:
+
+```sh
+rigol2spice --format wav32 -t 'PeakTo 1; ResampleF 48k' input.csv output.wav
+```
+
+Timestamp validation allows small floating-point rounding errors but rejects genuinely nonuniform grids. If the signal is not ready for WAV conversion, the command exits without creating the output file and suggests the relevant transformation. WAV output always retains all processed samples; PWL point optimization is not applied.
 
 ## Channel Selection
 
@@ -486,7 +510,7 @@ OPTIONS:
   -t,  --transformations <value>  Ordered transformations separated by semicolons
   -a,  --analysis <value>         Ordered analyses separated by semicolons; FFT dependants follow FFT
   -d,  --downsample <ratio>       Downsample ratio
-  -f,  --format <format>          Output format: pwl or matlab (default: pwl)
+  -f,  --format <format>          Output format: pwl, matlab, wav32, or wav16 (default: pwl)
   -k,  --keep-all                 Keep all sample points
   -p,  --plot [<file>]            Write SVG plot (default: plot.svg)
   -h,  --help                     Show help
