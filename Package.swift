@@ -8,8 +8,11 @@ let package = Package(
         .macOS(.v10_15),
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-argument-parser", exact: "1.5.0"),
-        .package(url: "https://github.com/RuiNelson/SwiftEngineeringNumberFormatter", exact: "3.0.1"),
+        .package(url: "https://github.com/apple/swift-argument-parser", .upToNextMajor(from: "1.5.0")),
+        .package(
+            url: "https://github.com/RuiNelson/SwiftEngineeringNumberFormatter",
+            .upToNextMajor(from: "3.0.1"),
+        ),
         .package(url: "https://github.com/weichsel/ZIPFoundation", exact: "0.9.20"),
     ],
     targets: [

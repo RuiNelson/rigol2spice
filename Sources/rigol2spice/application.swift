@@ -11,6 +11,7 @@ enum Rigol2SpiceError: LocalizedError, Equatable {
     case edgeNotFound(edge: TriggerEdge, threshold: Double)
     case triggerEventNotFound(operation: String)
     case periodNotDetected
+    case commandFileUnreadable(option: String, path: String, reason: String)
 
     var errorDescription: String? {
         switch self {
@@ -26,6 +27,8 @@ enum Rigol2SpiceError: LocalizedError, Equatable {
             "No event matching \(operation) was found in the capture"
         case .periodNotDetected:
             "Could not detect a repeating period in the capture"
+        case let .commandFileUnreadable(option, path, reason):
+            "Could not read \(option) file \"\(path)\": \(reason)"
         }
     }
 }
@@ -36,7 +39,9 @@ struct ApplicationOptions {
     let listChannels: Bool
     let channel: String
     let transformations: String?
+    let transformationsFile: String?
     let analysis: String?
+    let analysisFile: String?
     let downsample: Int?
     let format: OutputFormat
     let keepAll: Bool
@@ -118,7 +123,7 @@ struct Rigol2SpiceApplication {
     }
 
     private func validateOptions() throws -> (transformations: [Transformation], analyses: [Analysis]) {
-        let hasAnalysis = options.analysis != nil
+        let hasAnalysis = options.analysis != nil || options.analysisFile != nil
         guard options.listChannels || options.outputFile != nil || options.plotFile != nil || hasAnalysis else {
             throw Rigol2SpiceError.outputFileNotSpecified
         }
@@ -127,21 +132,51 @@ struct Rigol2SpiceApplication {
             throw Rigol2SpiceError.invalidDownsampleValue(value: downsample)
         }
 
-        let transformations: [Transformation] = if let source = options.transformations {
-            try Transformation.parseList(source)
+        let transformationSource = try combinedCommandSource(
+            file: options.transformationsFile,
+            inline: options.transformations,
+            option: "transformations",
+        )
+        let transformations: [Transformation] = if let transformationSource {
+            try Transformation.parseList(transformationSource)
         }
         else {
             []
         }
 
-        let analyses: [Analysis] = if let source = options.analysis {
-            try Analysis.parseList(source)
+        let analysisSource = try combinedCommandSource(
+            file: options.analysisFile,
+            inline: options.analysis,
+            option: "analysis",
+        )
+        let analyses: [Analysis] = if let analysisSource {
+            try Analysis.parseList(analysisSource)
         }
         else {
             []
         }
 
         return (transformations, analyses)
+    }
+
+    private func combinedCommandSource(file: String?, inline: String?, option: String) throws -> String? {
+        var sources: [String] = []
+        if let file {
+            do {
+                try sources.append(String(contentsOfFile: file, encoding: .utf8))
+            }
+            catch {
+                throw Rigol2SpiceError.commandFileUnreadable(
+                    option: option,
+                    path: file,
+                    reason: error.localizedDescription,
+                )
+            }
+        }
+        if let inline {
+            sources.append(inline)
+        }
+        return sources.isEmpty ? nil : sources.joined(separator: "\n")
     }
 
     private func reportAnalysis(_ reports: [AnalysisReport]) {

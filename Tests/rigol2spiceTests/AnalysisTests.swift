@@ -27,6 +27,14 @@ struct AnalysisTests {
     }
 
     @Test
+    func `analysis commands accept semicolon and all conventional line endings`() throws {
+        let expected: [Analysis] = [.max, .min, .avg, .rms]
+
+        #expect(try Analysis.parseList("Max;Min\rAvg\nRMS") == expected)
+        #expect(try Analysis.parseList("Max\r\nMin\r\nAvg\r\nRMS") == expected)
+    }
+
+    @Test
     func `operation names are case insensitive`() throws {
         #expect(
             try Analysis.parseList("max; HIPEAK; zerocrossing; pkpk")
@@ -93,17 +101,9 @@ struct AnalysisTests {
     }
 
     @Test
-    func `rejects empty commands in the list`() {
-        do {
-            _ = try Analysis.parseList("Max;;Min")
-            Issue.record("Expected empty command to fail")
-        }
-        catch let error as AnalysisParseError {
-            #expect(error == .emptyCommand(index: 2))
-        }
-        catch {
-            Issue.record("Unexpected error: \(error)")
-        }
+    func `ignores empty commands in the list`() throws {
+        #expect(try Analysis.parseList("Max;;\r\n  ;Min;") == [.max, .min])
+        #expect(try Analysis.parseList(";;\r\n  ;\n").isEmpty)
     }
 
     @Test

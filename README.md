@@ -101,10 +101,16 @@ rigol2spice.exe -c "CH1-CH2" -t "RemoveDC" input.csv output.txt
 
 ## Transformations (`-t`)
 
-Pass an ordered list of transformation commands with `-t` or `--transformations`. Separate commands with semicolons and enclose the complete string in double quotes for the Windows command line:
+Pass an ordered list of transformation commands with `-t` or `--transformations`. Separate commands with semicolons or line breaks (CR, LF, or CRLF); empty commands and blank lines are ignored. Enclose the complete string in double quotes for the Windows command line:
 
 ```bat
 rigol2spice.exe input.csv output.txt -t "RemoveDC; ClampMax 0.7; Offset -1.2"
+```
+
+Use `-tf` or `--transformations-file` to read the same command text from a UTF-8 file. If `-t` is also present, file commands run first and inline commands follow:
+
+```bat
+rigol2spice.exe input.csv output.txt -tf transforms.txt -t "Normalize"
 ```
 
 Commands use the syntax `OPERATION argument`. Operation names are case-insensitive. Scalars accept decimal (`0.7`), engineering (`3n`, `10u`), and scientific (`5e-3`) notation. Use `-` for negative values. Transformations run strictly from left to right.
@@ -312,7 +318,9 @@ rigol2spice.exe fm-capture.csv recovered.txt -t "DemodFM 100k, 10k, 20k"
 
 ## Analysis (`-a`)
 
-Pass measurement commands with `-a` or `--analysis`. Syntax matches `-t` (semicolon-separated, case-insensitive, engineering scalars). Results print to the console with one fractional digit and combine the engineering prefix with the physical unit, for example `2.4ms`, `8.4mV`, `1.2MV/s`, or `2mW`. Signal amplitudes are reported in volts; ratios such as duty cycle and THD are displayed as percentages, while crest factor uses `×`. Analyses always run **after** transformations (and downsample), on the processed waveform. When `-a` is used, the PWL output file is optional (same as `-l` / `-p`).
+Pass measurement commands with `-a` or `--analysis`. Syntax matches `-t` (commands separated by semicolons or CR/LF/CRLF line breaks; empty commands and blank lines ignored; case-insensitive; engineering scalars). Results print to the console with one fractional digit and combine the engineering prefix with the physical unit, for example `2.4ms`, `8.4mV`, `1.2MV/s`, or `2mW`. Signal amplitudes are reported in volts; ratios such as duty cycle and THD are displayed as percentages, while crest factor uses `×`. Analyses always run **after** transformations (and downsample), on the processed waveform. When `-a` is used, the PWL output file is optional (same as `-l` / `-p`).
+
+Use `-af` or `--analysis-file` to read analyses from a UTF-8 file. When combined with `-a`, file analyses come first, so dependants such as an inline `THD` can reuse an `FFT` declared in the file.
 
 ```bat
 rigol2spice.exe input.csv -a "Max; Min; RMS; PkPk; Frequency"
@@ -450,8 +458,11 @@ USAGE: rigol2spice.exe [<options>] <input-file> [<output-file>]
 OPTIONS:
   -l,  --list-channels            List channels and exit
   -c,  --channel <channel>        Channel or math expression (default: CH1)
-  -t,  --transformations <value>  Ordered transformations separated by semicolons
-  -a,  --analysis <value>         Ordered analyses separated by semicolons; FFT dependants follow FFT
+  -t,  --transformations <value>  Ordered transformations separated by semicolons or line breaks
+  -tf, --transformations-file <value>
+                                  Read transformations from a file before inline commands
+  -a,  --analysis <value>         Ordered analyses separated by semicolons or line breaks; FFT dependants follow FFT
+  -af, --analysis-file <value>    Read analyses from a file before inline commands
   -d,  --downsample <ratio>       Downsample ratio
   -f,  --format <format>          Output format: pwl, matlab, wav32, wav16, npy, or npz (default: pwl)
   -k,  --keep-all                 Keep all sample points
@@ -459,7 +470,7 @@ OPTIONS:
   -h,  --help                     Show help
 ```
 
-`output-file` is optional with `-l`, `-p`, or `-a`.
+`output-file` is optional with `-l`, `-p`, `-a`, or `-af`.
 
 ## Building from Source
 

@@ -3,7 +3,6 @@ import Foundation
 // MARK: - TransformationParseError
 
 enum TransformationParseError: LocalizedError, Equatable {
-    case emptyCommand(index: Int)
     case unknownOperation(name: String)
     case invalidArgumentCount(operation: String, expected: Int, actual: Int)
     case invalidScalar(operation: String, value: String)
@@ -18,8 +17,6 @@ enum TransformationParseError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case let .emptyCommand(index):
-            "Transformation command \(index) is empty"
         case let .unknownOperation(name):
             "Unknown transformation operation: \(name)"
         case let .invalidArgumentCount(operation, expected, actual):
@@ -126,13 +123,10 @@ enum Transformation: Equatable {
     case notch(center: Double, width: Double)
 
     static func parseList(_ source: String) throws -> [Transformation] {
-        let commands = source.split(separator: ";", omittingEmptySubsequences: false)
+        let commands = splitCommandList(source)
 
-        return try commands.enumerated().map { index, rawCommand in
+        return try commands.map { rawCommand in
             let command = rawCommand.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !command.isEmpty else {
-                throw TransformationParseError.emptyCommand(index: index + 1)
-            }
 
             let components = command.split(maxSplits: 1, whereSeparator: \Character.isWhitespace)
             let operation = String(components[0])

@@ -3,7 +3,6 @@ import Foundation
 // MARK: - AnalysisParseError
 
 enum AnalysisParseError: LocalizedError, Equatable {
-    case emptyCommand(index: Int)
     case unknownOperation(name: String)
     case invalidArgumentCount(operation: String, expected: Int, actual: Int)
     case invalidScalar(operation: String, value: String)
@@ -14,8 +13,6 @@ enum AnalysisParseError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case let .emptyCommand(index):
-            "Analysis command \(index) is empty"
         case let .unknownOperation(name):
             "Unknown analysis operation: \(name)"
         case let .invalidArgumentCount(operation, expected, actual):
@@ -130,14 +127,11 @@ enum Analysis: Equatable {
     case triangleWaveType
 
     static func parseList(_ source: String) throws -> [Analysis] {
-        let commands = source.split(separator: ";", omittingEmptySubsequences: false)
+        let commands = splitCommandList(source)
         var hasFFT = false
 
-        return try commands.enumerated().flatMap { index, rawCommand -> [Analysis] in
+        return try commands.flatMap { rawCommand -> [Analysis] in
             let command = rawCommand.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !command.isEmpty else {
-                throw AnalysisParseError.emptyCommand(index: index + 1)
-            }
 
             let components = command.split(maxSplits: 1, whereSeparator: \Character.isWhitespace)
             let operation = String(components[0])

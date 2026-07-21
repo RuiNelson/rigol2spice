@@ -21,6 +21,16 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `transformation commands accept semicolon and all conventional line endings`() throws {
+        let expected: [Transformation] = [.offset(1), .multiply(2), .invert, .abs]
+
+        #expect(try Transformation.parseList("Offset 1;Multiply 2\rInvert\nAbs") == expected)
+        #expect(try Transformation.parseList("Offset 1\r\nMultiply 2\r\nInvert\r\nAbs") == expected)
+        #expect(try Transformation.parseList(";;\r\n  ;\n").isEmpty)
+        #expect(try Transformation.parseList(";Offset 1;;\r\n\r\nMultiply 2;") == [.offset(1), .multiply(2)])
+    }
+
+    @Test
     func `operation names are case insensitive`() throws {
         #expect(
             try Transformation.parseList("removedc; TIMESHiFT -5e-3; cutafter 7.5m")

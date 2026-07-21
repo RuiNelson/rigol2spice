@@ -54,14 +54,34 @@ struct Rigol2SpiceCommand: ParsableCommand {
     )
     var channel = "CH1"
 
-    @Option(name: .shortAndLong, help: "Ordered transformations separated by semicolons.")
+    @Option(name: .shortAndLong, help: "Ordered transformations separated by semicolons or line breaks.")
     var transformations: String?
 
     @Option(
+        name: [.customLong("tf", withSingleDash: true), .long],
+        help: ArgumentHelp(
+            "Read transformations from a file before any --transformations commands.",
+            valueName: "file",
+        ),
+        completion: .file(),
+    )
+    var transformationsFile: String?
+
+    @Option(
         name: .shortAndLong,
-        help: "Ordered analyses separated by semicolons; FFT dependants must follow FFT.",
+        help: "Ordered analyses separated by semicolons or line breaks; FFT dependants must follow FFT.",
     )
     var analysis: String?
+
+    @Option(
+        name: [.customLong("af", withSingleDash: true), .long],
+        help: ArgumentHelp(
+            "Read analyses from a file before any --analysis commands.",
+            valueName: "file",
+        ),
+        completion: .file(),
+    )
+    var analysisFile: String?
 
     @Option(name: .shortAndLong, help: "Downsample ratio.")
     var downsample: Int?
@@ -86,7 +106,7 @@ struct Rigol2SpiceCommand: ParsableCommand {
     var inputFile: String
 
     @Argument(
-        help: "The converted waveform file to write (optional with --list-channels, --plot, or --analysis).",
+        help: "The converted waveform file to write (optional with --list-channels, --plot, --analysis, or --analysis-file).",
         completion: nil,
     )
     var outputFile: String?
@@ -97,7 +117,9 @@ struct Rigol2SpiceCommand: ParsableCommand {
                 listChannels: listChannels,
                 channel: channel,
                 transformations: transformations,
+                transformationsFile: transformationsFile,
                 analysis: analysis,
+                analysisFile: analysisFile,
                 downsample: downsample,
                 format: format,
                 keepAll: keepAll,

@@ -22,6 +22,90 @@ struct CLITests {
     }
 
     @Test
+    func `cli accepts multiline transformation and analysis lists`() throws {
+        let result = try runCLI([
+            samplePath(named: "Legacy"),
+            "-c", "CH2",
+            "-t", "Offset 1\r\nMultiply 2",
+            "-a", "Points\nAvg",
+        ])
+
+        #expect(result.status == 0)
+        #expect(result.stderr.isEmpty)
+        #expect(result.stdout.contains("Points: 1.2k"))
+        #expect(result.stdout.contains("Avg: 2"))
+    }
+
+    @Test
+    func `short command file options prepend file commands to inline commands`() throws {
+        let transformationsFile = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rigol2spice-transformations-\(UUID().uuidString).txt")
+        let analysisFile = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rigol2spice-analysis-\(UUID().uuidString).txt")
+        defer {
+            try? FileManager.default.removeItem(at: transformationsFile)
+            try? FileManager.default.removeItem(at: analysisFile)
+        }
+        try "Offset 1\r\n".write(to: transformationsFile, atomically: true, encoding: .utf8)
+        try "FFT 1024\n".write(to: analysisFile, atomically: true, encoding: .utf8)
+
+        let result = try runCLI([
+            samplePath(named: "Legacy"),
+            "-c", "CH2",
+            "-tf", transformationsFile.path,
+            "-t", "Multiply 2",
+            "-af", analysisFile.path,
+            "-a", "THD; Avg",
+        ])
+
+        #expect(result.status == 0)
+        #expect(result.stderr.isEmpty)
+        #expect(result.stdout.contains("THD:"))
+        // File first: (input + 1) × 2 averages approximately 2; reverse order would average 1.
+        #expect(result.stdout.contains("Avg: 2"))
+    }
+
+    @Test
+    func `long command file options work without inline lists`() throws {
+        let transformationsFile = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rigol2spice-transformations-\(UUID().uuidString).txt")
+        let analysisFile = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rigol2spice-analysis-\(UUID().uuidString).txt")
+        defer {
+            try? FileManager.default.removeItem(at: transformationsFile)
+            try? FileManager.default.removeItem(at: analysisFile)
+        }
+        try "Offset 1".write(to: transformationsFile, atomically: true, encoding: .utf8)
+        try "Avg".write(to: analysisFile, atomically: true, encoding: .utf8)
+
+        let result = try runCLI([
+            samplePath(named: "Legacy"),
+            "-c", "CH2",
+            "--transformations-file", transformationsFile.path,
+            "--analysis-file", analysisFile.path,
+        ])
+
+        #expect(result.status == 0)
+        #expect(result.stderr.isEmpty)
+        #expect(result.stdout.contains("Avg: 1"))
+    }
+
+    @Test
+    func `unreadable command file returns a useful error`() throws {
+        let missing = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rigol2spice-missing-\(UUID().uuidString).txt")
+        let result = try runCLI([
+            samplePath(named: "Legacy"),
+            "-tf", missing.path,
+            "-a", "Points",
+        ])
+
+        #expect(result.status != 0)
+        #expect((result.stdout + result.stderr).contains("Could not read transformations file"))
+        #expect((result.stdout + result.stderr).contains(missing.path))
+    }
+
+    @Test
     func `console analysis combines engineering notation with units`() throws {
         let result = try runCLI([
             samplePath(named: "Legacy"),
