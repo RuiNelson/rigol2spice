@@ -1,0 +1,96 @@
+name: macOS
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build macOS universal binary
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Swift 6.2.4
+        uses: swift-actions/setup-swift@v2.4.0
+        with:
+          swift-version: "6.2.4"
+
+      - name: Build arm64
+        run: >-
+          swift build
+          --configuration release
+          --product rigol2spice
+          --arch arm64
+          --scratch-path .build/arm64
+
+      - name: Build x86_64
+        run: >-
+          swift build
+          --configuration release
+          --product rigol2spice
+          --arch x86_64
+          --scratch-path .build/x86_64
+
+      - name: Create and verify universal binary
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          arm64_bin_dir="$(swift build --configuration release --arch arm64 --scratch-path .build/arm64 --show-bin-path)"
+          x86_64_bin_dir="$(swift build --configuration release --arch x86_64 --scratch-path .build/x86_64 --show-bin-path)"
+          output_dir="dist/macos-universal"
+
+          mkdir -p "$output_dir"
+          lipo -create \
+            "$arm64_bin_dir/rigol2spice" \
+            "$x86_64_bin_dir/rigol2spice" \
+            -output "$output_dir/rigol2spice"
+          chmod 755 "$output_dir/rigol2spice"
+
+          architectures="$(lipo -archs "$output_dir/rigol2spice")"
+          for expected in arm64 x86_64; do
+            if [[ " $architectures " != *" $expected "* ]]; then
+              echo "Missing $expected architecture: $architectures" >&2
+              exit 1
+            fi
+          done
+
+          file "$output_dir/rigol2spice"
+          "$output_dir/rigol2spice" --help >/dev/null
+
+      - name: Package Apple Archive (LZFSE)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          archive="dist/rigol2spice-macos-universal.aa"
+          verification_dir="$RUNNER_TEMP/rigol2spice-aa-verification"
+
+          aa archive \
+            -a lzfse \
+            -d dist/macos-universal \
+            -o "$archive"
+
+          mkdir -p "$verification_dir"
+          aa extract -i "$archive" -d "$verification_dir"
+          test -x "$verification_dir/rigol2spice"
+          cmp dist/macos-universal/rigol2spice "$verification_dir/rigol2spice"
+          lipo -archs "$verification_dir/rigol2spice"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rigol2spice-macos-universal
+          path: dist/rigol2spice-macos-universal.aa
+          if-no-files-found: error
