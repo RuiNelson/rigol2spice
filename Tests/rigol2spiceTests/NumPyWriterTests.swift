@@ -46,6 +46,23 @@ struct NumPyWriterTests {
         #expect(uint16(data, at: data.count - 12) == 2)
     }
 
+    @Test
+    func `uncompressed zip writer creates a valid stored entry`() throws {
+        let payload = Data([1, 2, 3])
+
+        let data = try UncompressedZIPWriter().makeData(entries: [("a.npy", payload)])
+
+        #expect(uint32(data, at: 0) == 0x0403_4B50)
+        #expect(uint16(data, at: 8) == 0)
+        #expect(uint32(data, at: 14) == 0x55BC_801D)
+        #expect(uint32(data, at: 18) == 3)
+        #expect(uint32(data, at: 22) == 3)
+        #expect(String(decoding: data[30 ..< 35], as: UTF8.self) == "a.npy")
+        #expect(data[35 ..< 38] == payload)
+        #expect(uint32(data, at: data.count - 22) == 0x0605_4B50)
+        #expect(uint16(data, at: data.count - 12) == 1)
+    }
+
     private func temporaryURL(extension fileExtension: String) -> URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent("rigol2spice-\(UUID().uuidString).\(fileExtension)")

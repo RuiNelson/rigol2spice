@@ -1,15 +1,21 @@
 import Foundation
-import ZIPFoundation
+
+#if canImport(ZIPFoundation)
+    import ZIPFoundation
+#endif
 
 // MARK: - NumPyWriterError
 
 enum NumPyWriterError: LocalizedError, Equatable {
     case arrayTooLarge
+    case archiveTooLarge
 
     var errorDescription: String? {
         switch self {
         case .arrayTooLarge:
             "NumPy array is too large for the NPY 1.0 format"
+        case .archiveTooLarge:
+            "NumPy arrays are too large for the NPZ archive"
         }
     }
 }
@@ -67,15 +73,22 @@ struct NPZWriter {
         let npyWriter = NPYWriter()
         let timestampsURL = temporaryDirectory.appendingPathComponent("timestamps.npy")
         let valuesURL = temporaryDirectory.appendingPathComponent("values.npy")
-        let archiveURL = temporaryDirectory.appendingPathComponent("output.npz")
         _ = try npyWriter.write(points.map(\.time), to: timestampsURL)
         _ = try npyWriter.write(points.map(\.value), to: valuesURL)
 
-        let archive = try Archive(url: archiveURL, accessMode: .create)
-        try archive.addEntry(with: "timestamps.npy", fileURL: timestampsURL, compressionMethod: .none)
-        try archive.addEntry(with: "values.npy", fileURL: valuesURL, compressionMethod: .none)
-
-        let data = try Data(contentsOf: archiveURL)
+        let data: Data
+        #if canImport(ZIPFoundation)
+            let archiveURL = temporaryDirectory.appendingPathComponent("output.npz")
+            let archive = try Archive(url: archiveURL, accessMode: .create)
+            try archive.addEntry(with: "timestamps.npy", fileURL: timestampsURL, compressionMethod: .none)
+            try archive.addEntry(with: "values.npy", fileURL: valuesURL, compressionMethod: .none)
+            data = try Data(contentsOf: archiveURL)
+        #else
+            data = try UncompressedZIPWriter().makeData(entries: [
+                ("timestamps.npy", Data(contentsOf: timestampsURL)),
+                ("values.npy", Data(contentsOf: valuesURL)),
+            ])
+        #endif
         try data.write(to: outputURL, options: .atomic)
         return data.count
     }

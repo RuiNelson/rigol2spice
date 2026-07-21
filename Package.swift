@@ -18,7 +18,11 @@ let package = Package(
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "SwiftEngineeringNumberFormatter", package: "SwiftEngineeringNumberFormatter"),
-                .product(name: "ZIPFoundation", package: "ZIPFoundation"),
+                .product(
+                    name: "ZIPFoundation",
+                    package: "ZIPFoundation",
+                    condition: .when(platforms: [.macOS, .linux]),
+                ),
             ],
         ),
         .testTarget(
