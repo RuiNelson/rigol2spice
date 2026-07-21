@@ -2,7 +2,7 @@
 import Foundation
 import Testing
 
-struct FIRFilterTests {
+struct DigitalFilterTests {
     @Test
     func `parses filter operations`() throws {
         #expect(try Transformation.parseList("LowPass 1k") == [.lowPass(1000)])
@@ -47,7 +47,7 @@ struct FIRFilterTests {
     func `rejects frequencies at or above Nyquist`() {
         let points = sineWave(frequency: 100, sampleRate: 10000, count: 2000)
         #expect(
-            throws: FIRFilterError.frequencyOutOfRange(
+            throws: DigitalFilterError.frequencyOutOfRange(
                 operation: "LowPass",
                 frequency: 5000,
                 nyquist: 5000,
@@ -74,6 +74,35 @@ struct FIRFilterTests {
 
         #expect(lowGain > 0.9)
         #expect(highGain < 0.05)
+    }
+
+    @Test
+    func `zero phase cutoff is approximately minus three decibels`() throws {
+        let sampleRate = 20000.0
+        let interval = 1 / sampleRate
+        let cutoff = sineWave(frequency: 1000, sampleRate: sampleRate, count: 20000)
+
+        let lowPassed = try Transformation.lowPass(1000).applying(to: cutoff, sampleInterval: interval)
+        let highPassed = try Transformation.highPass(1000).applying(to: cutoff, sampleInterval: interval)
+        let expectedGain = 1 / sqrt(2.0)
+
+        #expect(abs(rms(lowPassed) / rms(cutoff) - expectedGain) < 0.02)
+        #expect(abs(rms(highPassed) / rms(cutoff) - expectedGain) < 0.02)
+    }
+
+    @Test
+    func `high order response is steep close to the cutoff`() throws {
+        let sampleRate = 20000.0
+        let interval = 1 / sampleRate
+        let count = 20000
+        let pass = sineWave(frequency: 800, sampleRate: sampleRate, count: count)
+        let stop = sineWave(frequency: 1200, sampleRate: sampleRate, count: count)
+
+        let filteredPass = try Transformation.lowPass(1000).applying(to: pass, sampleInterval: interval)
+        let filteredStop = try Transformation.lowPass(1000).applying(to: stop, sampleInterval: interval)
+
+        #expect(rms(filteredPass) / rms(pass) > 0.99)
+        #expect(rms(filteredStop) / rms(stop) < 0.01)
     }
 
     @Test
@@ -129,6 +158,40 @@ struct FIRFilterTests {
     }
 
     @Test
+    func `band stop edges are approximately minus three decibels`() throws {
+        let sampleRate = 20000.0
+        let interval = 1 / sampleRate
+        let lowEdge = sineWave(frequency: 700, sampleRate: sampleRate, count: 20000)
+        let highEdge = sineWave(frequency: 1300, sampleRate: sampleRate, count: 20000)
+
+        let filteredLow = try Transformation.bandStop(low: 700, high: 1300)
+            .applying(to: lowEdge, sampleInterval: interval)
+        let filteredHigh = try Transformation.bandStop(low: 700, high: 1300)
+            .applying(to: highEdge, sampleInterval: interval)
+        let expectedGain = 1 / sqrt(2.0)
+
+        #expect(abs(rms(filteredLow) / rms(lowEdge) - expectedGain) < 0.08)
+        #expect(abs(rms(filteredHigh) / rms(highEdge) - expectedGain) < 0.08)
+    }
+
+    @Test
+    func `band stop response is steep inside and outside its edges`() throws {
+        let sampleRate = 20000.0
+        let interval = 1 / sampleRate
+        let count = 20000
+        let inside = sineWave(frequency: 900, sampleRate: sampleRate, count: count)
+        let outside = sineWave(frequency: 500, sampleRate: sampleRate, count: count)
+
+        let filteredInside = try Transformation.bandStop(low: 700, high: 1300)
+            .applying(to: inside, sampleInterval: interval)
+        let filteredOutside = try Transformation.bandStop(low: 700, high: 1300)
+            .applying(to: outside, sampleInterval: interval)
+
+        #expect(rms(filteredInside) / rms(inside) < 0.1)
+        #expect(rms(filteredOutside) / rms(outside) > 0.99)
+    }
+
+    @Test
     func `group delay compensation keeps impulse peak aligned`() throws {
         let sampleRate = 10000.0
         let interval = 1 / sampleRate
@@ -164,17 +227,27 @@ struct FIRFilterTests {
     }
 
     @Test
-    func `design reports odd tap count and positive group delay`() throws {
-        let design = try designFIRFilter(
+    func `design uses a fixed number of stable biquad sections`() throws {
+        let design = try designDigitalFilter(
             kind: .lowPass(cutoff: 1000),
             sampleRate: 20000,
             sampleCount: 5000,
         )
 
-        #expect(design.tapCount % 2 == 1)
-        #expect(design.tapCount >= 63)
-        #expect(design.groupDelaySamples == (design.tapCount - 1) / 2)
-        #expect(design.groupDelaySeconds > 0)
+        #expect(design.sections.count == 8)
+        #expect(design.sections.allSatisfy { $0.maximumPoleRadius < 1 })
+        #expect(design.settlingTime > 0)
+    }
+
+    @Test
+    func `section count does not grow for low cutoffs at high sample rates`() throws {
+        let design = try designDigitalFilter(
+            kind: .lowPass(cutoff: 50),
+            sampleRate: 1_000_000,
+            sampleCount: 10000,
+        )
+
+        #expect(design.sections.count == 8)
     }
 
     private func sineWave(frequency: Double, sampleRate: Double, count: Int) -> [Point] {
@@ -186,7 +259,7 @@ struct FIRFilterTests {
     }
 
     private func rms(_ points: [Point]) -> Double {
-        // Ignore edge transients (half max kernel bound).
+        // Ignore forward/reverse initialization transients near capture boundaries.
         let margin = min(300, points.count / 10)
         guard points.count > margin * 2 else {
             let sumSquares = points.reduce(0.0) { $0 + $1.value * $1.value }

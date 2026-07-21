@@ -75,6 +75,9 @@ struct WaveTypeAnalysisTests {
 
         #expect(values.count == 4)
         #expect(waveReports.allSatisfy { $0.displayLine.hasSuffix("%") })
+        #expect(waveReports.allSatisfy { report in
+            report.displayLine.range(of: #": -?\d+\.\d%$"#, options: .regularExpression) != nil
+        })
         #expect(values[WaveShape.triangle.rawValue] == values.max())
     }
 

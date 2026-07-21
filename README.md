@@ -35,16 +35,16 @@ DHO `.wfm`, logic-only WFM payloads, and Rigol `.trc` files are not supported.
 
 [Download the latest release](https://github.com/RuiCarneiro/rigol2spice/releases), then:
 
-```
-rigol2spice input.csv output.txt
+```bat
+rigol2spice.exe input.csv output.txt
 ```
 
 The output `.txt` file can be loaded directly as a PWL source in LTspice and other SPICE simulators.
 
 WFM captures use the same command:
 
-```
-rigol2spice capture.wfm output.txt
+```bat
+rigol2spice.exe capture.wfm output.txt
 ```
 
 ## Output Formats (`-f`)
@@ -81,30 +81,30 @@ values = capture["values"]
 
 List available channels in a capture with `-l` or `--list-channels`:
 
-```
-rigol2spice -l input.csv
+```bat
+rigol2spice.exe -l input.csv
 ```
 
 Select a specific channel (default is `CH1`) with `-c` or `-channel`:
 
-```
-rigol2spice -c CH2 input.csv output.txt
+```bat
+rigol2spice.exe -c CH2 input.csv output.txt
 ```
 
 Combine channels with `+`, `-`, `*`, and `/` (standard precedence; parentheses allowed). Transformations then apply to the result:
 
-```
-rigol2spice -c 'CH1+CH2' input.csv output.txt
-rigol2spice -c '(CH1-CH2)/CH3' input.csv output.txt
-rigol2spice -c 'CH1-CH2' -t 'RemoveDC' input.csv output.txt
+```bat
+rigol2spice.exe -c "CH1+CH2" input.csv output.txt
+rigol2spice.exe -c "(CH1-CH2)/CH3" input.csv output.txt
+rigol2spice.exe -c "CH1-CH2" -t "RemoveDC" input.csv output.txt
 ```
 
 ## Transformations (`-t`)
 
-Pass an ordered list of transformation commands with `-t` or `--transformations`. Separate commands with semicolons and quote the complete string for the shell:
+Pass an ordered list of transformation commands with `-t` or `--transformations`. Separate commands with semicolons and enclose the complete string in double quotes for the Windows command line:
 
-```
-rigol2spice input.csv output.txt -t 'RemoveDC; ClampMax 0.7; Offset -1.2'
+```bat
+rigol2spice.exe input.csv output.txt -t "RemoveDC; ClampMax 0.7; Offset -1.2"
 ```
 
 Commands use the syntax `OPERATION argument`. Operation names are case-insensitive. Scalars accept decimal (`0.7`), engineering (`3n`, `10u`), and scientific (`5e-3`) notation. Use `-` for negative values. Transformations run strictly from left to right.
@@ -160,7 +160,6 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `Pad` | `Pad 5m` · `Pad 5m, 0` | Extend by a duration, holding the last value (or a given level) |
 | `HoldLast` | `HoldLast 5m` | Alias of `Pad` |
 | `ExtendTo` | `ExtendTo 10m` · `ExtendTo 10m, 0` | Extend to an absolute end time, holding the last value (or a given level) |
-| `ResampleF` | `ResampleF 2.5k` · `ResampleF 1M, sinc` | Resample to a target sampling frequency using linear, PCHIP, or sinc interpolation |
 | `ExtractPeriod` | `ExtractPeriod` · `ExtractPeriod 0.5` | Keep one cycle from the first rising crossing (auto or given threshold); shift to t=0 |
 | `CutBefore` | `CutBefore 5m` | Discard samples before the timestamp |
 | `CutAfter` | `CutAfter 10u` | Discard samples at or after the timestamp |
@@ -169,62 +168,46 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 
 ### Resampling
 
-**Target sampling frequency**
+#### `ResampleF`
 
-`ResampleF frequency[, interpolation]` creates a uniform grid at the requested sampling frequency. The default interpolation is `linear`; `pchip` and `sinc` are also available. Frequencies accept engineering notation:
-
-```sh
-rigol2spice input.csv output.txt -t 'ResampleF 2.5k'
-rigol2spice input.csv output.txt -t 'ResampleF 1M, sinc'
-```
-
-The first timestamp is preserved and subsequent samples are exactly `1 / frequency` seconds apart. Sampling stops at the last interval that fits within the original capture, so the final timestamp can be up to one interval earlier than the original endpoint. As with `Downsample`, no anti-alias low-pass filter is applied automatically when reducing the sampling frequency.
-
-**Downsampling**
-
-`Downsample factor[, interpolation]` reduces the number of points by a factor greater than 1. The default interpolation is `linear`:
-
-```sh
-rigol2spice input.csv output.txt -t 'Downsample 2'
-rigol2spice input.csv output.txt -t 'Downsample 4, sinc'
-rigol2spice input.csv output.txt -t 'Downsample 4, fast'
-```
-
-With `linear` or `sinc`, the target count is `original count / factor`, rounded to the nearest whole sample, and the first and last timestamps are preserved. In `fast` mode, samples are selected at source positions `0`, `factor`, `2 × factor`, and so on, without generating new points. Fractional factors are supported; for example, 1,000 points downsampled by 1.5 produce 667 points.
-
-| Interpolation | Behaviour |
+| Field | Description |
 |---|---|
-| `linear` (default) | Interpolate linearly between adjacent samples; fastest and consistent with PWL output |
-| `sinc` | Use a finite windowed-sinc kernel for better reconstruction of band-limited signals |
-| `fast` | Keep original samples at the requested factor and discard the samples between them; performs no interpolation |
+| Syntax | `ResampleF frequency[, interpolation]` |
+| Frequency | Target sampling frequency; accepts engineering notation |
+| Result | Creates a uniform grid whose samples are exactly `1 / frequency` seconds apart |
+| Timestamps | Preserves the first timestamp and stops at the last complete interval inside the original capture |
+| Interpolation | `linear` (default), `pchip`, `sinc` |
 
-`linear` and `sinc` preserve the first and last timestamps. `fast` retains only original points, so the final timestamp is kept only when it falls on the selection sequence.
+#### `Downsample`
 
-No anti-alias low-pass filter is applied automatically, including in `fast` mode. Add one earlier in the transformation chain when required:
+| Field | Description |
+|---|---|
+| Syntax | `Downsample factor[, interpolation]` |
+| Factor | Must be greater than 1 and may be fractional |
+| Result | Reduces the point count to `original count / factor`, rounded to the nearest sample |
+| Timestamps | `linear` and `sinc` preserve both endpoints; `fast` retains original timestamps and only preserves the final timestamp when it belongs to the selection sequence |
+| Interpolation | `linear` (default), `sinc`, `fast` |
 
-```sh
-rigol2spice input.csv output.txt -t 'LowPass 20k; Downsample 4, sinc'
-```
+#### `Upsample`
 
-The post-processing option `--downsample N` is equivalent to applying a final `Downsample N` with linear interpolation.
+| Field | Description |
+|---|---|
+| Syntax | `Upsample factor[, interpolation]` |
+| Factor | Must be greater than 1 and may be fractional |
+| Result | Increases the point count to `original count × factor`, rounded to the nearest sample |
+| Timestamps | Preserves both endpoints and the capture duration |
+| Interpolation | `linear` (default), `pchip`, `sinc` |
 
-**Upsampling**
-
-`Upsample factor[, interpolation]` increases the number of points by a factor greater than 1. The default interpolation is `linear`:
-
-```sh
-rigol2spice input.csv output.txt -t 'Upsample 4'
-rigol2spice input.csv output.txt -t 'Upsample 4, pchip'
-rigol2spice input.csv output.txt -t 'Upsample 4, sinc'
-```
-
-The target count is `original count × factor`, rounded to the nearest whole sample. As with downsampling, both time endpoints and the capture duration are preserved, and fractional factors are accepted.
+#### Interpolation methods
 
 | Interpolation | Behaviour |
 |---|---|
 | `linear` (default) | Interpolate linearly between adjacent samples; fastest and suitable for most PWL workflows |
 | `pchip` | Monotonic piecewise-cubic interpolation; produces smoother curves without overshooting monotonic data |
 | `sinc` | Finite windowed-sinc interpolation; best suited to sufficiently sampled, band-limited signals |
+| `fast` | Select original samples at source positions `0`, `factor`, `2 × factor`, and so on; performs no interpolation |
+
+`ResampleF` and `Downsample` do not apply an anti-alias low-pass filter automatically when reducing the sampling frequency. Add `LowPass` earlier in the transformation chain when anti-alias filtering is required. The post-processing option `--downsample N` is equivalent to a final `Downsample N` with linear interpolation.
 
 ### Triggers
 
@@ -247,8 +230,8 @@ Levels may be numeric, `auto`, or a percentage such as `50%` for `Trigger`, `Tri
 
 Most triggers discard samples before the aligned event. `TriggerCapture` deliberately preserves context before it:
 
-```sh
-rigol2spice input.csv output.txt -t 'TriggerCapture rising, auto, 100u, 500u'
+```bat
+rigol2spice.exe input.csv output.txt -t "TriggerCapture rising, auto, 100u, 500u"
 ```
 
 This keeps up to 100 µs before and 500 µs after the event. The output starts at t=0, so the trigger normally occurs at t=100 µs. The pre/post window is clipped to the samples available in the original capture.
@@ -261,7 +244,7 @@ This keeps up to 100 µs before and 500 µs after the event. The output starts a
 | `HighPass` | `HighPass 100` | Apply a high-pass filter² |
 | `BandPass` | `BandPass 900, 1.1k` | Apply a band-pass filter² |
 | `BandStop` | `BandStop 48, 52` | Apply a band-stop filter² |
-| `Notch` | `Notch 50, 4` | Reject a band centered on a frequency; arguments are center frequency and total bandwidth² |
+| `Notch` | `Notch 50, 4` | Reject a narrow band with a zero-phase IIR biquad² |
 | `MovingAverage` | `MovingAverage 5` | Centered moving average over N samples |
 | `Median` | `Median 5` | Centered median filter over N samples (spike-resistant) |
 | `Detrend` | `Detrend` | Remove the least-squares linear trend (slope and offset) |
@@ -270,8 +253,8 @@ This keeps up to 100 µs before and 500 µs after the event. The output starts a
 
 For a capture with baseline drift and 50 Hz interference, both operations can be applied in one pass:
 
-```
-rigol2spice input.csv output.txt -t 'Detrend; Notch 50, 4'
+```bat
+rigol2spice.exe input.csv output.txt -t "Detrend; Notch 50, 4"
 ```
 
 ¹ `RemoveDC` subtracts a DC estimate. Optional method (same names as analysis measurements; case-insensitive):
@@ -285,7 +268,7 @@ rigol2spice input.csv output.txt -t 'Detrend; Notch 50, 4'
 
 Bare `RemoveDC` is equivalent to `RemoveDC DC`.
 
-² Filters are linear-phase windowed-sinc FIRs (Blackman–Harris). You only supply the cutoff frequency(ies); the sample rate comes from the capture, tap count is chosen automatically, and group delay is removed so event timing stays aligned. Frequencies must be greater than 0 and below Nyquist (`fs/2`). Band filters require `0 < f1 < f2`. `Notch center, width` is shorthand for `BandStop center-width/2, center+width/2`; both edges must remain inside the valid frequency range.
+² Filters are automatic zero-phase IIRs built from stable biquad sections and applied forwards and backwards. `LowPass` and `HighPass` use a 16th-order Butterworth response per pass (effective 32nd-order magnitude response); `BandPass` combines both in series, and `BandStop` sums independent high-order low-pass and high-pass paths outside the rejected band. `Notch` uses eight compensated sections with zeros exactly at its center frequency, which remains effective for extremely narrow low-frequency rejection at high sample rates. Their cost is O(N) and does not grow when the requested frequency is small relative to the sample rate. The supplied cutoff or band edges are approximately −3 dB after the two passes. Frequencies must be greater than 0 and below Nyquist (`fs/2`); band and notch edges must satisfy `0 < f1 < f2 < fs/2`.
 
 ³ `dBmW` and `dBW` convert an absolute power level to a voltage scale factor: `V = √(P · R)`, with `P = 1 mW · 10^(dBmW/10)` or `P = 1 W · 10^(dBW/10)`. Optional second argument is load impedance in ohms (default 50). Unlike `dB`, these are not relative gains — they multiply the waveform by that absolute voltage (useful for unit-amplitude templates).
 
@@ -318,24 +301,24 @@ The analog modulation transformations turn the current waveform into a carrier-m
 
 For FM, the instantaneous frequency is `carrier + sensitivity × value`; a sensitivity of `10k` applied to a ±2 V message therefore produces a ±20 kHz frequency deviation. For PM, the phase offset is `sensitivity × value`. The FM instantaneous frequency must remain above 0 and below Nyquist. PM changes can also alias if the signal produces phase changes that are too fast for the sample rate.
 
-`ModulateAM`, `ModulateFM`, and `ModulatePM` are aliases of the short modulation names. `AMDemod`, `FMDemod`, and `PMDemod` are aliases of the corresponding demodulators. Demodulation uses coherent quadrature mixing followed by the existing FIR low-pass filter, so its carrier and sensitivity parameters should match the modulator. Its cutoff must cover the occupied modulated baseband while remaining below both the carrier and its distance from Nyquist. A carrier-frequency error appears as a DC error in FM; an unknown carrier phase appears as a DC ambiguity in PM. For AM, depths up to 1 avoid overmodulation; values above 1 are accepted deliberately.
+`ModulateAM`, `ModulateFM`, and `ModulatePM` are aliases of the short modulation names. `AMDemod`, `FMDemod`, and `PMDemod` are aliases of the corresponding demodulators. Demodulation uses coherent quadrature mixing followed by the automatic zero-phase low-pass filter, so its carrier and sensitivity parameters should match the modulator. Its cutoff must cover the occupied modulated baseband while remaining below both the carrier and its distance from Nyquist. A carrier-frequency error appears as a DC error in FM; an unknown carrier phase appears as a DC ambiguity in PM. For AM, depths up to 1 avoid overmodulation; values above 1 are accepted deliberately.
 
 For example, modulate a captured message in FM and then recover its baseband:
 
-```sh
-rigol2spice input.csv fm.txt -t 'RemoveDC; PeakTo 1; FM 100k, 10k, 2'
-rigol2spice fm-capture.csv recovered.txt -t 'DemodFM 100k, 10k, 20k'
+```bat
+rigol2spice.exe input.csv fm.txt -t "RemoveDC; PeakTo 1; FM 100k, 10k, 2"
+rigol2spice.exe fm-capture.csv recovered.txt -t "DemodFM 100k, 10k, 20k"
 ```
 
 ## Analysis (`-a`)
 
 Pass measurement commands with `-a` or `--analysis`. Syntax matches `-t` (semicolon-separated, case-insensitive, engineering scalars). Results print to the console with one fractional digit and combine the engineering prefix with the physical unit, for example `2.4ms`, `8.4mV`, `1.2MV/s`, or `2mW`. Signal amplitudes are reported in volts; ratios such as duty cycle and THD are displayed as percentages, while crest factor uses `×`. Analyses always run **after** transformations (and downsample), on the processed waveform. When `-a` is used, the PWL output file is optional (same as `-l` / `-p`).
 
-```
-rigol2spice input.csv -a 'Max; Min; RMS; PkPk; Frequency'
-rigol2spice input.csv output.txt -t 'RemoveDC' -a 'DC; Avg; ZeroCrossing'
-rigol2spice input.csv -p -a 'FFT 1024; Frequency'
-rigol2spice input.csv -a 'Basic; Timing'
+```bat
+rigol2spice.exe input.csv -a "Max; Min; RMS; PkPk; Frequency"
+rigol2spice.exe input.csv output.txt -t "RemoveDC" -a "DC; Avg; ZeroCrossing"
+rigol2spice.exe input.csv -p -a "FFT 1024; Frequency"
+rigol2spice.exe input.csv -a "Basic; Timing"
 ```
 
 Frequently used measurements are also available as presets. A preset expands to the listed analyses and can be mixed with individual operations or other presets:
@@ -347,7 +330,7 @@ Frequently used measurements are also available as presets. A preset expands to 
 | `Spectrum` | `FFT; THD` |
 | `WaveType` | `SineWaveType; SquareWaveType; SawtoothWaveType; TriangleWaveType` (requires a preceding `FFT`) |
 
-For example, `-a 'Basic; SlewRise'` prints the basic summary followed by the rising-edge slew rate. Preset names, like all analysis operations, are case-insensitive.
+For example, `-a "Basic; SlewRise"` prints the basic summary followed by the rising-edge slew rate. Preset names, like all analysis operations, are case-insensitive.
 
 ### Capture
 
@@ -436,9 +419,9 @@ For example, `-a 'Basic; SlewRise'` prints the basic summary followed by the ris
 
 FFT-dependent analyses are sequential. `THD`, `Fundamental`, `Harmonic`, and all wave-type analyses must appear after an `FFT` in the same analysis list; otherwise parsing fails. They reuse that exact spectrum instead of calculating another FFT and therefore do not accept a point-count argument:
 
-```sh
-rigol2spice input.csv -a 'FFT 1024, middle; THD; Fundamental; Harmonic 3'
-rigol2spice input.csv -a 'FFT 4096, start; WaveType'
+```bat
+rigol2spice.exe input.csv -a "FFT 1024, middle; THD; Fundamental; Harmonic 3"
+rigol2spice.exe input.csv -a "FFT 4096, start; WaveType"
 ```
 
 If another `FFT` appears later, subsequent dependent analyses use the new result. Other analyses between them do not discard the retained spectrum.
@@ -462,7 +445,7 @@ The plot uses 1 pixel per sample, auto-scaled Y (min / avg / max markers), and d
 ## Full Usage Reference (`-h`)
 
 ```
-USAGE: rigol2spice [<options>] <input-file> [<output-file>]
+USAGE: rigol2spice.exe [<options>] <input-file> [<output-file>]
 
 OPTIONS:
   -l,  --list-channels            List channels and exit

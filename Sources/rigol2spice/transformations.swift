@@ -1077,7 +1077,19 @@ enum Transformation: Equatable {
         }
     }
 
-    var filterKind: FIRFilterKind? {
+    var changesSampleSpacing: Bool {
+        switch self {
+        case .timeScale,
+             .downsample,
+             .upsample,
+             .resampleF:
+            true
+        default:
+            false
+        }
+    }
+
+    var filterKind: DigitalFilterKind? {
         switch self {
         case let .lowPass(cutoff):
             .lowPass(cutoff: cutoff)
@@ -1088,7 +1100,7 @@ enum Transformation: Equatable {
         case let .bandStop(low, high):
             .bandStop(low: low, high: high)
         case let .notch(center, width):
-            .bandStop(low: center - width / 2, high: center + width / 2)
+            .notch(center: center, width: width)
         default:
             nil
         }
@@ -1316,45 +1328,45 @@ enum Transformation: Equatable {
                 points: points,
                 sampleInterval: sampleInterval,
             )
-            return applyFIRFilter(taps: design.taps, to: points)
+            return applyZeroPhaseFilter(design, to: points)
         case let .highPass(cutoff):
             let design = try designFilter(
                 kind: .highPass(cutoff: cutoff),
                 points: points,
                 sampleInterval: sampleInterval,
             )
-            return applyFIRFilter(taps: design.taps, to: points)
+            return applyZeroPhaseFilter(design, to: points)
         case let .bandPass(low, high):
             let design = try designFilter(
                 kind: .bandPass(low: low, high: high),
                 points: points,
                 sampleInterval: sampleInterval,
             )
-            return applyFIRFilter(taps: design.taps, to: points)
+            return applyZeroPhaseFilter(design, to: points)
         case let .bandStop(low, high):
             let design = try designFilter(
                 kind: .bandStop(low: low, high: high),
                 points: points,
                 sampleInterval: sampleInterval,
             )
-            return applyFIRFilter(taps: design.taps, to: points)
+            return applyZeroPhaseFilter(design, to: points)
         case let .notch(center, width):
             let design = try designFilter(
-                kind: .bandStop(low: center - width / 2, high: center + width / 2),
+                kind: .notch(center: center, width: width),
                 points: points,
                 sampleInterval: sampleInterval,
             )
-            return applyFIRFilter(taps: design.taps, to: points)
+            return applyZeroPhaseFilter(design, to: points)
         }
     }
 
     func designFilter(
-        kind: FIRFilterKind,
+        kind: DigitalFilterKind,
         points: [Point],
         sampleInterval: Double?,
-    ) throws -> FIRFilterDesign {
+    ) throws -> DigitalFilterDesign {
         let interval = try resolveSampleInterval(sampleInterval, points: points, operation: kind.operationName)
-        return try designFIRFilter(
+        return try designDigitalFilter(
             kind: kind,
             sampleRate: 1 / interval,
             sampleCount: points.count,

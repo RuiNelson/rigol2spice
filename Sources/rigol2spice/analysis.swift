@@ -651,7 +651,13 @@ struct AnalysisReport: Equatable {
         switch outcome {
         case let .scalar(value):
             let displayValue = value * analysis.scalarDisplayScale
-            return "\(label): \(analysisFormatter.string(displayValue))\(analysis.scalarUnitSuffix)"
+            let formattedValue = if analysis.isPercentage {
+                analysisPercentageFormatter.string(from: NSNumber(value: displayValue)) ?? "\(displayValue)"
+            }
+            else {
+                analysisFormatter.string(displayValue)
+            }
+            return "\(label): \(formattedValue)\(analysis.scalarUnitSuffix)"
         case let .periodAndFrequency(period, frequency):
             return "\(label): T=\(analysisFormatter.string(period))s  f=\(analysisFormatter.string(frequency))Hz"
         case let .frequencyAndAmplitude(frequency, amplitude):
@@ -695,6 +701,22 @@ struct AnalysisReport: Equatable {
 }
 
 private extension Analysis {
+    var isPercentage: Bool {
+        switch self {
+        case .duty,
+             .overshoot,
+             .undershoot,
+             .thd,
+             .sineWaveType,
+             .squareWaveType,
+             .sawtoothWaveType,
+             .triangleWaveType:
+            true
+        default:
+            false
+        }
+    }
+
     var scalarDisplayScale: Double {
         switch self {
         case .duty,

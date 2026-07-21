@@ -31,3 +31,14 @@ let analysisFormatter = EngineeringNumberFormatter(
     locale: usLocale,
     useGreekMu: false,
 )
+
+/// Percentages are dimensionless and must never receive engineering prefixes.
+let analysisPercentageFormatter: NumberFormatter = {
+    let nf = NumberFormatter()
+    nf.locale = usLocale
+    nf.numberStyle = .decimal
+    nf.minimumFractionDigits = 1
+    nf.maximumFractionDigits = 1
+    nf.usesGroupingSeparator = false
+    return nf
+}()

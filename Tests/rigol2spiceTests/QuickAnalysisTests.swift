@@ -19,8 +19,9 @@ struct QuickAnalysisTests {
         #expect(line(.dbm(resistance: 50), 10) == "dBm: 10dBm")
         #expect(line(.points, 42) == "Points: 42 samples")
         #expect(line(.riseCount(threshold: nil), 3) == "RiseCount: 3 edges")
-        #expect(line(.duty(threshold: nil), 0.25) == "Duty: 25%")
+        #expect(line(.duty(threshold: nil), 0.25) == "Duty: 25.0%")
         #expect(line(.thd, 0.012) == "THD: 1.2%")
+        #expect(line(.sineWaveType, 99.96) == "SineWaveType: 100.0%")
         #expect(line(.crest, 1.4) == "Crest: 1.4×")
 
         let fundamental = AnalysisReport(

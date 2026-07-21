@@ -107,7 +107,10 @@ struct Rigol2SpiceApplication {
         }
 
         if options.outputFile != nil {
-            try write(outputPoints, sampleInterval: capture.sampleInterval ?? 0)
+            try write(
+                outputPoints,
+                sampleInterval: inferredSampleInterval(from: processedPoints) ?? capture.sampleInterval ?? 0,
+            )
         }
 
         Console.section("Job complete")
@@ -259,6 +262,7 @@ struct Rigol2SpiceApplication {
         sampleInterval: Double?,
     ) throws -> [Point] {
         var points = source
+        var currentSampleInterval = sampleInterval
 
         for transformation in transformations {
             let countBefore = points.count
@@ -271,14 +275,18 @@ struct Rigol2SpiceApplication {
                 let design = try transformation.designFilter(
                     kind: kind,
                     points: points,
-                    sampleInterval: sampleInterval,
+                    sampleInterval: currentSampleInterval,
                 )
-                reportFilter(design, transformation: transformation)
-                points = applyFIRFilter(taps: design.taps, to: points)
+                reportFilter(design, transformation: transformation, points: points)
+                points = applyZeroPhaseFilter(design, to: points)
             }
             else {
                 reportTransformation(transformation, points: points)
-                points = try transformation.applying(to: points, sampleInterval: sampleInterval)
+                points = try transformation.applying(to: points, sampleInterval: currentSampleInterval)
+            }
+
+            if transformation.changesSampleSpacing {
+                currentSampleInterval = inferredSampleInterval(from: points) ?? currentSampleInterval
             }
 
             if transformation.reportsPointCount {
@@ -534,53 +542,61 @@ struct Rigol2SpiceApplication {
                 "PM-demodulating at \(engineeringFormatter.string(carrier))Hz (sensitivity \(engineeringFormatter.string(sensitivity))rad/unit, baseband cutoff \(engineeringFormatter.string(cutoff))Hz)...",
             )
         case let .lowPass(cutoff):
-            Console.section("Applying low-pass FIR filter at \(engineeringFormatter.string(cutoff))Hz...")
+            Console.section("Applying automatic low-pass filter at \(engineeringFormatter.string(cutoff))Hz...")
         case let .highPass(cutoff):
-            Console.section("Applying high-pass FIR filter at \(engineeringFormatter.string(cutoff))Hz...")
+            Console.section("Applying automatic high-pass filter at \(engineeringFormatter.string(cutoff))Hz...")
         case let .bandPass(low, high):
             Console.section(
-                "Applying band-pass FIR filter from \(engineeringFormatter.string(low))Hz to \(engineeringFormatter.string(high))Hz...",
+                "Applying automatic band-pass filter from \(engineeringFormatter.string(low))Hz to \(engineeringFormatter.string(high))Hz...",
             )
         case let .bandStop(low, high):
             Console.section(
-                "Applying band-stop FIR filter from \(engineeringFormatter.string(low))Hz to \(engineeringFormatter.string(high))Hz...",
+                "Applying automatic band-stop filter from \(engineeringFormatter.string(low))Hz to \(engineeringFormatter.string(high))Hz...",
             )
         case let .notch(center, width):
             Console.section(
-                "Applying notch FIR filter at \(engineeringFormatter.string(center))Hz with width \(engineeringFormatter.string(width))Hz...",
+                "Applying zero-phase IIR notch at \(engineeringFormatter.string(center))Hz with width \(engineeringFormatter.string(width))Hz...",
             )
         }
     }
 
-    private func reportFilter(_ design: FIRFilterDesign, transformation: Transformation) {
-        if case let .notch(center, width) = transformation {
+    private func reportFilter(
+        _ design: DigitalFilterDesign,
+        transformation _: Transformation,
+        points: [Point],
+    ) {
+        switch design.kind {
+        case let .lowPass(cutoff):
+            Console.section("Applying automatic low-pass filter at \(engineeringFormatter.string(cutoff))Hz...")
+        case let .highPass(cutoff):
+            Console.section("Applying automatic high-pass filter at \(engineeringFormatter.string(cutoff))Hz...")
+        case let .bandPass(low, high):
             Console.section(
-                "Applying notch FIR filter at \(engineeringFormatter.string(center))Hz with width \(engineeringFormatter.string(width))Hz...",
+                "Applying automatic band-pass filter from \(engineeringFormatter.string(low))Hz to \(engineeringFormatter.string(high))Hz...",
+            )
+        case let .bandStop(low, high):
+            Console.section(
+                "Applying automatic band-stop filter from \(engineeringFormatter.string(low))Hz to \(engineeringFormatter.string(high))Hz...",
+            )
+        case let .notch(center, width):
+            Console.section(
+                "Applying automatic notch at \(engineeringFormatter.string(center))Hz with width \(engineeringFormatter.string(width))Hz...",
             )
         }
-        else {
-            switch design.kind {
-            case let .lowPass(cutoff):
-                Console.section("Applying low-pass FIR filter at \(engineeringFormatter.string(cutoff))Hz...")
-            case let .highPass(cutoff):
-                Console.section("Applying high-pass FIR filter at \(engineeringFormatter.string(cutoff))Hz...")
-            case let .bandPass(low, high):
-                Console.section(
-                    "Applying band-pass FIR filter from \(engineeringFormatter.string(low))Hz to \(engineeringFormatter.string(high))Hz...",
-                )
-            case let .bandStop(low, high):
-                Console.section(
-                    "Applying band-stop FIR filter from \(engineeringFormatter.string(low))Hz to \(engineeringFormatter.string(high))Hz...",
-                )
-            }
-        }
 
-        Console.detail("Window: Blackman-Harris (linear phase, group delay removed)")
-        Console.detail("Taps: \(numberOfPointsFormatter.string(for: design.tapCount)!)")
+        Console.detail("Type: IIR biquad sections, forward and reverse (zero phase)")
+        Console.detail("Sections: \(design.sections.count)")
         Console.detail("Sample rate: \(engineeringFormatter.string(design.sampleRate))sa/s")
-        Console.detail(
-            "Group delay removed: \(design.groupDelaySamples) samples (\(engineeringFormatter.string(design.groupDelaySeconds))s)",
-        )
+        Console.detail("Estimated settling time: \(engineeringFormatter.string(design.settlingTime))s")
+
+        if let first = points.first, let last = points.last,
+           last.time - first.time < 2 * design.settlingTime {
+            Console.warning(
+                "This capture is short relative to the selected frequencies. "
+                    +
+                    "Filtering remains automatic, but rejection near the boundaries may improve with a longer capture.",
+            )
+        }
     }
 
     private func reportPointCount(before: Int, after: Int) throws {

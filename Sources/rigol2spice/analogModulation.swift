@@ -175,14 +175,14 @@ private func quadratureBaseband(
         quadrature[index].value = -2 * points[index].value * sin(phase)
     }
 
-    let design = try designFIRFilter(
+    let design = try designDigitalFilter(
         kind: .lowPass(cutoff: cutoff),
         sampleRate: 1 / interval,
         sampleCount: points.count,
     )
     return (
-        applyFIRFilter(taps: design.taps, to: inPhase),
-        applyFIRFilter(taps: design.taps, to: quadrature),
+        applyZeroPhaseFilter(design, to: inPhase),
+        applyZeroPhaseFilter(design, to: quadrature),
     )
 }
 

@@ -116,6 +116,42 @@ struct CLITests {
     }
 
     @Test
+    func `resampling updates the rate used by later filters`() throws {
+        let result = try runCLI([
+            samplePath(named: "Legacy"),
+            "-c", "CH2",
+            "-t", "ResampleF 10k; LowPass 6k",
+            "-a", "Points",
+        ])
+
+        #expect(result.status != 0)
+        #expect((result.stdout + result.stderr).contains("Nyquist (5000.0 Hz)"))
+    }
+
+    @Test
+    func `wav output writes the resampled rate`() throws {
+        let output = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rigol2spice-resampled-\(UUID().uuidString).wav")
+        defer { try? FileManager.default.removeItem(at: output) }
+
+        let result = try runCLI([
+            samplePath(named: "Legacy"),
+            output.path,
+            "--format", "wav16",
+            "--channel", "CH2",
+            "--transformations", "ResampleF 10k",
+        ])
+
+        #expect(result.status == 0)
+        let data = try Data(contentsOf: output)
+        let sampleRate = UInt32(data[24])
+            | UInt32(data[25]) << 8
+            | UInt32(data[26]) << 16
+            | UInt32(data[27]) << 24
+        #expect(sampleRate == 10000)
+    }
+
+    @Test
     func `wav output rejects unnormalized samples with transformation suggestion`() throws {
         let output = FileManager.default.temporaryDirectory
             .appendingPathComponent("rigol2spice-cli-invalid-\(UUID().uuidString).wav")

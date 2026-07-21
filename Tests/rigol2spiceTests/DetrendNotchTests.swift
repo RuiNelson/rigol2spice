@@ -57,14 +57,14 @@ struct DetrendNotchTests {
     }
 
     @Test
-    func `notch parses center and width into a band stop filter`() throws {
+    func `notch parses as a dedicated filter`() throws {
         #expect(
             try Transformation.parseList("Notch 1k, 200")
                 == [.notch(center: 1000, width: 200)],
         )
         #expect(
             Transformation.notch(center: 1000, width: 200).filterKind
-                == .bandStop(low: 900, high: 1100),
+                == .notch(center: 1000, width: 200),
         )
     }
 
@@ -117,6 +117,23 @@ struct DetrendNotchTests {
         #expect(filteredStop.map(\.time) == stop.map(\.time))
     }
 
+    @Test
+    func `narrow low frequency notch remains deep at a high sample rate`() throws {
+        let sampleRate = 100_000.0
+        let interval = 1 / sampleRate
+        let count = 100_000
+        let stop = sineWave(frequency: 50, sampleRate: sampleRate, count: count)
+        let pass = sineWave(frequency: 500, sampleRate: sampleRate, count: count)
+
+        let filteredStop = try Transformation.notch(center: 50, width: 4)
+            .applying(to: stop, sampleInterval: interval)
+        let filteredPass = try Transformation.notch(center: 50, width: 4)
+            .applying(to: pass, sampleInterval: interval)
+
+        #expect(rms(filteredStop, margin: 25000) / rms(stop, margin: 25000) < 0.01)
+        #expect(rms(filteredPass, margin: 25000) / rms(pass, margin: 25000) > 0.98)
+    }
+
     private func sineWave(frequency: Double, sampleRate: Double, count: Int) -> [Point] {
         let interval = 1 / sampleRate
         return (0 ..< count).map { index in
@@ -125,8 +142,8 @@ struct DetrendNotchTests {
         }
     }
 
-    private func rms(_ points: [Point]) -> Double {
-        let margin = min(300, points.count / 10)
+    private func rms(_ points: [Point], margin requestedMargin: Int = 300) -> Double {
+        let margin = min(requestedMargin, points.count / 3)
         let slice = points[margin ..< (points.count - margin)]
         let sumSquares = slice.reduce(0.0) { $0 + $1.value * $1.value }
         return (sumSquares / Double(slice.count)).squareRoot()
