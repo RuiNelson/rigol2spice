@@ -1,13 +1,23 @@
 import Foundation
 
+// MARK: - FFTWindowPosition
+
+enum FFTWindowPosition: String, Equatable {
+    case start
+    case middle
+    case end
+}
+
 // MARK: - FFTSpectrum
 
 /// Positive-frequency magnitude spectrum from a real FFT (including DC and Nyquist).
 struct FFTSpectrum: Equatable {
     /// Requested analysis length (user argument).
     let requestedPointCount: Int
-    /// Samples actually taken from the capture (≤ requested, centered).
+    /// Samples actually taken from the capture (≤ requested).
     let usedPointCount: Int
+    /// Position of the selected sample window inside the capture.
+    let windowPosition: FFTWindowPosition
     /// FFT length after zero-padding to the next power of two.
     let fftSize: Int
     let sampleRate: Double
@@ -27,14 +37,15 @@ struct FFTSpectrum: Equatable {
 
 // MARK: - FFT analysis
 
-/// Centered Hann-windowed real FFT of up to `requestedPointCount` samples.
+/// Hann-windowed real FFT of up to `requestedPointCount` samples.
 ///
 /// - If the capture is shorter than requested, every available sample is used.
-/// - If longer, a centered window of `requestedPointCount` samples is taken.
+/// - If longer, the requested window is selected at the start, middle, or end.
 /// - Values are zero-padded to the next power of two for a radix-2 FFT.
 func computeFFTSpectrum(
     points: [Point],
     requestedPointCount: Int,
+    position: FFTWindowPosition = .start,
 ) -> FFTSpectrum? {
     guard requestedPointCount >= 1, points.count >= 2 else {
         return nil
@@ -45,7 +56,14 @@ func computeFFTSpectrum(
         return nil
     }
 
-    let start = (points.count - usedCount) / 2
+    let start: Int = switch position {
+    case .start:
+        0
+    case .middle:
+        (points.count - usedCount) / 2
+    case .end:
+        points.count - usedCount
+    }
     let window = points[start ..< (start + usedCount)]
     let firstTime = window[window.startIndex].time
     let lastTime = window[window.index(before: window.endIndex)].time
@@ -100,6 +118,7 @@ func computeFFTSpectrum(
     return FFTSpectrum(
         requestedPointCount: requestedPointCount,
         usedPointCount: usedCount,
+        windowPosition: position,
         fftSize: fftSize,
         sampleRate: sampleRate,
         centerFrequency: centerFrequency,

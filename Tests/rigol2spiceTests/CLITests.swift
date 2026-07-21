@@ -22,7 +22,7 @@ struct CLITests {
     }
 
     @Test
-    func `console analysis uses engineering notation`() throws {
+    func `console analysis combines engineering notation with units`() throws {
         let result = try runCLI([
             samplePath(named: "Legacy"),
             "-c", "CH2",
@@ -30,9 +30,20 @@ struct CLITests {
         ])
 
         #expect(result.status == 0)
-        #expect(result.stdout.contains("End: 2.4m"))
-        #expect(result.stdout.contains("Max: 8.4m"))
-        #expect(result.stdout.contains("Min: -2.4m"))
+        #expect(result.stdout.contains("End: 2.4ms"))
+        #expect(result.stdout.contains("Max: 8.4mV"))
+        #expect(result.stdout.contains("Min: -2.4mV"))
+    }
+
+    @Test
+    func `FFT dependent analysis without preceding FFT returns an error`() throws {
+        let result = try runCLI([
+            samplePath(named: "Legacy"),
+            "-a", "THD",
+        ])
+
+        #expect(result.status != 0)
+        #expect((result.stdout + result.stderr).contains("requires an FFT analysis earlier"))
     }
 
     @Test

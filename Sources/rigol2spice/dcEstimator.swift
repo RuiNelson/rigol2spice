@@ -86,13 +86,13 @@ func calculateDC(_ points: [Point], method: DCEstimationMethod = .dc) -> Double 
 func estimateDC(_ points: [Point], method: DCEstimationMethod = .dc) -> DCEstimate {
     switch method {
     case .dc:
-        return estimateDCCluster(points)
+        estimateDCCluster(points)
     case .avg:
-        return simpleDCEstimate(averageValue(points), method: .avg)
+        simpleDCEstimate(averageValue(points), method: .avg)
     case .median:
-        return simpleDCEstimate(medianValue(points), method: .median)
+        simpleDCEstimate(medianValue(points), method: .median)
     case .mid:
-        return simpleDCEstimate(midValue(points), method: .mid)
+        simpleDCEstimate(midValue(points), method: .mid)
     }
 }
 

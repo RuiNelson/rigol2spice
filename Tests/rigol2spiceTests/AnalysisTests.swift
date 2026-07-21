@@ -35,6 +35,28 @@ struct AnalysisTests {
     }
 
     @Test
+    func `presets expand case insensitively in command position`() throws {
+        #expect(
+            try Analysis.parseList("Max; basic; Min; TIMING; spectrum") == [
+                .max,
+                .duration, .points, .min, .max, .pkPk, .avg, .rms,
+                .min,
+                .frequency,
+                .duty(threshold: nil),
+                .pulseWidth(threshold: nil),
+                .riseTime(lowPercent: 10, highPercent: 90),
+                .fallTime(lowPercent: 10, highPercent: 90),
+                .fft(pointCount: nil, position: .start),
+                .thd,
+            ],
+        )
+
+        #expect(throws: (any Error).self) {
+            try Analysis.parseList("Basic 1")
+        }
+    }
+
+    @Test
     func `crossing accepts engineering notation`() throws {
         let nano = try Analysis.parseList("Crossing 3n")
         guard case let .crossing(value) = nano.first else {
@@ -348,6 +370,38 @@ struct AnalysisTests {
     }
 
     @Test
+    func `rise and fall slew use positive average slope between percentage levels`() throws {
+        let points = [
+            Point(time: 0, value: 0),
+            Point(time: 1, value: 0),
+            Point(time: 2, value: 1),
+            Point(time: 4, value: 1),
+            Point(time: 6, value: 0),
+        ]
+
+        guard case let .scalar(rise) = Analysis.slewRise(lowPercent: 10, highPercent: 90).evaluate(on: points),
+              case let .scalar(fall) = Analysis.slewFall(lowPercent: 10, highPercent: 90).evaluate(on: points) else {
+            Issue.record("Expected slew rates")
+            return
+        }
+        #expect(abs(rise - 1) < 1e-12)
+        #expect(abs(fall - 0.5) < 1e-12)
+        #expect(
+            try Analysis.parseList("SlewRise; slewfall 20, 80") == [
+                .slewRise(lowPercent: 10, highPercent: 90),
+                .slewFall(lowPercent: 20, highPercent: 80),
+            ],
+        )
+        #expect(Analysis.slewRise(lowPercent: 10, highPercent: 90).label == "SlewRise")
+        #expect(Analysis.slewFall(lowPercent: 20, highPercent: 80).label == "SlewFall 20, 80")
+        #expect(
+            Analysis.slewRise(lowPercent: 10, highPercent: 90).evaluate(
+                on: [Point(time: 0, value: 1)],
+            ) == .unavailable,
+        )
+    }
+
+    @Test
     func `pulse width duty edge count jitter`() throws {
         // 50% duty square, period 2: high 1.0s, low 1.0s
         let points = [
@@ -391,6 +445,34 @@ struct AnalysisTests {
             ])
     }
 
+    @Test
+    func `low pulse width averages complete falling to rising pulses`() throws {
+        let points = [
+            Point(time: 0, value: -1),
+            Point(time: 1, value: 1),
+            Point(time: 2, value: 1),
+            Point(time: 3, value: -1),
+            Point(time: 4, value: -1),
+            Point(time: 5, value: -1),
+            Point(time: 6, value: 1),
+            Point(time: 7, value: 1),
+            Point(time: 8, value: -1),
+            Point(time: 9, value: -1),
+            Point(time: 10, value: -1),
+            Point(time: 11, value: 1),
+        ]
+
+        #expect(Analysis.pulseWidth(threshold: 0).evaluate(on: points) == .scalar(2))
+        #expect(Analysis.lowPulseWidth(threshold: 0).evaluate(on: points) == .scalar(3))
+        #expect(
+            try Analysis.parseList("LowPulseWidth; lowpulsewidth 0.5") == [
+                .lowPulseWidth(threshold: nil),
+                .lowPulseWidth(threshold: 0.5),
+            ],
+        )
+        #expect(Analysis.lowPulseWidth(threshold: 0.5).label == "LowPulseWidth 500m")
+    }
+
     // MARK: - Integrals / power / THD
 
     @Test
@@ -402,7 +484,7 @@ struct AnalysisTests {
             Point(time: 2, value: 1),
         ]
         #expect(Analysis.integral.evaluate(on: points) == .scalar(2))
-        #expect(Analysis.energy.evaluate(on: points) == .scalar(2))
+        #expect(Analysis.energy(resistance: 1).evaluate(on: points) == .scalar(2))
 
         // 0.707 Vrms into 50 Ω ≈ 10 dBm? Vrms=1 → P = 1/50 = 0.02 W = 20 mW → 13.0 dBm
         guard case let .scalar(dbm) = Analysis.dbm(resistance: 50).evaluate(on: points) else {
@@ -412,7 +494,7 @@ struct AnalysisTests {
         #expect(abs(dbm - (10 * log10(0.02 / 0.001))) < 1e-9)
 
         #expect(try Analysis.parseList("Integral; Energy; dBm; dBm 75")
-            == [.integral, .energy, .dbm(resistance: 50), .dbm(resistance: 75)])
+            == [.integral, .energy(resistance: 1), .dbm(resistance: 50), .dbm(resistance: 75)])
     }
 
     @Test
@@ -431,8 +513,10 @@ struct AnalysisTests {
             return Point(time: time, value: fundamental + third)
         }
 
-        guard case let .scalar(thdPure) = Analysis.thd(pointCount: count).evaluate(on: pure),
-              case let .scalar(thdDist) = Analysis.thd(pointCount: count).evaluate(on: distorted) else {
+        let pureSpectrum = try #require(computeFFTSpectrum(points: pure, requestedPointCount: count))
+        let distortedSpectrum = try #require(computeFFTSpectrum(points: distorted, requestedPointCount: count))
+        guard case let .scalar(thdPure) = Analysis.thd.evaluate(on: pure, using: pureSpectrum),
+              case let .scalar(thdDist) = Analysis.thd.evaluate(on: distorted, using: distortedSpectrum) else {
             Issue.record("Expected THD scalars")
             return
         }
@@ -440,7 +524,10 @@ struct AnalysisTests {
         #expect(thdDist > thdPure)
         #expect(abs(thdDist - 0.3) < 0.08)
 
-        #expect(try Analysis.parseList("THD; THD 1k") == [.thd(pointCount: nil), .thd(pointCount: 1000)])
+        #expect(try Analysis.parseList("FFT; THD") == [.fft(pointCount: nil, position: .start), .thd])
+        #expect(throws: AnalysisParseError.invalidArgumentCount(operation: "THD", expected: 0, actual: 1)) {
+            try Analysis.parseList("FFT; THD 1k")
+        }
     }
 }
 

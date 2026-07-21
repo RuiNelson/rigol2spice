@@ -334,13 +334,6 @@ struct Rigol2spiceTests {
     }
 
     @Test
-    func `downsample keeps every nth point starting at zero`() {
-        let points = (0 ..< 7).map { Point(time: Double($0), value: Double($0)) }
-
-        #expect(downsamplePoints(points, interval: 3).map(\.time) == [0, 3, 6])
-    }
-
-    @Test
     func `time shift filters negative timestamps`() {
         let points = (0 ... 3).map { Point(time: Double($0), value: Double($0)) }
 
@@ -382,23 +375,6 @@ struct Rigol2spiceTests {
         #expect(throws: Rigol2SpiceError.periodNotDetected) {
             try extractPeriodPoints([Point(time: 0, value: 1), Point(time: 1, value: 1)], threshold: nil)
         }
-    }
-
-    @Test
-    func `resample interpolates onto a uniform grid`() throws {
-        #expect(try Transformation.parseList("Resample 0.5") == [.resample(0.5)])
-        #expect(throws: (any Error).self) {
-            try Transformation.parseList("Resample 0")
-        }
-
-        let points = [
-            Point(time: 0, value: 0),
-            Point(time: 1, value: 10),
-            Point(time: 2, value: 20),
-        ]
-        let result = try Transformation.resample(0.5).applying(to: points)
-        #expect(result.map(\.time) == [0, 0.5, 1, 1.5, 2])
-        #expect(result.map(\.value) == [0, 5, 10, 15, 20])
     }
 
     @Test

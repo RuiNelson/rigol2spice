@@ -59,7 +59,7 @@ struct Rigol2SpiceCommand: ParsableCommand {
 
     @Option(
         name: .shortAndLong,
-        help: "Analyses separated by semicolons (order independent; printed to the console after transforms).",
+        help: "Ordered analyses separated by semicolons; FFT dependants must follow FFT.",
     )
     var analysis: String?
 

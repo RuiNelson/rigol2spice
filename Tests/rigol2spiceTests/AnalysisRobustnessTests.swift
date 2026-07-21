@@ -50,7 +50,7 @@ struct AnalysisRobustnessTests {
         ]
 
         #expect(Analysis.integral.evaluate(on: points) == .scalar(5))
-        #expect(Analysis.energy.evaluate(on: points) == .scalar(10))
+        #expect(Analysis.energy(resistance: 1).evaluate(on: points) == .scalar(10))
     }
 
     @Test
@@ -72,7 +72,11 @@ struct AnalysisRobustnessTests {
         }
         let centeredPoints = Array(points[6 ..< 14])
 
-        let limited = try #require(computeFFTSpectrum(points: points, requestedPointCount: 8))
+        let limited = try #require(computeFFTSpectrum(
+            points: points,
+            requestedPointCount: 8,
+            position: .middle,
+        ))
         let explicitCenter = try #require(computeFFTSpectrum(points: centeredPoints, requestedPointCount: 8))
 
         #expect(abs(limited.centerFrequency - explicitCenter.centerFrequency) < 1e-12)
@@ -94,7 +98,8 @@ struct AnalysisRobustnessTests {
             return Point(time: time, value: value)
         }
 
-        guard case let .scalar(measured) = Analysis.thd(pointCount: count).evaluate(on: points) else {
+        let spectrum = computeFFTSpectrum(points: points, requestedPointCount: count)
+        guard case let .scalar(measured) = Analysis.thd.evaluate(on: points, using: spectrum) else {
             Issue.record("Expected scalar THD result")
             return
         }

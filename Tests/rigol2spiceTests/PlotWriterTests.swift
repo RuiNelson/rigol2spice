@@ -22,6 +22,18 @@ struct PlotWriterTests {
     }
 
     @Test
+    func `spectrum axes use rounded divisions and bounded dynamic range`() {
+        #expect(PlotWriter.spectrumTickInterval(span: 1000) == 200)
+        #expect(PlotWriter.spectrumTickInterval(span: 2500) == 500)
+        #expect(PlotWriter.spectrumTickInterval(span: 120) == 20)
+
+        let bounds = PlotWriter.spectrumDBBounds([-240, -80, -20, 43])
+        #expect(bounds.max == 60)
+        #expect(bounds.min == -60)
+        #expect(bounds.max - bounds.min == 120)
+    }
+
+    @Test
     func `nearest index finds the closest sample by time`() {
         let points = [
             Point(time: 0, value: 0),

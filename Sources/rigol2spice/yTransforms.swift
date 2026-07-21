@@ -28,6 +28,36 @@ func offsetPoints(_ points: [Point], offset: Double) -> [Point] {
     return output
 }
 
+/// Remove the least-squares line `intercept + slope * time` from the values.
+///
+/// Centering both axes makes the calculation stable when timestamps have a large offset.
+/// If time has no variation, the best identifiable trend is the constant sample mean.
+func detrendPoints(_ points: [Point]) -> [Point] {
+    guard !points.isEmpty else {
+        return points
+    }
+
+    let count = Double(points.count)
+    let meanTime = points.reduce(0.0) { $0 + $1.time } / count
+    let meanValue = points.reduce(0.0) { $0 + $1.value } / count
+
+    var timeVariance = 0.0
+    var covariance = 0.0
+    for point in points {
+        let centeredTime = point.time - meanTime
+        timeVariance += centeredTime * centeredTime
+        covariance += centeredTime * (point.value - meanValue)
+    }
+
+    let slope = timeVariance > 0 ? covariance / timeVariance : 0
+    var output = points
+    for index in output.indices {
+        let trend = meanValue + slope * (output[index].time - meanTime)
+        output[index].value -= trend
+    }
+    return output
+}
+
 /// Shift so the lowest sample is 0 (subtract min). Empty or already min-zero → unchanged values.
 func shiftMinToZero(_ points: [Point]) -> [Point] {
     guard let range = valueRange(points) else {

@@ -90,6 +90,27 @@ func medianValue(_ points: [Point]) -> Double {
     return 0.5 * (sorted[count / 2 - 1] + sorted[count / 2])
 }
 
+/// Timestamp of the first maximum or minimum sample. Empty → `nil`.
+func extremeTime(_ points: [Point], maximum: Bool) -> Double? {
+    guard var extreme = points.first else {
+        return nil
+    }
+    for point in points.dropFirst() {
+        if maximum ? point.value > extreme.value : point.value < extreme.value {
+            extreme = point
+        }
+    }
+    return extreme.time
+}
+
+/// Arithmetic mean of absolute sample values. Empty → 0.
+func meanAbsoluteValue(_ points: [Point]) -> Double {
+    guard !points.isEmpty else {
+        return 0
+    }
+    return points.reduce(0.0) { $0 + abs($1.value) } / Double(points.count)
+}
+
 // MARK: - Top / Base (histogram modes)
 
 /// Oscilloscope-style Top and Base from a value histogram (modes of upper/lower halves).
@@ -175,8 +196,21 @@ func integralValue(_ points: [Point]) -> Double {
     return integratePoints(points).last?.value ?? 0
 }
 
-/// Trapezoidal “energy” proxy ∫v² dt (1 Ω).
-func energyValue(_ points: [Point]) -> Double {
+/// Mean power `Vrms²/R` in watts.
+func averagePowerValue(_ points: [Point], resistance: Double = powerReferenceResistance) -> Double? {
+    guard resistance > 0, resistance.isFinite else {
+        return nil
+    }
+    let rms = rmsValue(points)
+    let power = rms * rms / resistance
+    return power.isFinite ? power : nil
+}
+
+/// Trapezoidal energy ∫v²/R dt in joules (default 1 Ω).
+func energyValue(_ points: [Point], resistance: Double = 1) -> Double? {
+    guard resistance > 0, resistance.isFinite else {
+        return nil
+    }
     guard points.count >= 2 else {
         return 0
     }
@@ -188,9 +222,9 @@ func energyValue(_ points: [Point]) -> Double {
         }
         let v0 = points[index - 1].value
         let v1 = points[index].value
-        sum += 0.5 * (v0 * v0 + v1 * v1) * dt
+        sum += 0.5 * (v0 * v0 + v1 * v1) / resistance * dt
     }
-    return sum
+    return sum.isFinite ? sum : nil
 }
 
 /// Power in dBm from sample RMS into `resistance` ohms: `10·log₁₀(Vrms²/R / 1mW)`.
@@ -295,6 +329,37 @@ func transitionTime(
     }
     let dt = tLow - tHigh
     return dt.isFinite && dt >= 0 ? dt : nil
+}
+
+/// Average slew rate magnitude between percentage levels of the min/max span.
+/// Uses the same first complete edge as `transitionTime`; falling rates are positive.
+func transitionSlewRate(
+    _ points: [Point],
+    lowPercent: Double,
+    highPercent: Double,
+    rising: Bool,
+) -> Double? {
+    guard let range = valueRange(points) else {
+        return nil
+    }
+    let span = range.maximum - range.minimum
+    let lowP = min(lowPercent, highPercent)
+    let highP = max(lowPercent, highPercent)
+    guard span > 0,
+          lowP >= 0,
+          highP <= 100,
+          highP > lowP,
+          let dt = transitionTime(
+              points,
+              lowPercent: lowP,
+              highPercent: highP,
+              rising: rising,
+          ),
+          dt > 0 else {
+        return nil
+    }
+    let rate = span * (highP - lowP) / 100 / dt
+    return rate.isFinite && rate >= 0 ? rate : nil
 }
 
 /// Complete-wave periods from level crossings (same pairing as frequency analysis).
@@ -462,4 +527,170 @@ func thdFraction(spectrum: FFTSpectrum, maxHarmonic: Int = 10) -> Double? {
         return 0
     }
     return sqrt(harmonicPower) / fundamental
+}
+
+/// Hann coherent sum used to turn an unscaled FFT magnitude into peak amplitude.
+private func hannWeightSum(sampleCount: Int) -> Double {
+    guard sampleCount > 1 else {
+        return 0
+    }
+    let scale = 2 * Double.pi / Double(sampleCount - 1)
+    return (0 ..< sampleCount).reduce(0.0) { sum, index in
+        sum + 0.5 * (1 - cos(scale * Double(index)))
+    }
+}
+
+/// Convert a raw one-sided FFT-bin magnitude to peak signal amplitude.
+private func correctedPeakAmplitude(
+    spectrum: FFTSpectrum,
+    magnitude: Double,
+    frequency: Double,
+) -> Double? {
+    let weightSum = hannWeightSum(sampleCount: spectrum.usedPointCount)
+    guard weightSum > 0, magnitude.isFinite, magnitude >= 0 else {
+        return nil
+    }
+    let nyquist = spectrum.sampleRate / 2
+    let oneSidedFactor = frequency > 0 && frequency < nyquist ? 2.0 : 1.0
+    let amplitude = oneSidedFactor * magnitude / weightSum
+    return amplitude.isFinite ? amplitude : nil
+}
+
+/// Hann-corrected peak amplitude of the dominant AC component.
+func fundamentalAmplitude(spectrum: FFTSpectrum) -> Double? {
+    guard spectrum.centerFrequency > 0 else {
+        return nil
+    }
+    return correctedPeakAmplitude(
+        spectrum: spectrum,
+        magnitude: spectrum.centerMagnitude,
+        frequency: spectrum.centerFrequency,
+    )
+}
+
+/// Hann-corrected peak amplitude of harmonic `number` of the dominant AC component.
+func harmonicAmplitude(spectrum: FFTSpectrum, number: Int) -> Double? {
+    guard number >= 1,
+          spectrum.centerFrequency > 0,
+          spectrum.frequencies.count == spectrum.magnitudes.count,
+          spectrum.frequencies.count >= 2 else {
+        return nil
+    }
+    if number == 1 {
+        return fundamentalAmplitude(spectrum: spectrum)
+    }
+
+    let targetFrequency = spectrum.centerFrequency * Double(number)
+    let nyquist = spectrum.sampleRate / 2
+    let binWidth = spectrum.frequencies[1] - spectrum.frequencies[0]
+    guard targetFrequency <= nyquist, binWidth > 0 else {
+        return nil
+    }
+
+    let centerBin = Int((targetFrequency / binWidth).rounded())
+    let lowerBin = max(1, centerBin - 1)
+    let upperBin = min(spectrum.magnitudes.count - 1, centerBin + 1)
+    guard lowerBin <= upperBin else {
+        return nil
+    }
+    let magnitude = spectrum.magnitudes[lowerBin ... upperBin].max() ?? 0
+    return correctedPeakAmplitude(
+        spectrum: spectrum,
+        magnitude: magnitude,
+        frequency: targetFrequency,
+    )
+}
+
+// MARK: - WaveTypePercentages
+
+struct WaveTypePercentages: Equatable {
+    let sine: Double
+    let square: Double
+    let sawtooth: Double
+    let triangle: Double
+}
+
+/// Compare measured harmonic ratios with ideal magnitude profiles. Each similarity
+/// score is independent and ranges from 0% to 100%. Phase is deliberately not used.
+func waveTypePercentages(spectrum: FFTSpectrum, maximumHarmonic: Int = 10) -> WaveTypePercentages? {
+    guard let fundamental = fundamentalAmplitude(spectrum: spectrum),
+          fundamental > 0,
+          spectrum.centerFrequency > 0 else {
+        return nil
+    }
+
+    let nyquist = spectrum.sampleRate / 2
+    let availableHarmonics = Int((nyquist / spectrum.centerFrequency).rounded(.down))
+    let lastHarmonic = min(maximumHarmonic, availableHarmonics)
+    guard lastHarmonic >= 3 else {
+        return nil
+    }
+
+    var measured: [Double] = []
+    measured.reserveCapacity(lastHarmonic - 1)
+    for number in 2 ... lastHarmonic {
+        let amplitude = harmonicAmplitude(spectrum: spectrum, number: number) ?? 0
+        measured.append(max(0, amplitude / fundamental))
+    }
+
+    func idealRatio(type: WaveTypeProfile, harmonic: Int) -> Double {
+        switch type {
+        case .sine:
+            0
+        case .square:
+            harmonic.isMultiple(of: 2) ? 0 : 1 / Double(harmonic)
+        case .sawtooth:
+            1 / Double(harmonic)
+        case .triangle:
+            harmonic.isMultiple(of: 2) ? 0 : 1 / pow(Double(harmonic), 2)
+        }
+    }
+
+    func squaredError(type: WaveTypeProfile) -> Double {
+        var sum = 0.0
+        for (offset, value) in measured.enumerated() {
+            let harmonic = offset + 2
+            let difference = value - idealRatio(type: type, harmonic: harmonic)
+            sum += difference * difference
+        }
+        return sum
+    }
+
+    func similarity(type: WaveTypeProfile) -> Double {
+        let error = sqrt(squaredError(type: type))
+        if type == .sine {
+            // With no ideal higher harmonics, the residual is exactly THD over the
+            // harmonics considered here. This makes SineWaveType = 100% - THD%.
+            return 100 * max(0, 1 - error)
+        }
+
+        let idealEnergy = sqrt((2 ... lastHarmonic).reduce(0.0) { sum, harmonic in
+            let ratio = idealRatio(type: type, harmonic: harmonic)
+            return sum + ratio * ratio
+        })
+        guard idealEnergy > 0 else {
+            return 0
+        }
+        return 100 * max(0, 1 - error / idealEnergy)
+    }
+
+    let percentages = WaveTypeProfile.allCases.map(similarity)
+    guard percentages.allSatisfy(\.isFinite) else {
+        return nil
+    }
+    return WaveTypePercentages(
+        sine: percentages[WaveTypeProfile.sine.rawValue],
+        square: percentages[WaveTypeProfile.square.rawValue],
+        sawtooth: percentages[WaveTypeProfile.sawtooth.rawValue],
+        triangle: percentages[WaveTypeProfile.triangle.rawValue],
+    )
+}
+
+// MARK: - WaveTypeProfile
+
+private enum WaveTypeProfile: Int, CaseIterable {
+    case sine
+    case square
+    case sawtooth
+    case triangle
 }

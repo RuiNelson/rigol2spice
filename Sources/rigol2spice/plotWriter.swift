@@ -224,6 +224,8 @@ enum PlotWriter {
               .panel { fill: #121a2f; stroke: #243152; stroke-width: 1; }
               .grid-x { stroke: #1e2a44; stroke-width: 1; stroke-dasharray: 2 4; }
               .grid-x-sub { stroke: #18233a; stroke-width: 1; }
+              .grid-spectrum { stroke: #263555; stroke-width: 1; stroke-dasharray: 2 4; }
+              .grid-spectrum-sub { stroke: #1a2740; stroke-width: 1; }
               .mark-max { stroke: #f87171; stroke-width: 1; stroke-dasharray: 4 3; opacity: 0.9; }
               .mark-min { stroke: #60a5fa; stroke-width: 1; stroke-dasharray: 4 3; opacity: 0.9; }
               .mark-mean { stroke: #a3e635; stroke-width: 1; stroke-dasharray: 2 3; opacity: 0.85; }
@@ -231,6 +233,7 @@ enum PlotWriter {
               .signal { fill: none; stroke: #38bdf8; stroke-width: 1.25; stroke-linejoin: round; stroke-linecap: round; }
               .spectrum { fill: none; stroke: #c084fc; stroke-width: 1.25; stroke-linejoin: round; stroke-linecap: round; }
               .label-x { fill: #94a3b8; font: 11px ui-sans-serif, system-ui, -apple-system, sans-serif; text-anchor: middle; }
+              .label-x-end { text-anchor: end; }
               .label-y { fill: #cbd5e1; font: 11px ui-sans-serif, system-ui, -apple-system, sans-serif; text-anchor: end; }
               .label-y-name { fill: #64748b; font: 10px ui-sans-serif, system-ui, -apple-system, sans-serif; text-anchor: end; }
               .title { fill: #e2e8f0; font: 600 13px ui-sans-serif, system-ui, -apple-system, sans-serif; }
@@ -294,15 +297,9 @@ enum PlotWriter {
         }
 
         let fMax = spectrum.frequencies[binCount - 1]
-        var dbMin = spectrum.magnitudesDB.min() ?? -100
-        var dbMax = spectrum.magnitudesDB.max() ?? 0
-        if dbMin == dbMax {
-            dbMin -= 10
-            dbMax += 1
-        }
-        let dbPadding = (dbMax - dbMin) * 0.06
-        dbMin -= dbPadding
-        dbMax += dbPadding
+        let dbBounds = spectrumDBBounds(spectrum.magnitudesDB)
+        let dbMin = dbBounds.min
+        let dbMax = dbBounds.max
         let dbRange = dbMax - dbMin
 
         func xAtFrequency(_ frequency: Double) -> Double {
@@ -329,37 +326,78 @@ enum PlotWriter {
             }
         }
 
-        // A few frequency labels across the axis (0 … Nyquist).
-        var xLabels = ""
-        let tickCount = 5
-        for tick in 0 ... tickCount {
-            let frequency = fMax * Double(tick) / Double(tickCount)
+        // Rounded 1-2-5 frequency divisions, with one subtle subdivision between
+        // labels. This stays readable while giving more useful positions than equal
+        // fractions of an arbitrary Nyquist frequency.
+        var xGrid = ""
+        let frequencyInterval = spectrumTickInterval(span: fMax)
+        let frequencyMinorInterval = frequencyInterval / 2
+        if frequencyMinorInterval > 0 {
+            var frequency = frequencyMinorInterval
+            while frequency < fMax {
+                if !isMultiple(frequency, of: frequencyInterval) {
+                    let x = xAtFrequency(frequency)
+                    xGrid.append(
+                        """
+                        <line class="grid-spectrum-sub" x1="\(formatCoord(x))" y1="\(formatCoord(
+                            chartTop,
+                        ))" x2="\(formatCoord(x))" y2="\(formatCoord(chartTop + spectrumHeight))"/>
+                        """,
+                    )
+                }
+                frequency += frequencyMinorInterval
+            }
+        }
+
+        var frequency = 0.0
+        while frequency <= fMax + frequencyInterval * 1e-9 {
             let x = xAtFrequency(frequency)
             let label = escapeXML(plotEngineeringFormatter.string(frequency) + "Hz")
-            xLabels.append(
+            let labelClass = abs(frequency - fMax) <= frequencyInterval * 1e-9
+                ? "label-x label-x-end"
+                : "label-x"
+            xGrid.append(
                 """
-                <line class="grid-x" x1="\(formatCoord(
+                <line class="grid-spectrum" x1="\(formatCoord(
                     x,
                 ))" y1="\(formatCoord(chartTop))" x2="\(formatCoord(x))" y2="\(formatCoord(chartTop +
                         spectrumHeight))"/>
-                <text class="label-x" x="\(formatCoord(x))" y="\(formatCoord(chartTop + spectrumHeight +
+                <text class="\(labelClass)" x="\(formatCoord(x))" y="\(formatCoord(chartTop + spectrumHeight +
                         18))">\(label)</text>
                 """,
             )
+            frequency += frequencyInterval
         }
 
-        // dB max / min on the left.
-        let maxLabel = escapeXML(plotEngineeringFormatter.string(dbMax) + "dB")
-        let minLabel = escapeXML(plotEngineeringFormatter.string(dbMin) + "dB")
+        // Rounded dB divisions across a useful dynamic range.
+        var yGrid = ""
+        let dbInterval = spectrumTickInterval(span: dbRange)
+        var dbTick = (dbMin / dbInterval).rounded(.up) * dbInterval
+        while dbTick <= dbMax + dbInterval * 1e-9 {
+            let y = yAtDB(dbTick)
+            let label = escapeXML(plotEngineeringFormatter.string(dbTick) + "dB")
+            yGrid.append(
+                """
+                <line class="grid-spectrum" x1="\(formatCoord(leftMargin))" y1="\(formatCoord(
+                    y,
+                ))" x2="\(formatCoord(leftMargin + plotWidth))" y2="\(formatCoord(y))"/>
+                <text class="label-y" x="\(formatCoord(leftMargin - 10))" y="\(formatCoord(y + 4))">\(label)</text>
+                """,
+            )
+            dbTick += dbInterval
+        }
+
         let peakX = xAtFrequency(spectrum.centerFrequency)
+        let peakY = yAtDB(min(max(spectrum.centerMagnitudeDB, dbMin), dbMax))
+        let resolution = spectrum.sampleRate / Double(spectrum.fftSize)
         let title: String = if spectrum.usedPointCount < spectrum.requestedPointCount {
             escapeXML(
-                "FFT \(spectrum.usedPointCount) pts (requested \(spectrum.requestedPointCount)) · peak \(plotEngineeringFormatter.string(spectrum.centerFrequency))Hz",
+                "FFT \(spectrum.usedPointCount) pts · \(spectrum.windowPosition.rawValue) window (requested \(spectrum.requestedPointCount)) · Δf \(plotEngineeringFormatter.string(resolution))Hz · peak \(plotEngineeringFormatter.string(spectrum.centerFrequency))Hz · \(plotEngineeringFormatter.string(spectrum.centerMagnitudeDB))dB",
             )
         }
         else {
             escapeXML(
-                "FFT \(spectrum.usedPointCount) pts · peak \(plotEngineeringFormatter.string(spectrum.centerFrequency))Hz",
+                "FFT \(spectrum.usedPointCount) pts · \(spectrum.windowPosition.rawValue) window · Δf \(plotEngineeringFormatter.string(resolution))Hz · peak \(plotEngineeringFormatter.string(spectrum.centerFrequency))Hz · \(plotEngineeringFormatter.string(spectrum.centerMagnitudeDB))dB",
             )
         }
 
@@ -370,16 +408,67 @@ enum PlotWriter {
         ))" y="\(formatCoord(
             chartTop,
         ))" width="\(formatCoord(plotWidth))" height="\(formatCoord(spectrumHeight))" rx="6"/>
-        \(xLabels)
-        <text class="label-y" x="\(formatCoord(leftMargin - 10))" y="\(formatCoord(chartTop + 4))">\(maxLabel)</text>
-        <text class="label-y" x="\(formatCoord(leftMargin - 10))" y="\(formatCoord(chartTop +
-                spectrumHeight))">\(minLabel)</text>
+        \(xGrid)
+        \(yGrid)
         <line class="mark-peak" x1="\(formatCoord(
             peakX,
         ))" y1="\(formatCoord(chartTop))" x2="\(formatCoord(peakX))" y2="\(formatCoord(chartTop +
                 spectrumHeight))"/>
         <polyline class="spectrum" points="\(polyline)"/>
+        <circle cx="\(formatCoord(peakX))" cy="\(formatCoord(peakY))" r="3" fill="#fbbf24"/>
         """
+    }
+
+    /// A conventional 1-2-5 interval targeting about six labelled divisions.
+    static func spectrumTickInterval(span: Double, targetTickCount: Int = 6) -> Double {
+        guard span.isFinite, span > 0, targetTickCount > 0 else {
+            return 1
+        }
+        let rough = span / Double(targetTickCount)
+        let magnitude = pow(10, floor(log10(rough)))
+        let normalized = rough / magnitude
+        let factor: Double = if normalized <= 1 {
+            1
+        }
+        else if normalized <= 2 {
+            2
+        }
+        else if normalized <= 5 {
+            5
+        }
+        else {
+            10
+        }
+        return factor * magnitude
+    }
+
+    /// Rounded dB limits with enough headroom for the peak and at most 120 dB of
+    /// displayed range, avoiding a numerical FFT floor flattening the useful trace.
+    static func spectrumDBBounds(
+        _ values: [Double],
+        maximumDynamicRange: Double = 120,
+    ) -> (min: Double, max: Double) {
+        let finiteValues = values.filter(\.isFinite)
+        guard let rawMin = finiteValues.min(), let rawMax = finiteValues.max() else {
+            return (-120, 0)
+        }
+
+        var visibleMin = max(rawMin, rawMax - maximumDynamicRange)
+        var visibleMax = rawMax
+        if visibleMax - visibleMin < 10 {
+            visibleMin -= 5
+            visibleMax += 5
+        }
+        let interval = spectrumTickInterval(span: visibleMax - visibleMin)
+        let roundedMax = (visibleMax / interval).rounded(.up) * interval
+        var roundedMin = (visibleMin / interval).rounded(.down) * interval
+        if maximumDynamicRange > 0 {
+            roundedMin = max(roundedMin, roundedMax - maximumDynamicRange)
+        }
+        if roundedMin >= roundedMax {
+            roundedMin = roundedMax - max(interval, 10)
+        }
+        return (roundedMin, roundedMax)
     }
 
     private static func analysisTextElements(

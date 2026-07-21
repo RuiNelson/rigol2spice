@@ -40,23 +40,6 @@ func removeRedundant(_ source: [Point]) -> [Point] {
     return output
 }
 
-func downsamplePoints(_ source: [Point], interval: Int) -> [Point] {
-    guard interval > 1, source.count > 1 else {
-        return source
-    }
-
-    var output: [Point] = []
-    output.reserveCapacity((source.count - 1) / interval + 1)
-
-    var index = 0
-    while index < source.count {
-        output.append(source[index])
-        index += interval
-    }
-
-    return output
-}
-
 // MARK: - TriggerEdge
 
 enum TriggerEdge: Equatable, CustomStringConvertible {
@@ -271,13 +254,55 @@ func extractPeriodPoints(_ points: [Point], threshold: Double?) throws -> [Point
     return shifted
 }
 
-/// Linearly interpolate onto a uniform grid with the given sample interval.
-func resamplePoints(_ points: [Point], interval: Double) throws -> [Point] {
-    guard interval > 0, interval.isFinite else {
-        throw TransformationParseError.invalidPositiveScalar(
-            operation: "Resample",
-            value: String(interval),
-        )
+// MARK: - ResamplingInterpolation
+
+enum ResamplingInterpolation: String, Equatable {
+    case linear
+    case pchip
+    case sinc
+}
+
+// MARK: - ResamplingDirection
+
+enum ResamplingDirection: Equatable {
+    case downsample
+    case upsample
+
+    var operationName: String {
+        switch self {
+        case .downsample: "Downsample"
+        case .upsample: "Upsample"
+        }
+    }
+}
+
+// MARK: - ResamplingError
+
+enum ResamplingError: LocalizedError, Equatable {
+    case invalidFactor(operation: String, factor: Double)
+    case pointCountTooLarge(operation: String, factor: Double)
+
+    var errorDescription: String? {
+        switch self {
+        case let .invalidFactor(operation, factor):
+            "\(operation) factor must be finite and greater than 1, but received \(factor)"
+        case let .pointCountTooLarge(operation, factor):
+            "\(operation) factor \(factor) would create too many samples"
+        }
+    }
+}
+
+/// Resample to a factor of the original point count while preserving both time endpoints.
+/// Downsampling intentionally performs no anti-alias filtering.
+func resamplePoints(
+    _ points: [Point],
+    factor: Double,
+    direction: ResamplingDirection,
+    interpolation: ResamplingInterpolation,
+) throws -> [Point] {
+    let operation = direction.operationName
+    guard factor.isFinite, factor > 1 else {
+        throw ResamplingError.invalidFactor(operation: operation, factor: factor)
     }
     guard points.count >= 2 else {
         return points
@@ -289,40 +314,172 @@ func resamplePoints(_ points: [Point], interval: Double) throws -> [Point] {
         return points
     }
 
-    let duration = end - start
-    let stepCount = Int((duration / interval).rounded(.down))
-    var output: [Point] = []
-    output.reserveCapacity(stepCount + 2)
+    let rawTargetCount = switch direction {
+    case .downsample: Double(points.count) / factor
+    case .upsample: Double(points.count) * factor
+    }
+    guard rawTargetCount.isFinite, rawTargetCount <= 100_000_000 else {
+        throw ResamplingError.pointCountTooLarge(operation: operation, factor: factor)
+    }
 
+    let roundedCount = Int(rawTargetCount.rounded(.toNearestOrAwayFromZero))
+    let targetCount: Int = switch direction {
+    case .downsample:
+        points.count == 2 ? 2 : min(points.count - 1, max(2, roundedCount))
+    case .upsample:
+        max(points.count + 1, roundedCount)
+    }
+
+    let values: [Double] = switch interpolation {
+    case .linear:
+        linearResampledValues(points, targetCount: targetCount)
+    case .pchip:
+        pchipResampledValues(points, targetCount: targetCount)
+    case .sinc:
+        sincResampledValues(points, targetCount: targetCount)
+    }
+    let interval = (end - start) / Double(targetCount - 1)
+    return values.enumerated().map { index, value in
+        let time = index == targetCount - 1 ? end : start + Double(index) * interval
+        return Point(time: time, value: value)
+    }
+}
+
+private func linearResampledValues(_ points: [Point], targetCount: Int) -> [Double] {
+    valuesOnUniformGrid(points, targetCount: targetCount) { _, before, after, time in
+        guard after.time != before.time else {
+            return before.value
+        }
+        let progress = (time - before.time) / (after.time - before.time)
+        return before.value + (after.value - before.value) * progress
+    }
+}
+
+private func valuesOnUniformGrid(
+    _ points: [Point],
+    targetCount: Int,
+    interpolate: (_ sourceIndex: Int, _ before: Point, _ after: Point, _ time: Double) -> Double,
+) -> [Double] {
+    let start = points[0].time
+    let end = points[points.count - 1].time
+    let interval = (end - start) / Double(targetCount - 1)
     var sourceIndex = 0
-    var time = start
-    var steps = 0
-    while time < end - interval * 1e-12 {
-        while sourceIndex + 1 < points.count, points[sourceIndex + 1].time < time {
+    return (0 ..< targetCount).map { index in
+        if index == targetCount - 1 {
+            return points[points.count - 1].value
+        }
+        let time = start + Double(index) * interval
+        while sourceIndex + 1 < points.count - 1, points[sourceIndex + 1].time < time {
             sourceIndex += 1
         }
-        let before = points[sourceIndex]
-        let afterIndex = min(sourceIndex + 1, points.count - 1)
-        let after = points[afterIndex]
-        let value: Double
-        if after.time == before.time {
-            value = before.value
-        }
-        else {
-            let progress = (time - before.time) / (after.time - before.time)
-            value = before.value + (after.value - before.value) * progress
-        }
-        output.append(Point(time: time, value: value))
-        steps += 1
-        time = start + Double(steps) * interval
-        // Safety against huge allocations
-        if steps > 100_000_000 {
-            break
-        }
+        return interpolate(sourceIndex, points[sourceIndex], points[sourceIndex + 1], time)
     }
-    // Always include the original end sample
-    output.append(points[points.count - 1])
-    return output
+}
+
+private func pchipResampledValues(_ points: [Point], targetCount: Int) -> [Double] {
+    guard points.count > 2 else {
+        return linearResampledValues(points, targetCount: targetCount)
+    }
+
+    let intervals = (0 ..< points.count - 1).map { points[$0 + 1].time - points[$0].time }
+    guard intervals.allSatisfy({ $0.isFinite && $0 > 0 }) else {
+        return linearResampledValues(points, targetCount: targetCount)
+    }
+    let secants = (0 ..< points.count - 1).map {
+        (points[$0 + 1].value - points[$0].value) / intervals[$0]
+    }
+    var slopes = [Double](repeating: 0, count: points.count)
+
+    for index in 1 ..< points.count - 1 {
+        let previous = secants[index - 1]
+        let next = secants[index]
+        guard previous != 0, next != 0, previous.sign == next.sign else {
+            slopes[index] = 0
+            continue
+        }
+        let firstWeight = 2 * intervals[index] + intervals[index - 1]
+        let secondWeight = intervals[index] + 2 * intervals[index - 1]
+        slopes[index] = (firstWeight + secondWeight) / (firstWeight / previous + secondWeight / next)
+    }
+
+    func endpointSlope(first h1: Double, second h2: Double, firstDelta d1: Double, secondDelta d2: Double) -> Double {
+        var slope = ((2 * h1 + h2) * d1 - h1 * d2) / (h1 + h2)
+        if slope.sign != d1.sign {
+            slope = 0
+        }
+        else if d1.sign != d2.sign, abs(slope) > abs(3 * d1) {
+            slope = 3 * d1
+        }
+        return slope
+    }
+
+    slopes[0] = endpointSlope(
+        first: intervals[0],
+        second: intervals[1],
+        firstDelta: secants[0],
+        secondDelta: secants[1],
+    )
+    slopes[slopes.count - 1] = endpointSlope(
+        first: intervals[intervals.count - 1],
+        second: intervals[intervals.count - 2],
+        firstDelta: secants[secants.count - 1],
+        secondDelta: secants[secants.count - 2],
+    )
+
+    return valuesOnUniformGrid(points, targetCount: targetCount) { index, before, after, time in
+        let width = after.time - before.time
+        let position = (time - before.time) / width
+        let position2 = position * position
+        let position3 = position2 * position
+        let h00 = 2 * position3 - 3 * position2 + 1
+        let h10 = position3 - 2 * position2 + position
+        let h01 = -2 * position3 + 3 * position2
+        let h11 = position3 - position2
+        return h00 * before.value
+            + h10 * width * slopes[index]
+            + h01 * after.value
+            + h11 * width * slopes[index + 1]
+    }
+}
+
+private func sincResampledValues(_ points: [Point], targetCount: Int) -> [Double] {
+    let start = points[0].time
+    let end = points[points.count - 1].time
+    let targetInterval = (end - start) / Double(targetCount - 1)
+    let sourceInterval = (end - start) / Double(points.count - 1)
+    let radius = 8
+
+    func sinc(_ value: Double) -> Double {
+        if abs(value) < 1e-12 {
+            return 1
+        }
+        return sin(Double.pi * value) / (Double.pi * value)
+    }
+
+    return (0 ..< targetCount).map { targetIndex in
+        if targetIndex == 0 {
+            return points[0].value
+        }
+        if targetIndex == targetCount - 1 {
+            return points[points.count - 1].value
+        }
+        let time = start + Double(targetIndex) * targetInterval
+        let center = Int(((time - start) / sourceInterval).rounded())
+        let lower = max(0, center - radius + 1)
+        let upper = min(points.count - 1, center + radius)
+        var weightedValue = 0.0
+        var weightSum = 0.0
+        for sourceIndex in lower ... upper {
+            let distance = (time - points[sourceIndex].time) / sourceInterval
+            guard abs(distance) < Double(radius) else {
+                continue
+            }
+            let weight = sinc(distance) * sinc(distance / Double(radius))
+            weightedValue += weight * points[sourceIndex].value
+            weightSum += weight
+        }
+        return weightSum == 0 ? points[min(max(center, 0), points.count - 1)].value : weightedValue / weightSum
+    }
 }
 
 /// Extend the capture by `duration` past the last sample, holding `value` (or the last value).

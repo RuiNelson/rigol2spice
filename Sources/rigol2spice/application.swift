@@ -9,6 +9,7 @@ enum Rigol2SpiceError: LocalizedError, Equatable {
     case mustHaveAtLeastTwoPointsToRepeat
     case operationRemovedEveryPoint
     case edgeNotFound(edge: TriggerEdge, threshold: Double)
+    case triggerEventNotFound(operation: String)
     case periodNotDetected
 
     var errorDescription: String? {
@@ -21,6 +22,8 @@ enum Rigol2SpiceError: LocalizedError, Equatable {
         case .operationRemovedEveryPoint: "Operation removed every sample"
         case let .edgeNotFound(edge, threshold):
             "No \(edge.description) edge found at threshold \(threshold)"
+        case let .triggerEventNotFound(operation):
+            "No event matching \(operation) was found in the capture"
         case .periodNotDetected:
             "Could not detect a repeating period in the capture"
         }
@@ -266,7 +269,7 @@ struct Rigol2SpiceApplication {
                     points: points,
                     sampleInterval: sampleInterval,
                 )
-                reportFilter(design)
+                reportFilter(design, transformation: transformation)
                 points = applyFIRFilter(taps: design.taps, to: points)
             }
             else {
@@ -280,9 +283,14 @@ struct Rigol2SpiceApplication {
         }
 
         if let interval = options.downsample {
-            Console.section("Downsampling at 1/\(interval)...")
+            Console.section("Downsampling by \(interval)× using linear interpolation (no anti-alias filter)...")
             let countBefore = points.count
-            points = downsamplePoints(points, interval: interval)
+            points = try resamplePoints(
+                points,
+                factor: Double(interval),
+                direction: .downsample,
+                interpolation: .linear,
+            )
             try reportPointCount(before: countBefore, after: points.count)
         }
 
@@ -305,6 +313,8 @@ struct Rigol2SpiceApplication {
                     .joined(separator: ", ")
                 Console.detail("K-means centroids: \(centroids) (\(estimate.iterations) iterations)")
             }
+        case .detrend:
+            Console.section("Removing least-squares offset and linear trend...")
         case let .clampMin(value):
             Console.section("Clamping the signal above \(engineeringFormatter.string(value))...")
         case let .clampMax(value):
@@ -415,17 +425,17 @@ struct Rigol2SpiceApplication {
             Console.section("Shifting signal for \(engineeringFormatter.string(value))s...")
         case let .timeScale(value):
             Console.section("Scaling time axis by \(engineeringFormatter.string(value))...")
-        case let .trigger(edge, threshold, after):
-            if let after {
-                Console.section(
-                    "Triggering on \(edge.description) edge at \(engineeringFormatter.string(threshold)) (search after \(engineeringFormatter.string(after))s) to t=0...",
-                )
-            }
-            else {
-                Console.section(
-                    "Triggering on \(edge.description) edge at \(engineeringFormatter.string(threshold)) to t=0...",
-                )
-            }
+        case .trigger,
+             .triggerLevel,
+             .triggerSchmitt,
+             .triggerNth,
+             .triggerCapture,
+             .triggerPulse,
+             .triggerBand,
+             .triggerSlew,
+             .triggerDropout,
+             .triggerRunt:
+            Console.section(transformation.triggerSummary ?? "Applying trigger...")
         case let .seamless(rampDuration):
             if let rampDuration {
                 Console.section(
@@ -457,9 +467,13 @@ struct Rigol2SpiceApplication {
                     "Extending signal to \(engineeringFormatter.string(endTime))s (hold last value)...",
                 )
             }
-        case let .resample(interval):
+        case let .downsample(factor, interpolation):
             Console.section(
-                "Resampling to a \(engineeringFormatter.string(interval))s interval...",
+                "Downsampling by \(engineeringFormatter.string(factor))× using \(interpolation.rawValue) interpolation (no anti-alias filter)...",
+            )
+        case let .upsample(factor, interpolation):
+            Console.section(
+                "Upsampling by \(engineeringFormatter.string(factor))× using \(interpolation.rawValue) interpolation...",
             )
         case let .extractPeriod(threshold):
             if let threshold {
@@ -480,6 +494,30 @@ struct Rigol2SpiceApplication {
             )
         case let .repeat(amount):
             Console.section("Repeating capture for \(engineeringFormatter.string(amount)) times...")
+        case let .am(carrier, depth, amplitude):
+            Console.section(
+                "AM-modulating at \(engineeringFormatter.string(carrier))Hz (depth \(engineeringFormatter.string(depth)), carrier amplitude \(engineeringFormatter.string(amplitude)))...",
+            )
+        case let .fm(carrier, sensitivity, amplitude):
+            Console.section(
+                "FM-modulating at \(engineeringFormatter.string(carrier))Hz (sensitivity \(engineeringFormatter.string(sensitivity))Hz/unit, carrier amplitude \(engineeringFormatter.string(amplitude)))...",
+            )
+        case let .pm(carrier, sensitivity, amplitude):
+            Console.section(
+                "PM-modulating at \(engineeringFormatter.string(carrier))Hz (sensitivity \(engineeringFormatter.string(sensitivity))rad/unit, carrier amplitude \(engineeringFormatter.string(amplitude)))...",
+            )
+        case let .demodAM(carrier, depth, cutoff):
+            Console.section(
+                "AM-demodulating at \(engineeringFormatter.string(carrier))Hz (depth \(engineeringFormatter.string(depth)), baseband cutoff \(engineeringFormatter.string(cutoff))Hz)...",
+            )
+        case let .demodFM(carrier, sensitivity, cutoff):
+            Console.section(
+                "FM-demodulating at \(engineeringFormatter.string(carrier))Hz (sensitivity \(engineeringFormatter.string(sensitivity))Hz/unit, baseband cutoff \(engineeringFormatter.string(cutoff))Hz)...",
+            )
+        case let .demodPM(carrier, sensitivity, cutoff):
+            Console.section(
+                "PM-demodulating at \(engineeringFormatter.string(carrier))Hz (sensitivity \(engineeringFormatter.string(sensitivity))rad/unit, baseband cutoff \(engineeringFormatter.string(cutoff))Hz)...",
+            )
         case let .lowPass(cutoff):
             Console.section("Applying low-pass FIR filter at \(engineeringFormatter.string(cutoff))Hz...")
         case let .highPass(cutoff):
@@ -491,24 +529,35 @@ struct Rigol2SpiceApplication {
         case let .bandStop(low, high):
             Console.section(
                 "Applying band-stop FIR filter from \(engineeringFormatter.string(low))Hz to \(engineeringFormatter.string(high))Hz...",
+            )
+        case let .notch(center, width):
+            Console.section(
+                "Applying notch FIR filter at \(engineeringFormatter.string(center))Hz with width \(engineeringFormatter.string(width))Hz...",
             )
         }
     }
 
-    private func reportFilter(_ design: FIRFilterDesign) {
-        switch design.kind {
-        case let .lowPass(cutoff):
-            Console.section("Applying low-pass FIR filter at \(engineeringFormatter.string(cutoff))Hz...")
-        case let .highPass(cutoff):
-            Console.section("Applying high-pass FIR filter at \(engineeringFormatter.string(cutoff))Hz...")
-        case let .bandPass(low, high):
+    private func reportFilter(_ design: FIRFilterDesign, transformation: Transformation) {
+        if case let .notch(center, width) = transformation {
             Console.section(
-                "Applying band-pass FIR filter from \(engineeringFormatter.string(low))Hz to \(engineeringFormatter.string(high))Hz...",
+                "Applying notch FIR filter at \(engineeringFormatter.string(center))Hz with width \(engineeringFormatter.string(width))Hz...",
             )
-        case let .bandStop(low, high):
-            Console.section(
-                "Applying band-stop FIR filter from \(engineeringFormatter.string(low))Hz to \(engineeringFormatter.string(high))Hz...",
-            )
+        }
+        else {
+            switch design.kind {
+            case let .lowPass(cutoff):
+                Console.section("Applying low-pass FIR filter at \(engineeringFormatter.string(cutoff))Hz...")
+            case let .highPass(cutoff):
+                Console.section("Applying high-pass FIR filter at \(engineeringFormatter.string(cutoff))Hz...")
+            case let .bandPass(low, high):
+                Console.section(
+                    "Applying band-pass FIR filter from \(engineeringFormatter.string(low))Hz to \(engineeringFormatter.string(high))Hz...",
+                )
+            case let .bandStop(low, high):
+                Console.section(
+                    "Applying band-stop FIR filter from \(engineeringFormatter.string(low))Hz to \(engineeringFormatter.string(high))Hz...",
+                )
+            }
         }
 
         Console.detail("Window: Blackman-Harris (linear phase, group delay removed)")
