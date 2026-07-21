@@ -14,6 +14,8 @@ jobs:
   build:
     name: Build macOS universal binary
     runs-on: macos-15
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
 
     steps:
       - name: Checkout
@@ -21,10 +23,10 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup Swift 6.2.4
-        uses: swift-actions/setup-swift@v2.4.0
-        with:
-          swift-version: "6.2.4"
+      - name: Verify Xcode and Swift
+        run: |
+          xcodebuild -version
+          swift --version
 
       - name: Build arm64
         run: >-
@@ -74,7 +76,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          archive="dist/rigol2spice-macos-universal.aa"
+          archive="dist/rigol2spice-macos-universal.aar"
           verification_dir="$RUNNER_TEMP/rigol2spice-aa-verification"
 
           aa archive \
@@ -92,5 +94,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rigol2spice-macos-universal
-          path: dist/rigol2spice-macos-universal.aa
+          path: dist/rigol2spice-macos-universal.aar
           if-no-files-found: error
