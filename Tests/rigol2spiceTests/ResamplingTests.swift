@@ -11,6 +11,9 @@ struct ResamplingTests {
         #expect(try Transformation.parseList("Downsample 2, sinc") == [
             .downsample(factor: 2, interpolation: .sinc),
         ])
+        #expect(try Transformation.parseList("Downsample 4, fast") == [
+            .downsample(factor: 4, interpolation: .fast),
+        ])
         #expect(try Transformation.parseList("Upsample 4") == [
             .upsample(factor: 4, interpolation: .linear),
         ])
@@ -19,6 +22,12 @@ struct ResamplingTests {
         ])
         #expect(try Transformation.parseList("Upsample 4, sinc") == [
             .upsample(factor: 4, interpolation: .sinc),
+        ])
+        #expect(try Transformation.parseList("ResampleF 2.5k") == [
+            .resampleF(frequency: 2500, interpolation: .linear),
+        ])
+        #expect(try Transformation.parseList("ResampleF 1M, PCHIP") == [
+            .resampleF(frequency: 1_000_000, interpolation: .pchip),
         ])
     }
 
@@ -36,7 +45,7 @@ struct ResamplingTests {
         #expect(throws: TransformationParseError.invalidInterpolation(
             operation: "Downsample",
             value: "pchip",
-            allowed: "linear, sinc",
+            allowed: "linear, sinc, fast",
         )) {
             try Transformation.parseList("Downsample 2, pchip")
         }
@@ -46,6 +55,26 @@ struct ResamplingTests {
             allowed: "linear, pchip, sinc",
         )) {
             try Transformation.parseList("Upsample 2, cubic")
+        }
+        #expect(throws: TransformationParseError.invalidInterpolation(
+            operation: "Upsample",
+            value: "fast",
+            allowed: "linear, pchip, sinc",
+        )) {
+            try Transformation.parseList("Upsample 2, fast")
+        }
+        #expect(throws: TransformationParseError.invalidPositiveScalar(
+            operation: "ResampleF",
+            value: "0",
+        )) {
+            try Transformation.parseList("ResampleF 0")
+        }
+        #expect(throws: TransformationParseError.invalidInterpolation(
+            operation: "ResampleF",
+            value: "fast",
+            allowed: "linear, pchip, sinc",
+        )) {
+            try Transformation.parseList("ResampleF 2k, fast")
         }
     }
 
@@ -59,6 +88,24 @@ struct ResamplingTests {
         #expect(result.first == points.first)
         #expect(result.last == points.last)
         #expect(result.map(\.value) == result.map(\.time).map { 2 * $0 })
+    }
+
+    @Test
+    func `fast downsample only discards source points`() throws {
+        let points = linearPoints(count: 10)
+        let result = try Transformation.downsample(factor: 3, interpolation: .fast)
+            .applying(to: points)
+
+        #expect(result == [points[0], points[3], points[6], points[9]])
+    }
+
+    @Test
+    func `fast downsample supports fractional factors without interpolation`() throws {
+        let points = linearPoints(count: 10)
+        let result = try Transformation.downsample(factor: 1.5, interpolation: .fast)
+            .applying(to: points)
+
+        #expect(result == [points[0], points[1], points[3], points[4], points[6], points[7], points[9]])
     }
 
     @Test
@@ -83,6 +130,52 @@ struct ResamplingTests {
 
         #expect(downsampled.count == 7)
         #expect(upsampled.count == 15)
+    }
+
+    @Test
+    func `resample frequency creates requested uniform sampling grid`() throws {
+        let points = linearPoints(count: 9)
+        let result = try Transformation.resampleF(frequency: 2, interpolation: .linear)
+            .applying(to: points)
+
+        #expect(result.count == 17)
+        #expect(result.first == points.first)
+        #expect(result.last == points.last)
+        #expect(result[1].time == 0.5)
+        #expect(result.map(\.value) == result.map(\.time).map { 2 * $0 })
+    }
+
+    @Test
+    func `resample frequency can reduce the sampling rate`() throws {
+        let points = linearPoints(count: 9)
+        let result = try Transformation.resampleF(frequency: 0.5, interpolation: .sinc)
+            .applying(to: points)
+
+        #expect(result.count == 5)
+        #expect(result.first?.time == 0)
+        #expect(result.last?.time == 8)
+        #expect(result[1].time == 2)
+    }
+
+    @Test
+    func `resample frequency uses exact intervals when endpoint does not align`() throws {
+        let points = linearPoints(count: 9)
+        let result = try Transformation.resampleF(frequency: 0.6, interpolation: .linear)
+            .applying(to: points)
+
+        #expect(result.count == 5)
+        #expect(abs(result[1].time - (1 / 0.6)) < 1e-12)
+        #expect(try abs(#require(result.last?.time) - (4 / 0.6)) < 1e-12)
+        #expect(try #require(result.last?.time) < points.last!.time)
+    }
+
+    @Test
+    func `resample frequency rejects invalid programmatic values`() {
+        let points = linearPoints(count: 9)
+        #expect(throws: ResamplingError.invalidFrequency(operation: "ResampleF", frequency: 0)) {
+            try Transformation.resampleF(frequency: 0, interpolation: .linear)
+                .applying(to: points)
+        }
     }
 
     @Test

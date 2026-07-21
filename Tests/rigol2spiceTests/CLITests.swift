@@ -68,6 +68,29 @@ struct CLITests {
     }
 
     @Test
+    func `MATLAB output always keeps every processed point`() throws {
+        let output = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rigol2spice-cli-\(UUID().uuidString).m")
+        defer { try? FileManager.default.removeItem(at: output) }
+
+        let result = try runCLI([
+            samplePath(named: "Legacy"),
+            output.path,
+            "--format", "matlab",
+            "-c", "CH2",
+        ])
+
+        #expect(result.status == 0)
+        #expect(!result.stdout.contains("Removing redundant sample points"))
+        let text = try String(contentsOf: output, encoding: .ascii)
+        let lines = text.split(whereSeparator: \Character.isNewline)
+        #expect(lines.count == 1202)
+        #expect(lines.first == "points = [")
+        #expect(lines.dropFirst().first == "0.0076;")
+        #expect(lines.last == "];")
+    }
+
+    @Test
     func `cli auto detects Centaurus CSV without an option`() throws {
         let result = try runCLI([
             samplePath(named: "Centaurus"),

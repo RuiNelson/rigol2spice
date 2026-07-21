@@ -42,7 +42,7 @@ func normalizePlotArguments(_ arguments: [String]) -> [String] {
 struct Rigol2SpiceCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "rigol2spice",
-        abstract: "Convert Rigol oscilloscope CSV and WFM captures to SPICE PWL files.",
+        abstract: "Convert Rigol oscilloscope CSV and WFM captures to PWL or MATLAB files.",
     )
 
     @Flag(name: .shortAndLong, help: "Only list channels present in the file and quit.")
@@ -66,6 +66,9 @@ struct Rigol2SpiceCommand: ParsableCommand {
     @Option(name: .shortAndLong, help: "Downsample ratio.")
     var downsample: Int?
 
+    @Option(name: .shortAndLong, help: "Output format: pwl or matlab.")
+    var format: OutputFormat = .pwl
+
     @Flag(name: .shortAndLong, help: "Keep redundant sample points in the output.")
     var keepAll = false
 
@@ -83,7 +86,7 @@ struct Rigol2SpiceCommand: ParsableCommand {
     var inputFile: String
 
     @Argument(
-        help: "The PWL file to write (optional with --list-channels, --plot, or --analysis).",
+        help: "The converted waveform file to write (optional with --list-channels, --plot, or --analysis).",
         completion: nil,
     )
     var outputFile: String?
@@ -96,6 +99,7 @@ struct Rigol2SpiceCommand: ParsableCommand {
                 transformations: transformations,
                 analysis: analysis,
                 downsample: downsample,
+                format: format,
                 keepAll: keepAll,
                 plotFile: plot.map { $0.isEmpty ? "plot.svg" : $0 },
                 inputFile: inputFile,

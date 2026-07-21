@@ -257,6 +257,7 @@ func extractPeriodPoints(_ points: [Point], threshold: Double?) throws -> [Point
 // MARK: - ResamplingInterpolation
 
 enum ResamplingInterpolation: String, Equatable {
+    case fast
     case linear
     case pchip
     case sinc
@@ -281,6 +282,8 @@ enum ResamplingDirection: Equatable {
 enum ResamplingError: LocalizedError, Equatable {
     case invalidFactor(operation: String, factor: Double)
     case pointCountTooLarge(operation: String, factor: Double)
+    case invalidFrequency(operation: String, frequency: Double)
+    case frequencyPointCountTooLarge(operation: String, frequency: Double)
 
     var errorDescription: String? {
         switch self {
@@ -288,12 +291,16 @@ enum ResamplingError: LocalizedError, Equatable {
             "\(operation) factor must be finite and greater than 1, but received \(factor)"
         case let .pointCountTooLarge(operation, factor):
             "\(operation) factor \(factor) would create too many samples"
+        case let .invalidFrequency(operation, frequency):
+            "\(operation) frequency must be finite and greater than 0, but received \(frequency)"
+        case let .frequencyPointCountTooLarge(operation, frequency):
+            "\(operation) frequency \(frequency) would create too many samples"
         }
     }
 }
 
-/// Resample to a factor of the original point count while preserving both time endpoints.
-/// Downsampling intentionally performs no anti-alias filtering.
+/// Resample to a factor of the original point count. Interpolating modes preserve both
+/// time endpoints; fast downsampling retains selected original points. No mode filters aliases.
 func resamplePoints(
     _ points: [Point],
     factor: Double,
@@ -314,6 +321,10 @@ func resamplePoints(
         return points
     }
 
+    if direction == .downsample, interpolation == .fast {
+        return fastDownsamplePoints(points, factor: factor)
+    }
+
     let rawTargetCount = switch direction {
     case .downsample: Double(points.count) / factor
     case .upsample: Double(points.count) * factor
@@ -330,23 +341,93 @@ func resamplePoints(
         max(points.count + 1, roundedCount)
     }
 
-    let values: [Double] = switch interpolation {
-    case .linear:
-        linearResampledValues(points, targetCount: targetCount)
-    case .pchip:
-        pchipResampledValues(points, targetCount: targetCount)
-    case .sinc:
-        sincResampledValues(points, targetCount: targetCount)
+    return resamplePoints(points, targetCount: targetCount, interpolation: interpolation)
+}
+
+/// Resample on a uniform grid at the requested sampling frequency without extending the capture.
+func resamplePoints(
+    _ points: [Point],
+    frequency: Double,
+    interpolation: ResamplingInterpolation,
+) throws -> [Point] {
+    let operation = "ResampleF"
+    guard frequency.isFinite, frequency > 0 else {
+        throw ResamplingError.invalidFrequency(operation: operation, frequency: frequency)
     }
+    guard points.count >= 2 else {
+        return points
+    }
+
+    let duration = points[points.count - 1].time - points[0].time
+    guard duration.isFinite, duration > 0 else {
+        return points
+    }
+
+    let rawIntervalCount = duration * frequency
+    guard rawIntervalCount.isFinite, rawIntervalCount < 100_000_000 else {
+        throw ResamplingError.frequencyPointCountTooLarge(operation: operation, frequency: frequency)
+    }
+
+    let targetCount = Int(rawIntervalCount.rounded(.down)) + 1
+    let interval = 1 / frequency
+    let start = points[0].time
+    let targetTimes = (0 ..< targetCount).map { start + Double($0) * interval }
+    return resamplePoints(points, targetTimes: targetTimes, interpolation: interpolation)
+}
+
+private func resamplePoints(
+    _ points: [Point],
+    targetCount: Int,
+    interpolation: ResamplingInterpolation,
+) -> [Point] {
+    let start = points[0].time
+    let end = points[points.count - 1].time
     let interval = (end - start) / Double(targetCount - 1)
-    return values.enumerated().map { index, value in
-        let time = index == targetCount - 1 ? end : start + Double(index) * interval
-        return Point(time: time, value: value)
+    let targetTimes = (0 ..< targetCount).map { index in
+        index == targetCount - 1 ? end : start + Double(index) * interval
+    }
+    return resamplePoints(points, targetTimes: targetTimes, interpolation: interpolation)
+}
+
+private func resamplePoints(
+    _ points: [Point],
+    targetTimes: [Double],
+    interpolation: ResamplingInterpolation,
+) -> [Point] {
+    let values: [Double] = switch interpolation {
+    case .fast:
+        nearestResampledValues(points, targetTimes: targetTimes)
+    case .linear:
+        linearResampledValues(points, targetTimes: targetTimes)
+    case .pchip:
+        pchipResampledValues(points, targetTimes: targetTimes)
+    case .sinc:
+        sincResampledValues(points, targetTimes: targetTimes)
+    }
+    return zip(targetTimes, values).map { time, value in
+        Point(time: time, value: value)
     }
 }
 
-private func linearResampledValues(_ points: [Point], targetCount: Int) -> [Double] {
-    valuesOnUniformGrid(points, targetCount: targetCount) { _, before, after, time in
+private func fastDownsamplePoints(_ points: [Point], factor: Double) -> [Point] {
+    var result: [Point] = []
+    result.reserveCapacity(Int((Double(points.count) / factor).rounded(.up)))
+    var sourcePosition = 0.0
+    while sourcePosition < Double(points.count) {
+        result.append(points[Int(sourcePosition.rounded(.down))])
+        sourcePosition += factor
+    }
+    return result
+}
+
+private func nearestResampledValues(_ points: [Point], targetTimes: [Double]) -> [Double] {
+    valuesOnGrid(points, targetTimes: targetTimes) { _, before, after, time in
+        time - before.time <= after.time - time ? before.value : after.value
+    }
+}
+
+private func linearResampledValues(_ points: [Point], targetTimes: [Double]) -> [Double] {
+    valuesOnGrid(points, targetTimes: targetTimes) { _, before, after, time in
         guard after.time != before.time else {
             return before.value
         }
@@ -355,20 +436,21 @@ private func linearResampledValues(_ points: [Point], targetCount: Int) -> [Doub
     }
 }
 
-private func valuesOnUniformGrid(
+private func valuesOnGrid(
     _ points: [Point],
-    targetCount: Int,
+    targetTimes: [Double],
     interpolate: (_ sourceIndex: Int, _ before: Point, _ after: Point, _ time: Double) -> Double,
 ) -> [Double] {
     let start = points[0].time
     let end = points[points.count - 1].time
-    let interval = (end - start) / Double(targetCount - 1)
     var sourceIndex = 0
-    return (0 ..< targetCount).map { index in
-        if index == targetCount - 1 {
+    return targetTimes.map { time in
+        if time <= start {
+            return points[0].value
+        }
+        if time >= end {
             return points[points.count - 1].value
         }
-        let time = start + Double(index) * interval
         while sourceIndex + 1 < points.count - 1, points[sourceIndex + 1].time < time {
             sourceIndex += 1
         }
@@ -376,14 +458,14 @@ private func valuesOnUniformGrid(
     }
 }
 
-private func pchipResampledValues(_ points: [Point], targetCount: Int) -> [Double] {
+private func pchipResampledValues(_ points: [Point], targetTimes: [Double]) -> [Double] {
     guard points.count > 2 else {
-        return linearResampledValues(points, targetCount: targetCount)
+        return linearResampledValues(points, targetTimes: targetTimes)
     }
 
     let intervals = (0 ..< points.count - 1).map { points[$0 + 1].time - points[$0].time }
     guard intervals.allSatisfy({ $0.isFinite && $0 > 0 }) else {
-        return linearResampledValues(points, targetCount: targetCount)
+        return linearResampledValues(points, targetTimes: targetTimes)
     }
     let secants = (0 ..< points.count - 1).map {
         (points[$0 + 1].value - points[$0].value) / intervals[$0]
@@ -426,7 +508,7 @@ private func pchipResampledValues(_ points: [Point], targetCount: Int) -> [Doubl
         secondDelta: secants[secants.count - 2],
     )
 
-    return valuesOnUniformGrid(points, targetCount: targetCount) { index, before, after, time in
+    return valuesOnGrid(points, targetTimes: targetTimes) { index, before, after, time in
         let width = after.time - before.time
         let position = (time - before.time) / width
         let position2 = position * position
@@ -442,10 +524,9 @@ private func pchipResampledValues(_ points: [Point], targetCount: Int) -> [Doubl
     }
 }
 
-private func sincResampledValues(_ points: [Point], targetCount: Int) -> [Double] {
+private func sincResampledValues(_ points: [Point], targetTimes: [Double]) -> [Double] {
     let start = points[0].time
     let end = points[points.count - 1].time
-    let targetInterval = (end - start) / Double(targetCount - 1)
     let sourceInterval = (end - start) / Double(points.count - 1)
     let radius = 8
 
@@ -456,14 +537,13 @@ private func sincResampledValues(_ points: [Point], targetCount: Int) -> [Double
         return sin(Double.pi * value) / (Double.pi * value)
     }
 
-    return (0 ..< targetCount).map { targetIndex in
-        if targetIndex == 0 {
+    return targetTimes.map { time in
+        if time <= start {
             return points[0].value
         }
-        if targetIndex == targetCount - 1 {
+        if time >= end {
             return points[points.count - 1].value
         }
-        let time = start + Double(targetIndex) * targetInterval
         let center = Int(((time - start) / sourceInterval).rounded())
         let lower = max(0, center - radius + 1)
         let upper = min(points.count - 1, center + radius)

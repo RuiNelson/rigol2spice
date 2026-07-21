@@ -1014,6 +1014,20 @@ struct Rigol2spiceTests {
         #expect(String(data: data, encoding: .ascii) == "0\t1\r\n0.5\t-2\r\n")
     }
 
+    @Test
+    func `MATLAB writer serializes vertical values as a column vector`() throws {
+        let outputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rigol2spice-\(UUID().uuidString).m")
+        defer { try? FileManager.default.removeItem(at: outputURL) }
+
+        let points = [Point(time: 0, value: 1), Point(time: 0.5, value: -2)]
+        let byteCount = try MATLABWriter().write(points, to: outputURL)
+        let data = try Data(contentsOf: outputURL)
+
+        #expect(byteCount == data.count)
+        #expect(String(data: data, encoding: .ascii) == "points = [\r\n1;\r\n-2;\r\n];\r\n")
+    }
+
     private func sampleData(named name: String) throws -> Data {
         let url = try #require(
             Bundle.module.url(

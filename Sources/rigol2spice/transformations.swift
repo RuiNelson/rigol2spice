@@ -106,6 +106,7 @@ enum Transformation: Equatable {
     case extendTo(endTime: Double, value: Double?)
     case downsample(factor: Double, interpolation: ResamplingInterpolation)
     case upsample(factor: Double, interpolation: ResamplingInterpolation)
+    case resampleF(frequency: Double, interpolation: ResamplingInterpolation)
     case extractPeriod(threshold: Double?)
     case cutAfter(Double)
     case cutBefore(Double)
@@ -893,7 +894,7 @@ enum Transformation: Equatable {
                 }
                 let isDownsample = operation.lowercased() == "downsample"
                 let allowed: [ResamplingInterpolation] = isDownsample
-                    ? [.linear, .sinc]
+                    ? [.linear, .sinc, .fast]
                     : [.linear, .pchip, .sinc]
                 let interpolation = try arguments.count == 2
                     ? resamplingInterpolation(at: 1, allowed: allowed)
@@ -901,6 +902,19 @@ enum Transformation: Equatable {
                 return isDownsample
                     ? .downsample(factor: factor, interpolation: interpolation)
                     : .upsample(factor: factor, interpolation: interpolation)
+            case "resamplef":
+                guard arguments.count == 1 || arguments.count == 2 else {
+                    throw TransformationParseError.invalidArgumentCount(
+                        operation: operation,
+                        expected: 1,
+                        actual: arguments.count,
+                    )
+                }
+                let frequency = try positiveScalar(at: 0)
+                let interpolation = try arguments.count == 2
+                    ? resamplingInterpolation(at: 1, allowed: [.linear, .pchip, .sinc])
+                    : .linear
+                return .resampleF(frequency: frequency, interpolation: interpolation)
             case "extractperiod":
                 guard arguments.count <= 1 else {
                     throw TransformationParseError.invalidArgumentCount(
@@ -1051,6 +1065,7 @@ enum Transformation: Equatable {
              .extendTo,
              .downsample,
              .upsample,
+             .resampleF,
              .extractPeriod,
              .cutAfter,
              .cutBefore,
@@ -1229,6 +1244,12 @@ enum Transformation: Equatable {
                 points,
                 factor: factor,
                 direction: .upsample,
+                interpolation: interpolation,
+            )
+        case let .resampleF(frequency, interpolation):
+            return try resamplePoints(
+                points,
+                frequency: frequency,
                 interpolation: interpolation,
             )
         case let .extractPeriod(threshold):

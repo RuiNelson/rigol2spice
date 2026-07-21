@@ -2,7 +2,14 @@
 
 **Import real oscilloscope captures into your SPICE simulations.**
 
-Converts Rigol oscilloscope CSV and WFM exports to PWL (piece-wise linear) files for LTspice, ngspice, and other SPICE simulators. Supports multi-channel captures, channel math, and a pipeline of waveform transformations (offset, filter, clip, sample-rate conversion, and others). Optional analysis/measurements (RMS, frequency, rise time, FFT, THD, etc.) and SVG plots.
+Converts Rigol oscilloscope CSV and WFM exports to:
+
+- PWL (piece-wise linear) files for LTspice, Cadence, ngspice, and other SPICE simulators.
+- MATLAB vectors for numerical analysis and further processing.
+
+Supports multi-channel captures, channel selection, and channel math.
+
+For convenient waveform processing, it provides an ordered transformation pipeline, measurements and FFT analysis, and optional SVG plots.
 
 Written in Swift as a compiled native binary for high performance; runs on Windows, macOS, and Linux.
 
@@ -10,7 +17,7 @@ Written in Swift as a compiled native binary for high performance; runs on Windo
 
 [Watch on YouTube](https://www.youtube.com/watch?v=AaCvPtJ-cZM)
 
-## Supported File Formats
+## Supported Input Formats
 
 Input format is detected from the file contents, not its filename extension.
 
@@ -37,6 +44,43 @@ WFM captures use the same command:
 ```
 rigol2spice capture.wfm output.txt
 ```
+
+## Output Formats
+
+Select the output format with `-f` or `--format`. The default is `pwl`.
+The waveform output file is optional when using `--list-channels`, `--plot`, or `--analysis`.
+
+### PWL
+
+PWL output contains one tab-separated time/value pair per line and can be loaded directly by LTspice, ngspice, and other SPICE simulators:
+
+```
+0    1
+0.5  -2
+```
+
+```
+rigol2spice --format pwl input.csv output.txt
+```
+
+By default, redundant collinear points are removed to reduce the output size. Use `-k` or `--keep-all` to retain every processed point.
+
+### MATLAB
+
+MATLAB output is a column vector named `points` containing only the vertical sample values:
+
+```matlab
+points = [
+1;
+-2;
+];
+```
+
+```
+rigol2spice --format matlab input.csv output.m
+```
+
+MATLAB output always retains every processed point, as if `--keep-all` were enabled.
 
 ## Channel Selection
 
@@ -121,13 +165,25 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `Pad` | `Pad 5m` · `Pad 5m, 0` | Extend by a duration, holding the last value (or a given level) |
 | `HoldLast` | `HoldLast 5m` | Alias of `Pad` |
 | `ExtendTo` | `ExtendTo 10m` · `ExtendTo 10m, 0` | Extend to an absolute end time, holding the last value (or a given level) |
+| `ResampleF` | `ResampleF 2.5k` · `ResampleF 1M, sinc` | Resample to a target sampling frequency using linear, PCHIP, or sinc interpolation |
 | `ExtractPeriod` | `ExtractPeriod` · `ExtractPeriod 0.5` | Keep one cycle from the first rising crossing (auto or given threshold); shift to t=0 |
 | `CutBefore` | `CutBefore 5m` | Discard samples before the timestamp |
 | `CutAfter` | `CutAfter 10u` | Discard samples at or after the timestamp |
 | `Trim` | `Trim 1m, 10m` | Keep samples with start ≤ t < end |
 | `Repeat` | `Repeat 2.5` | Append copies of the capture⁴ |
 
-### Downsampling & upsampling
+### Resampling
+
+**Target sampling frequency**
+
+`ResampleF frequency[, interpolation]` creates a uniform grid at the requested sampling frequency. The default interpolation is `linear`; `pchip` and `sinc` are also available. Frequencies accept engineering notation:
+
+```sh
+rigol2spice input.csv output.txt -t 'ResampleF 2.5k'
+rigol2spice input.csv output.txt -t 'ResampleF 1M, sinc'
+```
+
+The first timestamp is preserved and subsequent samples are exactly `1 / frequency` seconds apart. Sampling stops at the last interval that fits within the original capture, so the final timestamp can be up to one interval earlier than the original endpoint. As with `Downsample`, no anti-alias low-pass filter is applied automatically when reducing the sampling frequency.
 
 **Downsampling**
 
@@ -136,16 +192,20 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 ```sh
 rigol2spice input.csv output.txt -t 'Downsample 2'
 rigol2spice input.csv output.txt -t 'Downsample 4, sinc'
+rigol2spice input.csv output.txt -t 'Downsample 4, fast'
 ```
 
-The target count is `original count / factor`, rounded to the nearest whole sample. The first and last timestamps are preserved, so the capture duration does not change. Fractional factors are supported; for example, 1,000 points downsampled by 1.5 produce 667 points.
+With `linear` or `sinc`, the target count is `original count / factor`, rounded to the nearest whole sample, and the first and last timestamps are preserved. In `fast` mode, samples are selected at source positions `0`, `factor`, `2 × factor`, and so on, without generating new points. Fractional factors are supported; for example, 1,000 points downsampled by 1.5 produce 667 points.
 
 | Interpolation | Behaviour |
 |---|---|
 | `linear` (default) | Interpolate linearly between adjacent samples; fastest and consistent with PWL output |
 | `sinc` | Use a finite windowed-sinc kernel for better reconstruction of band-limited signals |
+| `fast` | Keep original samples at the requested factor and discard the samples between them; performs no interpolation |
 
-No anti-alias low-pass filter is applied automatically. Add one earlier in the transformation chain when required:
+`linear` and `sinc` preserve the first and last timestamps. `fast` retains only original points, so the final timestamp is kept only when it falls on the selection sequence.
+
+No anti-alias low-pass filter is applied automatically, including in `fast` mode. Add one earlier in the transformation chain when required:
 
 ```sh
 rigol2spice input.csv output.txt -t 'LowPass 20k; Downsample 4, sinc'
@@ -403,7 +463,7 @@ Wave-type analysis compares measured harmonic-amplitude ratios, up to harmonic 1
 | `-p, --plot [file]` | Write an SVG plot of the processed signal (default: `plot.svg`) |
 | `-a, --analysis <list>` | Print measurements to the console (see above) |
 
-The PWL output file is optional when using `--list-channels`, `--plot`, or `--analysis`. The plot uses 1 pixel per sample, auto-scaled Y (min / avg / max markers), and decade-spaced X time markers. When `-a` is combined with `-p`, analysis results are listed in a text block under the time plot (not drawn over the waveform). An `FFT` analysis also appends a spectrum panel (dB vs frequency, peak marker). A console warning is emitted above 10 000 points (prefer downsample or a shorter time window).
+The plot uses 1 pixel per sample, auto-scaled Y (min / avg / max markers), and decade-spaced X time markers. When `-a` is combined with `-p`, analysis results are listed in a text block under the time plot (not drawn over the waveform). An `FFT` analysis also appends a spectrum panel (dB vs frequency, peak marker). A console warning is emitted above 10 000 points (prefer downsample or a shorter time window).
 
 ## Example: Extract One Period and Repeat
 
@@ -426,6 +486,7 @@ OPTIONS:
   -t,  --transformations <value>  Ordered transformations separated by semicolons
   -a,  --analysis <value>         Ordered analyses separated by semicolons; FFT dependants follow FFT
   -d,  --downsample <ratio>       Downsample ratio
+  -f,  --format <format>          Output format: pwl or matlab (default: pwl)
   -k,  --keep-all                 Keep all sample points
   -p,  --plot [<file>]            Write SVG plot (default: plot.svg)
   -h,  --help                     Show help

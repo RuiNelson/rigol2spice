@@ -15,7 +15,7 @@ enum Rigol2SpiceError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .outputFileNotSpecified:
-            "Please specify a PWL output file, or use --list-channels, --plot, and/or --analysis"
+            "Please specify an output file, or use --list-channels, --plot, and/or --analysis"
         case .inputFileContainsNoPoints: "Input file contains zero samples"
         case let .invalidDownsampleValue(value): "Invalid downsample value: \(value)"
         case .mustHaveAtLeastTwoPointsToRepeat: "Must have at least two original samples to repeat capture"
@@ -38,6 +38,7 @@ struct ApplicationOptions {
     let transformations: String?
     let analysis: String?
     let downsample: Int?
+    let format: OutputFormat
     let keepAll: Bool
     let plotFile: String?
     let inputFile: String
@@ -92,7 +93,10 @@ struct Rigol2SpiceApplication {
         }
 
         let outputPoints: [Point]
-        if !options.keepAll, processedPoints.count >= 3, options.outputFile != nil {
+        if options.format == .pwl,
+           !options.keepAll,
+           processedPoints.count >= 3,
+           options.outputFile != nil {
             Console.section("Removing redundant sample points (optimize)...")
             let countBefore = processedPoints.count
             outputPoints = removeRedundant(processedPoints)
@@ -468,12 +472,23 @@ struct Rigol2SpiceApplication {
                 )
             }
         case let .downsample(factor, interpolation):
-            Console.section(
-                "Downsampling by \(engineeringFormatter.string(factor))× using \(interpolation.rawValue) interpolation (no anti-alias filter)...",
-            )
+            if interpolation == .fast {
+                Console.section(
+                    "Downsampling by \(engineeringFormatter.string(factor))× in fast mode (discarding samples)...",
+                )
+            }
+            else {
+                Console.section(
+                    "Downsampling by \(engineeringFormatter.string(factor))× using \(interpolation.rawValue) interpolation (no anti-alias filter)...",
+                )
+            }
         case let .upsample(factor, interpolation):
             Console.section(
                 "Upsampling by \(engineeringFormatter.string(factor))× using \(interpolation.rawValue) interpolation...",
+            )
+        case let .resampleF(frequency, interpolation):
+            Console.section(
+                "Resampling to \(engineeringFormatter.string(frequency))Sa/s using \(interpolation.rawValue) interpolation...",
             )
         case let .extractPeriod(threshold):
             if let threshold {
@@ -588,10 +603,16 @@ struct Rigol2SpiceApplication {
             throw Rigol2SpiceError.outputFileNotSpecified
         }
 
-        Console.section("Writing PWL output file...")
+        Console.section("Writing \(options.format.rawValue.uppercased()) output file...")
         Console.detail("Number of sample points: \(numberOfPointsFormatter.string(for: points.count)!)")
 
-        let byteCount = try PWLWriter().write(points, to: fileURL(for: outputFile))
+        let outputURL = fileURL(for: outputFile)
+        let byteCount = switch options.format {
+        case .pwl:
+            try PWLWriter().write(points, to: outputURL)
+        case .matlab:
+            try MATLABWriter().write(points, to: outputURL)
+        }
 
         let firstTime = points[0].time
         let lastTime = points[points.count - 1].time
