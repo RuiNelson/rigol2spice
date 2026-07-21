@@ -47,7 +47,7 @@ WFM captures use the same command:
 rigol2spice capture.wfm output.txt
 ```
 
-## Output Formats
+## Output Formats (`-f`)
 
 | Format | Output | Requirements |
 | --- | --- | --- |
@@ -77,7 +77,7 @@ timestamps = capture["timestamps"]
 values = capture["values"]
 ```
 
-## Channel Selection
+## Channel Selection (`-l` and `-c`)
 
 List available channels in a capture with `-l` or `--list-channels`:
 
@@ -99,7 +99,7 @@ rigol2spice -c '(CH1-CH2)/CH3' input.csv output.txt
 rigol2spice -c 'CH1-CH2' -t 'RemoveDC' input.csv output.txt
 ```
 
-## Transformations
+## Transformations (`-t`)
 
 Pass an ordered list of transformation commands with `-t` or `--transformations`. Separate commands with semicolons and quote the complete string for the shell:
 
@@ -327,7 +327,7 @@ rigol2spice input.csv fm.txt -t 'RemoveDC; PeakTo 1; FM 100k, 10k, 2'
 rigol2spice fm-capture.csv recovered.txt -t 'DemodFM 100k, 10k, 20k'
 ```
 
-## Analysis
+## Analysis (`-a`)
 
 Pass measurement commands with `-a` or `--analysis`. Syntax matches `-t` (semicolon-separated, case-insensitive, engineering scalars). Results print to the console with one fractional digit and combine the engineering prefix with the physical unit, for example `2.4ms`, `8.4mV`, `1.2MV/s`, or `2mW`. Signal amplitudes are reported in volts; ratios such as duty cycle and THD are displayed as percentages, while crest factor uses `×`. Analyses always run **after** transformations (and downsample), on the processed waveform. When `-a` is used, the PWL output file is optional (same as `-l` / `-p`).
 
@@ -449,18 +449,17 @@ Before the FFT, the selected values have their mean removed and receive a Hann w
 
 Wave-type analysis compares measured harmonic-amplitude ratios, up to harmonic 10 or Nyquist, with the four ideal profiles above. `SineWaveType` is `max(0, 100% − THD%)` over those harmonics. Each other score is 100% minus the harmonic-profile vector error relative to the energy of its ideal higher harmonics, limited to 0–100%. The four scores are independent and are not normalized to sum to 100%. This allows an unknown waveform to score poorly in every analysis and an ambiguous waveform to match more than one profile. At least the third harmonic must fit below Nyquist. Noise, PWM duty cycles other than 50%, clipping, asymmetry, frequency drift, too few periods, analogue bandwidth, and spectral leakage can reduce the match. The classifier deliberately uses magnitudes rather than phase, making it insensitive to time reversal and waveform polarity.
 
-## Post-processing Options
+## Post-processing Options (`-d`, `-k`, `-p`)
 
 | Option | Effect |
 |---|---|
 | `-d, --downsample N` | Reduce point count by factor N using linear interpolation, equivalent to a final `Downsample N` |
 | `-k, --keep-all` | Disable removal of redundant (collinear) points |
 | `-p, --plot [file]` | Write an SVG plot of the processed signal (default: `plot.svg`) |
-| `-a, --analysis <list>` | Print measurements to the console (see above) |
 
 The plot uses 1 pixel per sample, auto-scaled Y (min / avg / max markers), and decade-spaced X time markers. When `-a` is combined with `-p`, analysis results are listed in a text block under the time plot (not drawn over the waveform). An `FFT` analysis also appends a spectrum panel (dB vs frequency, peak marker). A console warning is emitted above 10 000 points (prefer downsample or a shorter time window).
 
-## Full Usage Reference
+## Full Usage Reference (`-h`)
 
 ```
 USAGE: rigol2spice [<options>] <input-file> [<output-file>]
