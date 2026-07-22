@@ -113,7 +113,7 @@ struct PlotWriterTests {
             Point(time: 5, value: 1),
         ]
         let reports = AnalysisReport.reports(
-            for: [.max, .min, .rms, .pkPk, .crossing(0), .dc],
+            for: [.max, .min, .rms, .pkPk, .frequencyAt(0), .dc],
             on: points,
         )
 

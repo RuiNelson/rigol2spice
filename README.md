@@ -1,6 +1,6 @@
 # rigol2spice
 
-**Import real oscilloscope captures into your SPICE simulations.**
+**Convert, transform, analyze, and plot real oscilloscope captures.**
 
 Converts Rigol oscilloscope CSV and WFM exports to:
 
@@ -11,7 +11,7 @@ Converts Rigol oscilloscope CSV and WFM exports to:
 
 Supports multi-channel captures, channel selection, and channel math.
 
-For convenient waveform processing, it provides an ordered transformation pipeline, measurements and FFT analysis, and optional SVG plots.
+For convenient waveform processing, it provides an ordered transformation pipeline, measurements, and FFT analysis, and optional SVG plots.
 
 Written in Swift as a compiled native binary for high performance; runs on Windows, macOS, and Linux.
 
@@ -77,7 +77,7 @@ timestamps = capture["timestamps"]
 values = capture["values"]
 ```
 
-## Channel Selection (`-l` and `-c`)
+## Channel Selection (`-l` And `-c`)
 
 List available channels in a capture with `-l` or `--list-channels`:
 
@@ -115,7 +115,7 @@ rigol2spice.exe input.csv output.txt -tf transforms.txt -t "Normalize"
 
 Commands use the syntax `OPERATION argument`. Operation names are case-insensitive. Scalars accept decimal (`0.7`), engineering (`3n`, `10u`), and scientific (`5e-3`) notation. Use `-` for negative values. Transformations run strictly from left to right.
 
-### Amplitude & level
+### Amplitude & Level
 
 | Operation | Example | Effect |
 |---|---|---|
@@ -135,7 +135,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `dBm` | `dBm 10` | Alias of `dBmW` |
 | `dBW` | `dBW 0` · `dBW -30` | Same as `dBmW` but relative to 1 W (0 dBW = 30 dBm ≈ 7.07 V @ 50 Ω)³ |
 
-### Clipping, gates & shaping
+### Clipping, Gates & Shaping
 
 | Operation | Example | Effect |
 |---|---|---|
@@ -155,7 +155,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `Abs` | `Abs` | Replace every value with its absolute value |
 | `Rectify` | `Rectify` | Half-wave rectify (keep values ≥ 0, zero the rest) |
 
-### Time domain
+### Time Domain
 
 | Operation | Example | Effect |
 |---|---|---|
@@ -206,7 +206,7 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 
 #### Interpolation methods
 
-| Interpolation | Behaviour |
+| Interpolation | Behavior |
 |---|---|
 | `linear` (default) | Interpolate linearly between adjacent samples; fastest and suitable for most PWL workflows |
 | `pchip` | Monotonic piecewise-cubic interpolation; produces smoother curves without overshooting monotonic data |
@@ -242,7 +242,7 @@ rigol2spice.exe input.csv output.txt -t "TriggerCapture rising, auto, 100u, 500u
 
 This keeps up to 100 µs before and 500 µs after the event. The output starts at t=0, so the trigger normally occurs at t=100 µs. The pre/post window is clipped to the samples available in the original capture.
 
-### Filtering & calculus
+### Filtering & Calculus
 
 | Operation | Example | Effect |
 |---|---|---|
@@ -292,7 +292,7 @@ The first sample seeds the state (`≥ rise` → high, otherwise low). With a si
 
 ⁶ `TVDenoise λ` solves min_x ½‖x − y‖² + λ · TV(x) with TV(x) = Σ |xᵢ₊₁ − xᵢ| (Condat’s direct 1D algorithm). Larger λ flattens plateaus more aggressively while keeping large jumps; λ = 0 is a no-op. λ has the same units as the sample amplitude. Not an inverse of `AddNoise`.
 
-### Modulation & demodulation
+### Modulation & Demodulation
 
 The analog modulation transformations turn the current waveform into a carrier-modulated signal while preserving timestamps and sample count. `AM` automatically centers and peak-normalizes its message to −1…1 because its argument is a dimensionless modulation depth. `FM` and `PM` deliberately use the sample values unchanged, allowing earlier transformations such as `RemoveDC`, `Offset`, `Multiply`, or `PeakTo` to define the desired message scale.
 
@@ -318,13 +318,13 @@ rigol2spice.exe fm-capture.csv recovered.txt -t "DemodFM 100k, 10k, 20k"
 
 ## Analysis (`-a`)
 
-Pass measurement commands with `-a` or `--analysis`. Syntax matches `-t` (commands separated by semicolons or CR/LF/CRLF line breaks; empty commands and blank lines ignored; case-insensitive; engineering scalars). Results print to the console with one fractional digit and combine the engineering prefix with the physical unit, for example `2.4ms`, `8.4mV`, `1.2MV/s`, or `2mW`. Signal amplitudes are reported in volts; ratios such as duty cycle and THD are displayed as percentages, while crest factor uses `×`. Analyses always run **after** transformations (and downsample), on the processed waveform. When `-a` is used, the PWL output file is optional (same as `-l` / `-p`).
+Pass measurement commands with `-a` or `--analysis`. Syntax matches `-t` (commands separated by semicolons or CR/LF/CRLF line breaks; empty commands and blank lines ignored; case-insensitive; engineering scalars). Results print to the console with one fractional digit and combine the engineering prefix with the physical unit, for example `2.4ms`, `8.4mV`, `1.2MV/s`, or `2mW`. Signal amplitudes are reported in volts; ratios such as duty cycle and THD are displayed as percentages, while crest factor uses `×`. Analysis always run **after** transformations (and downsample), on the processed waveform. When `-a` is used, the PWL output file is optional (same as `-l` / `-p`).
 
-Use `-af` or `--analysis-file` to read analyses from a UTF-8 file. When combined with `-a`, file analyses come first, so dependants such as an inline `THD` can reuse an `FFT` declared in the file.
+Use `-af` or `--analysis-file` to read analysis from a UTF-8 file. When combined with `-a`, file analysis come first, so dependents such as an inline `THD` can reuse an `FFT` declared in the file.
 
 ```bat
 rigol2spice.exe input.csv -a "Max; Min; RMS; PkPk; Frequency"
-rigol2spice.exe input.csv output.txt -t "RemoveDC" -a "DC; Avg; ZeroCrossing"
+rigol2spice.exe input.csv output.txt -t "RemoveDC" -a "DC; Avg; FrequencyAtZero"
 rigol2spice.exe input.csv -p -a "FFT 1024; Frequency"
 rigol2spice.exe input.csv -a "Basic; Timing"
 ```
@@ -333,8 +333,8 @@ Frequently used measurements are also available as presets. A preset expands to 
 
 | Preset | Expansion |
 |---|---|
-| `Basic` | `Duration; Points; Min; Max; PkPk; Avg; RMS` |
-| `Timing` | `Frequency; Duty; PulseWidth; RiseTime; FallTime` |
+| `Basic` | All operations in **Capture** and **Amplitude & level** below (aliases omitted) |
+| `Timing` | All operations in **Timing** below that accept no arguments (`FrequencyAt` omitted) |
 | `Spectrum` | `FFT; THD` |
 | `WaveType` | `SineWaveType; SquareWaveType; SawtoothWaveType; TriangleWaveType` (requires a preceding `FFT`) |
 
@@ -383,9 +383,9 @@ For example, `-a "Basic; SlewRise"` prints the basic summary followed by the ris
 
 | Operation | Example | Result |
 |---|---|---|
-| `Crossing` | `Crossing 0` · `Crossing 1.5` | Average period/frequency of **complete** waves at that level (rise+fall crossings; first wave needs 3 crossings, each next wave +2, sharing the boundary; partial start/end ignored) |
-| `ZeroCrossing` | `ZeroCrossing` | Alias of `Crossing 0` |
-| `Frequency` | `Frequency` | Same as `Crossing` at the sample average (`Avg`) |
+| `FrequencyAt` | `FrequencyAt 0` · `FrequencyAt 1.5` | Average period/frequency of **complete** waves at that level (rise+fall crossings; first wave needs 3 crossings, each next wave +2, sharing the boundary; partial start/end ignored) |
+| `FrequencyAtZero` | `FrequencyAtZero` | Same as `FrequencyAt 0` |
+| `Frequency` | `Frequency` | Same as `FrequencyAt` at the min/max midpoint (`Mid`) |
 | `RiseTime` | `RiseTime` · `RiseTime 20, 80` | First rising edge time from low% to high% of min/max span (default 10 → 90) |
 | `FallTime` | `FallTime` · `FallTime 20, 80` | First falling edge time from high% to low% of min/max span (default 90 → 10 via the same percent pair) |
 | `SlewRise` | `SlewRise` · `SlewRise 20, 80` | First rising-edge slew rate Δv/Δt over the same percentage levels as `RiseTime` (default 10 → 90) |
@@ -402,7 +402,7 @@ For example, `-a "Basic; SlewRise"` prints the basic summary followed by the ris
 | `PeriodMax` | `PeriodMax` · `PeriodMax 0` | Maximum complete-wave period at threshold (default `Avg`) |
 | `PeriodPkPk` | `PeriodPkPk` · `PeriodPkPk 0` | Range of complete-wave periods (`max − min`) at threshold (default `Avg`) |
 
-### Integrals & power
+### Integrals & Power
 
 | Operation | Example | Result |
 |---|---|---|
@@ -415,7 +415,7 @@ For example, `-a "Basic; SlewRise"` prints the basic summary followed by the ris
 
 | Operation | Example | Result |
 |---|---|---|
-| `FFT` | `FFT` · `FFT 1024` · `FFT 1024, middle` · `FFT 1024, end` | Calculate and retain a real FFT for subsequent spectral analyses |
+| `FFT` | `FFT` · `FFT 1024` · `FFT 1024, middle` · `FFT 1024, end` | Calculate and retain a real FFT for subsequent spectral analysis |
 | `THD` | `THD` | Total harmonic distortion from the retained FFT: `√(Σ Aₕ²) / A₁` for harmonics 2…10; displayed as a percentage |
 | `Fundamental` | `Fundamental` | Frequency and Hann-corrected peak amplitude of the retained FFT's strongest AC component |
 | `Harmonic` | `Harmonic 3` | Hann-corrected peak amplitude of harmonic N of the retained FFT fundamental |
@@ -423,24 +423,24 @@ For example, `-a "Basic; SlewRise"` prints the basic summary followed by the ris
 | `SquareWaveType` | `SquareWaveType` | Similarity to a 50% square wave: odd harmonics proportional to `1/n` |
 | `SawtoothWaveType` | `SawtoothWaveType` | Similarity to a sawtooth: every harmonic proportional to `1/n`; `SawWaveType` is an alias |
 | `TriangleWaveType` | `TriangleWaveType` | Similarity to a triangle wave: odd harmonics proportional to `1/n²` |
-| `WaveType` | `WaveType` | Preset that runs all four wave-type similarity analyses |
+| `WaveType` | `WaveType` | Preset that runs all four wave-type similarity analysis |
 
-FFT-dependent analyses are sequential. `THD`, `Fundamental`, `Harmonic`, and all wave-type analyses must appear after an `FFT` in the same analysis list; otherwise parsing fails. They reuse that exact spectrum instead of calculating another FFT and therefore do not accept a point-count argument:
+FFT-dependent analysis are sequential. `THD`, `Fundamental`, `Harmonic`, and all wave-type analysis must appear after an `FFT` in the same analysis list; otherwise parsing fails. They reuse that exact spectrum instead of calculating another FFT and therefore do not accept a point-count argument:
 
 ```bat
 rigol2spice.exe input.csv -a "FFT 1024, middle; THD; Fundamental; Harmonic 3"
 rigol2spice.exe input.csv -a "FFT 4096, start; WaveType"
 ```
 
-If another `FFT` appears later, subsequent dependent analyses use the new result. Other analyses between them do not discard the retained spectrum.
+If another `FFT` appears later, subsequent dependent analysis use the new result. Other analysis between them do not discard the retained spectrum.
 
 FFT syntax is `FFT [points][, position]`. The position may be `start`, `middle`, or `end`; `start` is the default. The position can also be supplied without a point count (`FFT middle`), although it only changes the selected samples when the requested window is shorter than the capture. If the capture has fewer than the requested number of points, all available samples are used.
 
-Before the FFT, the selected values have their mean removed and receive a Hann window. They are then zero-padded to the next power of two. The reported peak is the strongest local AC maximum with sub-bin refinement. Console output includes the actual point count and window position; `-p` adds the retained magnitude spectrum in dB to the SVG plot. Its axes use rounded 1–2–5 frequency divisions, labelled dB grid lines, and a maximum 120 dB visual range; the title also shows the FFT bin resolution `Δf`.
+Before the FFT, the selected values have their mean removed and receive a Hann window. They are then zero-padded to the next power of two. The reported peak is the strongest local AC maximum with sub-bin refinement. Console output includes the actual point count and window position; `-p` adds the retained magnitude spectrum in dB to the SVG plot. Its axes use rounded 1–2–5 frequency divisions, labeled dB grid lines, and a maximum 120 dB visual range; the title also shows the FFT bin resolution `Δf`.
 
 Wave-type analysis compares measured harmonic-amplitude ratios, up to harmonic 10 or Nyquist, with the four ideal profiles above. `SineWaveType` is `max(0, 100% − THD%)` over those harmonics. Each other score is 100% minus the harmonic-profile vector error relative to the energy of its ideal higher harmonics, limited to 0–100%. The four scores are independent and are not normalized to sum to 100%. This allows an unknown waveform to score poorly in every analysis and an ambiguous waveform to match more than one profile. At least the third harmonic must fit below Nyquist. Noise, PWM duty cycles other than 50%, clipping, asymmetry, frequency drift, too few periods, analogue bandwidth, and spectral leakage can reduce the match. The classifier deliberately uses magnitudes rather than phase, making it insensitive to time reversal and waveform polarity.
 
-## Post-processing Options (`-d`, `-k`, `-p`)
+## Post-Processing Options (`-d`, `-k`, `-p`)
 
 | Option | Effect |
 |---|---|
@@ -476,14 +476,14 @@ OPTIONS:
 
 Requires Swift 6.2+.
 
-```
+```bash
 git submodule update --init --recursive
 swift build
 ```
 
 Builds on macOS, Windows, and Linux.
 
-## Acknowledgements
+## Acknowledgments
 
 Special thanks to [Scott Prahl](https://github.com/scottprahl), author of [RigolWFM](https://github.com/scottprahl/RigolWFM), for publishing the reverse-engineering research and Kaitai Struct schema that made DS1000Z WFM support possible.
 

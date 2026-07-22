@@ -8,7 +8,7 @@ struct AnalysisTests {
     @Test
     func `parses analyses with aliases`() throws {
         let analyses = try Analysis.parseList(
-            "Max; Min; HiPeak; LowPeak; Avg; DC; Crossing 1.5; ZeroCrossing; Frequency; RMS; PkPk",
+            "Max; Min; HiPeak; LowPeak; Avg; DC; FrequencyAt 1.5; FrequencyAtZero; Frequency; RMS; PkPk",
         )
 
         #expect(analyses == [
@@ -18,8 +18,8 @@ struct AnalysisTests {
             .min,
             .avg,
             .dc,
-            .crossing(1.5),
-            .crossing(0),
+            .frequencyAt(1.5),
+            .frequencyAt(0),
             .frequency,
             .rms,
             .pkPk,
@@ -37,8 +37,8 @@ struct AnalysisTests {
     @Test
     func `operation names are case insensitive`() throws {
         #expect(
-            try Analysis.parseList("max; HIPEAK; zerocrossing; pkpk")
-                == [.max, .max, .crossing(0), .pkPk],
+            try Analysis.parseList("max; HIPEAK; frequencyatzero; pkpk")
+                == [.max, .max, .frequencyAt(0), .pkPk],
         )
     }
 
@@ -47,13 +47,27 @@ struct AnalysisTests {
         #expect(
             try Analysis.parseList("Max; basic; Min; TIMING; spectrum") == [
                 .max,
-                .duration, .points, .min, .max, .pkPk, .avg, .rms,
+                .duration, .points, .sampleRate, .interval, .start, .end,
+                .max, .min, .pkPk, .peak, .amplitude, .mid, .avg, .dc, .rms,
+                .acRms, .stdDev, .crest, .median, .peakTime, .minTime, .meanAbs,
+                .top, .base, .overshoot, .undershoot,
                 .min,
+                .frequencyAt(0),
                 .frequency,
-                .duty(threshold: nil),
-                .pulseWidth(threshold: nil),
                 .riseTime(lowPercent: 10, highPercent: 90),
                 .fallTime(lowPercent: 10, highPercent: 90),
+                .slewRise(lowPercent: 10, highPercent: 90),
+                .slewFall(lowPercent: 10, highPercent: 90),
+                .pulseWidth(threshold: nil),
+                .lowPulseWidth(threshold: nil),
+                .duty(threshold: nil),
+                .edgeCount(threshold: nil),
+                .riseCount(threshold: nil),
+                .fallCount(threshold: nil),
+                .jitter(threshold: nil),
+                .periodMin(threshold: nil),
+                .periodMax(threshold: nil),
+                .periodPkPk(threshold: nil),
                 .fft(pointCount: nil, position: .start),
                 .thd,
             ],
@@ -65,14 +79,14 @@ struct AnalysisTests {
     }
 
     @Test
-    func `crossing accepts engineering notation`() throws {
-        let nano = try Analysis.parseList("Crossing 3n")
-        guard case let .crossing(value) = nano.first else {
-            Issue.record("Expected Crossing")
+    func `frequency at accepts engineering notation`() throws {
+        let nano = try Analysis.parseList("FrequencyAt 3n")
+        guard case let .frequencyAt(value) = nano.first else {
+            Issue.record("Expected FrequencyAt")
             return
         }
         #expect(abs(value - 3e-9) < 1e-20)
-        #expect(try Analysis.parseList("Crossing -1.2") == [.crossing(-1.2)])
+        #expect(try Analysis.parseList("FrequencyAt -1.2") == [.frequencyAt(-1.2)])
     }
 
     @Test
@@ -84,13 +98,19 @@ struct AnalysisTests {
             try Analysis.parseList("Max 1")
         }
         #expect(throws: (any Error).self) {
-            try Analysis.parseList("Crossing")
+            try Analysis.parseList("FrequencyAt")
         }
         #expect(throws: (any Error).self) {
-            try Analysis.parseList("Crossing 1, 2")
+            try Analysis.parseList("FrequencyAt 1, 2")
         }
         #expect(throws: (any Error).self) {
-            try Analysis.parseList("ZeroCrossing 0")
+            try Analysis.parseList("FrequencyAtZero 0")
+        }
+        #expect(throws: AnalysisParseError.unknownOperation(name: "Crossing")) {
+            try Analysis.parseList("Crossing 0")
+        }
+        #expect(throws: AnalysisParseError.unknownOperation(name: "ZeroCrossing")) {
+            try Analysis.parseList("ZeroCrossing")
         }
         #expect(throws: (any Error).self) {
             try Analysis.parseList("RiseTime 90, 10")
@@ -144,7 +164,7 @@ struct AnalysisTests {
             Point(time: 5, value: 1),
         ]
 
-        let zero = Analysis.crossing(0).evaluate(on: points)
+        let zero = Analysis.frequencyAt(0).evaluate(on: points)
         guard case let .periodAndFrequency(period, frequency) = zero else {
             Issue.record("Expected period/frequency, got \(zero)")
             return
@@ -152,11 +172,11 @@ struct AnalysisTests {
         #expect(abs(period - 2) < 1e-12)
         #expect(abs(frequency - 0.5) < 1e-12)
 
-        #expect(Analysis.zeroCrossingAlias.evaluate(on: points) == zero)
+        #expect(Analysis.frequencyAtZero.evaluate(on: points) == zero)
 
         // Three level crossings → exactly one complete wave
         let oneWave = Array(points.prefix(4)) // crossings at 0.5, 1.5, 2.5
-        guard case let .periodAndFrequency(onePeriod, _) = Analysis.crossing(0).evaluate(on: oneWave) else {
+        guard case let .periodAndFrequency(onePeriod, _) = Analysis.frequencyAt(0).evaluate(on: oneWave) else {
             Issue.record("Expected one complete wave from 3 crossings")
             return
         }
@@ -164,7 +184,7 @@ struct AnalysisTests {
 
         // Two crossings → incomplete wave only
         let short = Array(points.prefix(3)) // crossings at 0.5, 1.5
-        #expect(Analysis.crossing(0).evaluate(on: short) == .insufficientCrossings)
+        #expect(Analysis.frequencyAt(0).evaluate(on: short) == .insufficientCrossings)
     }
 
     @Test
@@ -185,7 +205,7 @@ struct AnalysisTests {
         let crossings = levelCrossingTimes(points, threshold: 0)
         #expect(crossings.count == 5)
 
-        guard case let .periodAndFrequency(period, frequency) = Analysis.crossing(0).evaluate(on: points) else {
+        guard case let .periodAndFrequency(period, frequency) = Analysis.frequencyAt(0).evaluate(on: points) else {
             Issue.record("Expected period/frequency from complete waves only")
             return
         }
@@ -195,7 +215,7 @@ struct AnalysisTests {
         // Four crossings → one complete wave; trailing half-wave dropped
         let withTrailingHalf = Array(points.prefix(6)) // crossings 1.5, 2.5, 3.5, 4.5
         guard case let .periodAndFrequency(partialEndPeriod, _) =
-            Analysis.crossing(0).evaluate(on: withTrailingHalf) else {
+            Analysis.frequencyAt(0).evaluate(on: withTrailingHalf) else {
             Issue.record("Expected one complete wave when a trailing half-wave remains")
             return
         }
@@ -203,8 +223,8 @@ struct AnalysisTests {
     }
 
     @Test
-    func `frequency uses average value as crossing threshold`() {
-        // Values alternate around mean 1: -1 and 3, mean = 1
+    func `frequency uses min max midpoint as crossing threshold`() {
+        // Midpoint is 1 while the sample average is skewed upward by the final high sample.
         let points = [
             Point(time: 0, value: -1),
             Point(time: 1, value: 3),
@@ -212,14 +232,16 @@ struct AnalysisTests {
             Point(time: 3, value: 3),
             Point(time: 4, value: -1),
             Point(time: 5, value: 3),
+            Point(time: 6, value: 3),
         ]
 
-        let mean = averageValue(points)
-        #expect(abs(mean - 1) < 1e-12)
+        let midpoint = midValue(points)
+        #expect(abs(midpoint - 1) < 1e-12)
+        #expect(abs(averageValue(points) - midpoint) > 0.1)
 
         let fromFrequency = Analysis.frequency.evaluate(on: points)
-        let fromCrossing = Analysis.crossing(mean).evaluate(on: points)
-        #expect(fromFrequency == fromCrossing)
+        let fromFrequencyAt = Analysis.frequencyAt(midpoint).evaluate(on: points)
+        #expect(fromFrequency == fromFrequencyAt)
 
         guard case let .periodAndFrequency(period, frequency) = fromFrequency else {
             Issue.record("Expected period/frequency, got \(fromFrequency)")
@@ -532,8 +554,8 @@ struct AnalysisTests {
 }
 
 private extension Analysis {
-    /// Convenience for tests: ZeroCrossing parses to `.crossing(0)`.
-    static var zeroCrossingAlias: Analysis {
-        .crossing(0)
+    /// Convenience for tests: FrequencyAtZero parses to `.frequencyAt(0)`.
+    static var frequencyAtZero: Analysis {
+        .frequencyAt(0)
     }
 }

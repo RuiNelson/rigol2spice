@@ -41,7 +41,8 @@ enum Analysis: Equatable {
     case min
     case avg
     case dc
-    case crossing(Double)
+    /// Average complete-wave period/frequency measured at an explicit level.
+    case frequencyAt(Double)
     case frequency
     case rms
     case pkPk
@@ -247,15 +248,31 @@ enum Analysis: Equatable {
             switch operation.lowercased() {
             case "basic":
                 try requireArgumentCount(0)
-                return [.duration, .points, .min, .max, .pkPk, .avg, .rms]
+                return [
+                    .duration, .points, .sampleRate, .interval, .start, .end,
+                    .max, .min, .pkPk, .peak, .amplitude, .mid, .avg, .dc, .rms,
+                    .acRms, .stdDev, .crest, .median, .peakTime, .minTime, .meanAbs,
+                    .top, .base, .overshoot, .undershoot,
+                ]
             case "timing":
                 try requireArgumentCount(0)
                 return [
+                    .frequencyAt(0),
                     .frequency,
-                    .duty(threshold: nil),
-                    .pulseWidth(threshold: nil),
                     .riseTime(lowPercent: 10, highPercent: 90),
                     .fallTime(lowPercent: 10, highPercent: 90),
+                    .slewRise(lowPercent: 10, highPercent: 90),
+                    .slewFall(lowPercent: 10, highPercent: 90),
+                    .pulseWidth(threshold: nil),
+                    .lowPulseWidth(threshold: nil),
+                    .duty(threshold: nil),
+                    .edgeCount(threshold: nil),
+                    .riseCount(threshold: nil),
+                    .fallCount(threshold: nil),
+                    .jitter(threshold: nil),
+                    .periodMin(threshold: nil),
+                    .periodMax(threshold: nil),
+                    .periodPkPk(threshold: nil),
                 ]
             case "spectrum":
                 try requireArgumentCount(0)
@@ -279,12 +296,12 @@ enum Analysis: Equatable {
             case "dc":
                 try requireArgumentCount(0)
                 return [.dc]
-            case "crossing":
+            case "frequencyat":
                 try requireArgumentCount(1)
-                return try [.crossing(parseScalarArgument(arguments[0]))]
-            case "zerocrossing":
+                return try [.frequencyAt(parseScalarArgument(arguments[0]))]
+            case "frequencyatzero":
                 try requireArgumentCount(0)
-                return [.crossing(0)]
+                return [.frequencyAt(0)]
             case "frequency":
                 try requireArgumentCount(0)
                 return [.frequency]
@@ -464,12 +481,12 @@ enum Analysis: Equatable {
         case .min: "Min"
         case .avg: "Avg"
         case .dc: "DC"
-        case let .crossing(value):
+        case let .frequencyAt(value):
             if value == 0 {
-                "ZeroCrossing"
+                "FrequencyAtZero"
             }
             else {
-                "Crossing \(analysisFormatter.string(value))"
+                "FrequencyAt \(analysisFormatter.string(value))"
             }
         case .frequency: "Frequency"
         case .rms: "RMS"
@@ -777,7 +794,7 @@ private extension Analysis {
              .riseCount,
              .fallCount:
             " edges"
-        case .crossing,
+        case .frequencyAt,
              .frequency:
             "Hz"
         case .fft,
@@ -818,10 +835,10 @@ extension Analysis {
             return .scalar(averageValue(points))
         case .dc:
             return .scalar(calculateDC(points))
-        case let .crossing(threshold):
+        case let .frequencyAt(threshold):
             return periodFrequencyOutcome(points, threshold: threshold)
         case .frequency:
-            return periodFrequencyOutcome(points, threshold: averageValue(points))
+            return periodFrequencyOutcome(points, threshold: midValue(points))
         case .rms:
             return .scalar(rmsValue(points))
         case .pkPk:
