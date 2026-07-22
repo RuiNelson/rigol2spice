@@ -8,6 +8,25 @@ enum ProtocolDecodeResult: Equatable {
     case spi(SPIDecodeResult)
 }
 
+func decodedASCII(_ value: UInt64, bitCount: Int = 8) -> String? {
+    guard bitCount <= 8, value < 0x80 else { return nil }
+    switch value {
+    case 0x00: return "\\0"
+    case 0x09: return "\\t"
+    case 0x0A: return "\\n"
+    case 0x0D: return "\\r"
+    case 0x20 ... 0x7E:
+        let character = Character(UnicodeScalar(UInt8(value)))
+        switch character {
+        case "\\": return "\\\\"
+        case "\"": return "\\\""
+        default: return String(character)
+        }
+    default:
+        return String(format: "\\x%02X", value)
+    }
+}
+
 // MARK: - I2CFrame
 
 struct I2CFrame: Equatable {
@@ -364,10 +383,12 @@ extension ProtocolDecodeResult {
                 if frame.framingError { suffixes.append("FRAMING") }
                 let suffix = suffixes.isEmpty ? "" : " · " + suffixes.joined(separator: "+")
                 let digits = max(1, (frame.dataBits + 3) / 4)
+                let ascii = decodedASCII(UInt64(frame.value), bitCount: frame.dataBits)
+                    .map { " · ASCII \"\($0)\"" } ?? ""
                 return PlotAnnotation(
                     startTime: frame.startTime,
                     endTime: frame.endTime,
-                    label: "0x\(String(format: "%0*X", digits, frame.value))\(suffix)",
+                    label: "0x\(String(format: "%0*X", digits, frame.value))\(ascii)\(suffix)",
                     isError: frame.parityError || frame.framingError,
                 )
             }
@@ -378,7 +399,9 @@ extension ProtocolDecodeResult {
                     "ADDR 0x\(String(format: "%02X", address)) \(read ? "R" : "W") · \(acknowledgement)"
                 }
                 else {
-                    "0x\(String(format: "%02X", frame.value)) · \(acknowledgement)"
+                    "0x\(String(format: "%02X", frame.value))"
+                        + (decodedASCII(UInt64(frame.value)).map { " · ASCII \"\($0)\"" } ?? "")
+                        + " · \(acknowledgement)"
                 }
                 return PlotAnnotation(
                     startTime: frame.startTime,
@@ -391,8 +414,14 @@ extension ProtocolDecodeResult {
             result.frames.map { frame in
                 let digits = max(1, (frame.bitCount + 3) / 4)
                 var fields: [String] = []
-                if let mosi = frame.mosi { fields.append("MOSI 0x\(String(format: "%0*llX", digits, mosi))") }
-                if let miso = frame.miso { fields.append("MISO 0x\(String(format: "%0*llX", digits, miso))") }
+                if let mosi = frame.mosi {
+                    let ascii = decodedASCII(mosi, bitCount: frame.bitCount).map { " ASCII \"\($0)\"" } ?? ""
+                    fields.append("MOSI 0x\(String(format: "%0*llX", digits, mosi))\(ascii)")
+                }
+                if let miso = frame.miso {
+                    let ascii = decodedASCII(miso, bitCount: frame.bitCount).map { " ASCII \"\($0)\"" } ?? ""
+                    fields.append("MISO 0x\(String(format: "%0*llX", digits, miso))\(ascii)")
+                }
                 return PlotAnnotation(
                     startTime: frame.startTime,
                     endTime: frame.endTime,

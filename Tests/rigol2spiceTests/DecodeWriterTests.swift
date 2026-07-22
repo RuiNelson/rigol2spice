@@ -18,8 +18,8 @@ struct DecodeWriterTests {
 
         #expect(text == """
         UART baud=115200.0
-        start=0.0001 end=0.0002 byte=0x41 decimal=65 dataBits=8 parityError=false framingError=false
-        start=0.0003 end=0.0004 byte=0x0A decimal=10 dataBits=8 parityError=true framingError=true
+        start=0.0001 end=0.0002 byte=0x41 decimal=65 ascii="A" dataBits=8 parityError=false framingError=false
+        start=0.0003 end=0.0004 byte=0x0A decimal=10 ascii="\\n" dataBits=8 parityError=true framingError=true
 
         """)
     }
@@ -30,9 +30,9 @@ struct DecodeWriterTests {
         let text = try #require(String(data: output, encoding: .utf8))
 
         #expect(text == """
-        protocol,baud,start_time_s,end_time_s,byte_hex,byte_decimal,data_bits,parity_error,framing_error\r
-        UART,115200.0,0.0001,0.0002,0x41,65,8,false,false\r
-        UART,115200.0,0.0003,0.0004,0x0A,10,8,true,true\r
+        protocol,baud,start_time_s,end_time_s,byte_hex,byte_decimal,ascii,data_bits,parity_error,framing_error\r
+        UART,115200.0,0.0001,0.0002,0x41,65,A,8,false,false\r
+        UART,115200.0,0.0003,0.0004,0x0A,10,\\n,8,true,true\r
 
         """)
     }
@@ -95,8 +95,9 @@ struct DecodeWriterTests {
         let csv = try #require(String(data: DecodeWriter().data(for: result, format: .csv), encoding: .utf8))
         #expect(text.contains("address=0x50 direction=write"))
         #expect(text.contains("repeatedStart=false"))
-        #expect(text.contains("byte=0x42"))
-        #expect(csv.contains(",0xA0,160,address,0x50,write,true"))
+        #expect(text.contains("byte=0x42 decimal=66") && text.contains("ascii=\"B\""))
+        #expect(csv.contains(",0xA0,160,,address,0x50,write,true"))
+        #expect(csv.contains(",0x42,66,B,data,,,false"))
         #expect(try DecodeWriter().data(for: result, format: .bin) == Data([0x42]))
     }
 
@@ -111,9 +112,19 @@ struct DecodeWriterTests {
         let text = try #require(String(data: DecodeWriter().data(for: result, format: .text), encoding: .utf8))
         let csv = try #require(String(data: DecodeWriter().data(for: result, format: .csv), encoding: .utf8))
         #expect(text.contains("SPI mode=2 order=msb"))
-        #expect(text.contains("mosi=0x12 miso=0x34"))
-        #expect(csv.contains("SPI,2,msb,0,1.0,2.0,8,0x12,0x34"))
+        #expect(text.contains("mosi=0x12 mosiASCII=\"\\x12\""))
+        #expect(text.contains("miso=0x34 misoASCII=\"4\""))
+        #expect(csv.contains("SPI,2,msb,0,1.0,2.0,8,0x12,\\x12,0x34,4"))
         #expect(try DecodeWriter().data(for: result, format: .bin) == Data([0x12]))
+    }
+
+    @Test
+    func `ASCII representation covers printable control and non ASCII bytes`() {
+        #expect(decodedASCII(0x48) == "H")
+        #expect(decodedASCII(0x0A) == "\\n")
+        #expect(decodedASCII(0x1B) == "\\x1B")
+        #expect(decodedASCII(0x7F) == "\\x7F")
+        #expect(decodedASCII(0x80) == nil)
     }
 
     private var sampleResult: UARTDecodeResult {

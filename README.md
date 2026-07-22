@@ -150,7 +150,7 @@ rigol2spice.exe capture.wfm --decode "SPI clk=CH1, mosi=CH2, miso=CH3, cs=CH4, m
 
 `order` defaults to `msb`; `cs-active` defaults to `low`. Omit `cs` for captures that contain only the intended transfer. Every relevant protocol channel receives the same ordered transformations before decoding. The output-only `--downsample` step runs later and therefore cannot alter decoded frames.
 
-When `--decode` and `--plot` are combined, the SVG includes a time-aligned protocol lane below the waveform. UART bytes and parity/framing errors, I²C addresses/data/ACK status, and SPI MOSI/MISO words are labelled over their decoded time intervals; each interval also includes an SVG tooltip.
+When `--decode` and `--plot` are combined, the SVG includes a time-aligned protocol lane below the waveform. UART bytes and parity/framing errors, I²C addresses/data/ACK status, and SPI MOSI/MISO words are labelled over their decoded time intervals; each interval also includes an SVG tooltip. Decoded values below `0x80` also show their ASCII representation. Printable characters appear directly (`0x48 · ASCII "H"`); control characters use escapes such as `\n`, `\r`, `\t`, or `\x1B`.
 
 Use `--decode-format` to select the decoder output and `--decode-output` to write it to a file:
 
@@ -164,6 +164,8 @@ rigol2spice.exe capture.wfm --decode "UART rx=CH2, baud=auto, threshold=1.65" --
 | `text` (default) | Human-readable decoded events, including timing and UART status information |
 | `csv` | The same event information as `text`, represented as CSV with a header row |
 | `bin` | Raw decoded octets, with no text, timestamps, headers, separators, or error metadata |
+
+Text and CSV output include the same ASCII representation for decoded values below `0x80`. I²C address bytes are not presented as ASCII because they encode the address and R/W bit rather than payload data.
 
 For UART, `bin` contains valid frames only. For I²C it contains data bytes and omits address bytes. For SPI it contains MOSI words, or MISO when MOSI is absent. SPI words wider than eight bits cannot be represented by `bin`; use text or CSV instead. Use text or CSV when timing, addressing, acknowledgement, or error details need to be retained.
 

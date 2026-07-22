@@ -447,12 +447,12 @@ struct CLITests {
         #expect(!result.stdout.contains("Downsampling signal output"))
         let csv = try String(contentsOf: output, encoding: .utf8)
         #expect(csv.contains("I2C,0,"))
-        #expect(csv.contains(",0xA0,160,address,0x50,write,true"))
-        #expect(csv.contains(",0x42,66,data,,,true"))
+        #expect(csv.contains(",0xA0,160,,address,0x50,write,true"))
+        #expect(csv.contains(",0x42,66,B,data,,,true"))
         let svg = try String(contentsOf: plot, encoding: .utf8)
         #expect(svg.contains("class=\"decode-panel\""))
         #expect(svg.contains("ADDR 0x50 W · ACK"))
-        #expect(svg.contains("0x42 · ACK"))
+        #expect(svg.contains("0x42 · ASCII &quot;B&quot; · ACK"))
     }
 
     private func runCLI(_ arguments: [String]) throws -> CLIResult {

@@ -169,7 +169,7 @@ struct PlotWriterTests {
                 parityError: true, framingError: false,
             )],
         ))
-        #expect(uart.plotAnnotations[0].label == "0x41 · PARITY")
+        #expect(uart.plotAnnotations[0].label == "0x41 · ASCII \"A\" · PARITY")
         #expect(uart.plotAnnotations[0].isError)
 
         let i2cFrame = I2CFrame(
@@ -185,7 +185,7 @@ struct PlotWriterTests {
             mode: 3, bitOrder: .msb,
             frames: [SPIFrame(index: 0, startTime: 1, endTime: 2, bitCount: 8, mosi: 0x12, miso: 0x34)],
         ))
-        #expect(spi.plotAnnotations[0].label == "MOSI 0x12 · MISO 0x34")
+        #expect(spi.plotAnnotations[0].label == "MOSI 0x12 ASCII \"\\x12\" · MISO 0x34 ASCII \"4\"")
     }
 
     @Test

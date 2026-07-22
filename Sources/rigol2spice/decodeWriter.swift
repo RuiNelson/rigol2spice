@@ -44,12 +44,18 @@ struct DecodeWriter {
         let lines = switch result {
         case let .uart(result):
             ["UART baud=\(number(result.baudRate))"] + result.frames.map { frame in
-                [
+                var fields = [
                     "start=\(number(frame.startTime))", "end=\(number(frame.endTime))",
                     "byte=\(hexadecimal(frame.value, bits: frame.dataBits))", "decimal=\(frame.value)",
+                ]
+                if let ascii = decodedASCII(UInt64(frame.value), bitCount: frame.dataBits) {
+                    fields.append("ascii=\"\(ascii)\"")
+                }
+                fields += [
                     "dataBits=\(frame.dataBits)", "parityError=\(frame.parityError)",
                     "framingError=\(frame.framingError)",
-                ].joined(separator: " ")
+                ]
+                return fields.joined(separator: " ")
             }
         case let .i2c(result):
             ["I2C transactions=\(result.transactions.count)"] + result.transactions.flatMap { transaction in
@@ -68,6 +74,9 @@ struct DecodeWriter {
                     if let address = frame.address {
                         fields.append("address=\(hexadecimal(UInt16(address), bits: 7))")
                     }
+                    else if let ascii = decodedASCII(UInt64(frame.value)) {
+                        fields.append("ascii=\"\(ascii)\"")
+                    }
                     if let read = frame.read { fields.append("direction=\(read ? "read" : "write")") }
                     return fields.joined(separator: " ")
                 }
@@ -79,8 +88,18 @@ struct DecodeWriter {
                     "index=\(frame.index)", "start=\(number(frame.startTime))", "end=\(number(frame.endTime))",
                     "bits=\(frame.bitCount)",
                 ]
-                if let mosi = frame.mosi { fields.append("mosi=\(hexadecimal(mosi, bits: frame.bitCount))") }
-                if let miso = frame.miso { fields.append("miso=\(hexadecimal(miso, bits: frame.bitCount))") }
+                if let mosi = frame.mosi {
+                    fields.append("mosi=\(hexadecimal(mosi, bits: frame.bitCount))")
+                    if let ascii = decodedASCII(mosi, bitCount: frame.bitCount) {
+                        fields.append("mosiASCII=\"\(ascii)\"")
+                    }
+                }
+                if let miso = frame.miso {
+                    fields.append("miso=\(hexadecimal(miso, bits: frame.bitCount))")
+                    if let ascii = decodedASCII(miso, bitCount: frame.bitCount) {
+                        fields.append("misoASCII=\"\(ascii)\"")
+                    }
+                }
                 return fields.joined(separator: " ")
             }
         }
@@ -90,17 +109,18 @@ struct DecodeWriter {
     private func renderCSV(_ result: ProtocolDecodeResult) -> String {
         let lines = switch result {
         case let .uart(result):
-            ["protocol,baud,start_time_s,end_time_s,byte_hex,byte_decimal,data_bits,parity_error,framing_error"]
+            ["protocol,baud,start_time_s,end_time_s,byte_hex,byte_decimal,ascii,data_bits,parity_error,framing_error"]
                 + result.frames.map { frame in
                     csv([
                         "UART", number(result.baudRate), number(frame.startTime), number(frame.endTime),
                         hexadecimal(frame.value, bits: frame.dataBits), String(frame.value),
+                        decodedASCII(UInt64(frame.value), bitCount: frame.dataBits) ?? "",
                         String(frame.dataBits), String(frame.parityError), String(frame.framingError),
                     ])
                 }
         case let .i2c(result):
             [
-                "protocol,transaction,transaction_start_s,transaction_end_s,repeated_start,index,start_time_s,end_time_s,byte_hex,byte_decimal,type,address_hex,direction,ack",
+                "protocol,transaction,transaction_start_s,transaction_end_s,repeated_start,index,start_time_s,end_time_s,byte_hex,byte_decimal,ascii,type,address_hex,direction,ack",
             ]
                 + result.transactions.flatMap { transaction in
                     transaction.frames.map { frame in
@@ -109,6 +129,7 @@ struct DecodeWriter {
                             transaction.endTime.map(number) ?? "", String(transaction.repeatedStart),
                             String(frame.index), number(frame.startTime), number(frame.endTime),
                             hexadecimal(UInt16(frame.value), bits: 8), String(frame.value),
+                            frame.isAddress ? "" : decodedASCII(UInt64(frame.value)) ?? "",
                             frame.isAddress ? "address" : "data",
                             frame.address.map { hexadecimal(UInt16($0), bits: 7) } ?? "",
                             frame.read.map { $0 ? "read" : "write" } ?? "", String(frame.acknowledged),
@@ -116,13 +137,15 @@ struct DecodeWriter {
                     }
                 }
         case let .spi(result):
-            ["protocol,mode,bit_order,index,start_time_s,end_time_s,bits,mosi_hex,miso_hex"]
+            ["protocol,mode,bit_order,index,start_time_s,end_time_s,bits,mosi_hex,mosi_ascii,miso_hex,miso_ascii"]
                 + result.frames.map { frame in
                     csv([
                         "SPI", String(result.mode), result.bitOrder.rawValue, String(frame.index),
                         number(frame.startTime), number(frame.endTime), String(frame.bitCount),
                         frame.mosi.map { hexadecimal($0, bits: frame.bitCount) } ?? "",
+                        frame.mosi.flatMap { decodedASCII($0, bitCount: frame.bitCount) } ?? "",
                         frame.miso.map { hexadecimal($0, bits: frame.bitCount) } ?? "",
+                        frame.miso.flatMap { decodedASCII($0, bitCount: frame.bitCount) } ?? "",
                     ])
                 }
         }
