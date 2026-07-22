@@ -58,6 +58,25 @@ rigol2spice.exe capture.wfm output.txt
 | `npy` | One-dimensional little-endian Float64 array of vertical values | None |
 | `npz` | Uncompressed archive with little-endian Float64 arrays `timestamps` and `values` | None |
 
+SPICE:
+
+```spice
+* LtSpice
+V1 n+ n- PWL file="output.txt"
+
+* PSpice
+V1 n+ n- PWL(FILE="output.txt")
+
+* HSpice
+V1 n+ n- PWL PWLFILE="output.txt"
+
+* Ngspice
+V1 n+ n- PWL file output.txt
+
+* QUCS-S
+V1 n+ n- PWL file=output.txt
+```
+
 MATLAB:
 
 ```matlab
