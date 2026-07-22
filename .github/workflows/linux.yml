@@ -51,7 +51,9 @@ jobs:
             swift:6.2.4-jammy \
             bash -lc '
               set -euo pipefail
-              cd /source
+              mkdir -p /tmp/rigol2spice-source
+              cp -a /source/. /tmp/rigol2spice-source/
+              cd /tmp/rigol2spice-source
               swift build \
                 --configuration release \
                 --product rigol2spice \
