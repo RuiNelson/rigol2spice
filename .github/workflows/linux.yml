@@ -1,0 +1,121 @@
+name: Linux
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Linux ${{ matrix.arch }}
+    runs-on: ${{ matrix.runs_on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runs_on: ubuntu-24.04
+            platform: linux/amd64
+            elf_arch: x86-64
+          - arch: arm64
+            runs_on: ubuntu-24.04-arm
+            platform: linux/arm64
+            elf_arch: ARM aarch64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Build with static Swift runtime
+        shell: bash
+        env:
+          ARCH: ${{ matrix.arch }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+
+          output_dir="$PWD/dist/linux-$ARCH"
+          mkdir -p "$output_dir"
+
+          docker run --rm \
+            --platform "$PLATFORM" \
+            --volume "$PWD:/source:ro" \
+            --volume "$output_dir:/out" \
+            swift:6.2.4-jammy \
+            bash -lc '
+              set -euo pipefail
+              cd /source
+              swift build \
+                --configuration release \
+                --product rigol2spice \
+                --static-swift-stdlib \
+                -debug-info-format none \
+                --scratch-path /tmp/rigol2spice-build
+              binary_dir="$(swift build \
+                --configuration release \
+                --static-swift-stdlib \
+                -debug-info-format none \
+                --scratch-path /tmp/rigol2spice-build \
+                --show-bin-path)"
+              install -m 755 "$binary_dir/rigol2spice" /out/rigol2spice
+              strip --strip-unneeded /out/rigol2spice
+            '
+
+      - name: Verify executable
+        shell: bash
+        env:
+          ARCH: ${{ matrix.arch }}
+          ELF_ARCH: ${{ matrix.elf_arch }}
+        run: |
+          set -euo pipefail
+
+          binary="dist/linux-$ARCH/rigol2spice"
+          description="$(file "$binary")"
+          dependencies="$(ldd "$binary")"
+
+          echo "$description"
+          echo "$dependencies"
+
+          if [[ "$description" != *"$ELF_ARCH"* ]]; then
+            echo "Executable architecture does not match $ELF_ARCH" >&2
+            exit 1
+          fi
+          if [[ "$dependencies" == *libswift* ]]; then
+            echo "Executable still depends on dynamic Swift libraries" >&2
+            exit 1
+          fi
+
+          "$binary" --help >/dev/null
+
+      - name: Package tar.xz
+        shell: bash
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+
+          input_dir="dist/linux-$ARCH"
+          archive="dist/rigol2spice-linux-$ARCH.tar.xz"
+          verification_dir="$RUNNER_TEMP/rigol2spice-linux-$ARCH-verification"
+
+          tar -C "$input_dir" -cJf "$archive" rigol2spice
+          mkdir -p "$verification_dir"
+          tar -C "$verification_dir" -xJf "$archive"
+          test -x "$verification_dir/rigol2spice"
+          cmp "$input_dir/rigol2spice" "$verification_dir/rigol2spice"
+          "$verification_dir/rigol2spice" --help >/dev/null
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: rigol2spice-linux-${{ matrix.arch }}
+          path: dist/rigol2spice-linux-${{ matrix.arch }}.tar.xz
+          if-no-files-found: error
+          compression-level: 0
