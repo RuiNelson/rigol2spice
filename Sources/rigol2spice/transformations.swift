@@ -100,6 +100,7 @@ enum Transformation: Equatable {
     case triggerRunt(edge: TriggerEdge, low: Double, high: Double, maximumDuration: Double)
     case seamless(rampDuration: Double?)
     case pad(duration: Double, value: Double?)
+    case padPoints(count: Int, value: Double?)
     case extendTo(endTime: Double, value: Double?)
     case downsample(factor: Double, interpolation: ResamplingInterpolation)
     case upsample(factor: Double, interpolation: ResamplingInterpolation)
@@ -107,8 +108,12 @@ enum Transformation: Equatable {
     case extractPeriod(threshold: Double?)
     case cutAfter(Double)
     case cutBefore(Double)
+    case dropLast(Double)
+    case dropLastPoints(Int)
     case trim(start: Double, end: Double)
     case `repeat`(Double)
+    /// Coherently average aligned points from equal contiguous capture segments.
+    case oversample(Int)
     /// Learn a compact causal temporal convolution from the capture and append a forecast.
     case tcn(duration: Double, sampleCount: Int?)
     case am(carrier: Double, depth: Double, amplitude: Double)
@@ -856,6 +861,23 @@ enum Transformation: Equatable {
                     nil
                 }
                 return .pad(duration: duration, value: holdValue)
+            case "padpoints",
+                 "holdlastpoints":
+                guard arguments.count == 1 || arguments.count == 2 else {
+                    throw TransformationParseError.invalidArgumentCount(
+                        operation: operation,
+                        expected: 1,
+                        actual: arguments.count,
+                    )
+                }
+                let count = try positiveInteger(at: 0)
+                let holdValue: Double? = if arguments.count == 2 {
+                    try parseScalarArgument(arguments[1])
+                }
+                else {
+                    nil
+                }
+                return .padPoints(count: count, value: holdValue)
             case "extendto":
                 guard arguments.count == 1 || arguments.count == 2 else {
                     throw TransformationParseError.invalidArgumentCount(
@@ -931,6 +953,18 @@ enum Transformation: Equatable {
                 return .cutAfter(value)
             case "cutbefore":
                 return try .cutBefore(scalar())
+            case "droplast":
+                let duration = try scalar()
+                guard duration > 0 else {
+                    throw TransformationParseError.invalidPositiveScalar(
+                        operation: operation,
+                        value: arguments[0],
+                    )
+                }
+                return .dropLast(duration)
+            case "droplastpoints":
+                try requireArgumentCount(1)
+                return try .dropLastPoints(positiveInteger(at: 0))
             case "trim":
                 try requireArgumentCount(2)
                 let start = try parseScalarArgument(arguments[0])
@@ -949,6 +983,16 @@ enum Transformation: Equatable {
                     throw TransformationParseError.invalidPositiveScalar(operation: operation, value: arguments[0])
                 }
                 return .repeat(value)
+            case "oversample":
+                try requireArgumentCount(1)
+                let factor = try positiveInteger(at: 0)
+                guard factor > 1 else {
+                    throw TransformationParseError.invalidResamplingFactor(
+                        operation: operation,
+                        value: arguments[0],
+                    )
+                }
+                return .oversample(factor)
             case "forecast":
                 guard arguments.count == 1 || arguments.count == 2 else {
                     throw TransformationParseError.invalidArgumentCount(
@@ -1086,6 +1130,7 @@ enum Transformation: Equatable {
              .triggerRunt,
              .seamless,
              .pad,
+             .padPoints,
              .extendTo,
              .downsample,
              .upsample,
@@ -1093,8 +1138,11 @@ enum Transformation: Equatable {
              .extractPeriod,
              .cutAfter,
              .cutBefore,
+             .dropLast,
+             .dropLastPoints,
              .trim,
              .repeat,
+             .oversample,
              .tcn:
             true
         default:
@@ -1266,7 +1314,14 @@ enum Transformation: Equatable {
         case let .seamless(rampDuration):
             return seamlessPoints(points, rampDuration: rampDuration)
         case let .pad(duration, value):
-            return padPoints(points, duration: duration, value: value)
+            return padDurationPoints(points, duration: duration, value: value)
+        case let .padPoints(count, value):
+            return try padPointCount(
+                points,
+                count: count,
+                value: value,
+                sampleInterval: sampleInterval,
+            )
         case let .extendTo(endTime, value):
             return extendPoints(to: endTime, points: points, value: value)
         case let .downsample(factor, interpolation):
@@ -1295,10 +1350,20 @@ enum Transformation: Equatable {
             return cutPointsAfter(points, after: value)
         case let .cutBefore(value):
             return cutPointsBefore(points, before: value)
+        case let .dropLast(duration):
+            return dropLastDurationPoints(points, duration: duration)
+        case let .dropLastPoints(count):
+            return droppingLastPoints(points, count: count)
         case let .trim(start, end):
             return trimPoints(points, start: start, end: end)
         case let .repeat(amount):
             return try repeatPoints(points, amount: amount)
+        case let .oversample(factor):
+            return try oversamplePoints(
+                points,
+                factor: factor,
+                sampleInterval: sampleInterval,
+            )
         case let .tcn(duration, sampleCount):
             return try tcnForecastPoints(
                 points,

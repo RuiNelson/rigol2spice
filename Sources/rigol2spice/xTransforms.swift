@@ -563,13 +563,43 @@ private func sincResampledValues(_ points: [Point], targetTimes: [Double]) -> [D
 }
 
 /// Extend the capture by `duration` past the last sample, holding `value` (or the last value).
-func padPoints(_ points: [Point], duration: Double, value: Double?) -> [Point] {
+func padDurationPoints(_ points: [Point], duration: Double, value: Double?) -> [Point] {
     guard !points.isEmpty, duration > 0 else {
         return points
     }
     let last = points[points.count - 1]
     var output = points
     output.append(Point(time: last.time + duration, value: value ?? last.value))
+    return output
+}
+
+/// Append exactly `count` samples using the capture interval and holding `value` (or the last value).
+func padPointCount(
+    _ points: [Point],
+    count: Int,
+    value: Double?,
+    sampleInterval providedSampleInterval: Double? = nil,
+) throws -> [Point] {
+    guard !points.isEmpty, count > 0 else {
+        return points
+    }
+    let interval = try resolveSampleInterval(
+        providedSampleInterval,
+        points: points,
+        operation: "PadPoints",
+    )
+    let last = points[points.count - 1]
+    let holdValue = value ?? last.value
+    var output = points
+    output.reserveCapacity(points.count + count)
+    for offset in 1 ... count {
+        output.append(
+            Point(
+                time: last.time + Double(offset) * interval,
+                value: holdValue,
+            ),
+        )
+    }
     return output
 }
 
@@ -662,6 +692,27 @@ func cutPointsBefore(_ points: [Point], before: Double) -> [Point] {
         return []
     }
     return shiftingFirstPointToZero(Array(points[startIndex...]))
+}
+
+/// Remove samples inside the final `duration` of the timestamp range.
+/// A sample exactly on the start boundary is retained.
+func dropLastDurationPoints(_ points: [Point], duration: Double) -> [Point] {
+    guard duration > 0, let lastTime = points.last?.time else {
+        return points
+    }
+    let cutoff = lastTime - duration
+    return points.filter { $0.time <= cutoff }
+}
+
+/// Remove exactly `count` samples from the end of the capture.
+func droppingLastPoints(_ points: [Point], count: Int) -> [Point] {
+    guard count > 0 else {
+        return points
+    }
+    guard count < points.count else {
+        return []
+    }
+    return Array(points.dropLast(count))
 }
 
 /// Keep samples with `start <= time < end`, then shift the first retained sample to t=0.

@@ -5,7 +5,6 @@ import Foundation
 enum TCNForecastError: LocalizedError, Equatable {
     case notEnoughSamples(actual: Int, minimum: Int)
     case nonFiniteSample(index: Int)
-    case nonUniformSampling(index: Int)
     case pointCountTooLarge(duration: Double)
 
     var errorDescription: String? {
@@ -14,8 +13,6 @@ enum TCNForecastError: LocalizedError, Equatable {
             "Forecast requires at least \(minimum) samples, but received \(actual)"
         case let .nonFiniteSample(index):
             "Forecast requires finite timestamps and values; sample \(index) is not finite"
-        case let .nonUniformSampling(index):
-            "Forecast requires uniformly spaced samples; sample \(index) is off the sampling grid. Add ResampleF before Forecast"
         case let .pointCountTooLarge(duration):
             "Forecast duration \(duration) would create too many samples"
         }
@@ -89,12 +86,18 @@ func tcnForecast(
         throw TCNForecastError.nonFiniteSample(index: index)
     }
 
-    let sampleInterval = try resolveSampleInterval(
-        providedSampleInterval,
-        points: points,
-        operation: "Forecast",
-    )
-    try validateTCNSampling(points, sampleInterval: sampleInterval)
+    let measuredInterval = (points[points.count - 1].time - points[0].time)
+        / Double(points.count - 1)
+    let sampleInterval = if measuredInterval.isFinite, measuredInterval > 0 {
+        measuredInterval
+    }
+    else {
+        try resolveSampleInterval(
+            providedSampleInterval,
+            points: points,
+            operation: "Forecast",
+        )
+    }
 
     let forecastRatio = duration / sampleInterval
     let nearestForecastCount = forecastRatio.rounded()
@@ -319,17 +322,6 @@ private func fittedTCNTrend(_ values: [Double]) -> TCNTrend {
         return TCNTrend(intercept: mean, slope: 0)
     }
     return TCNTrend(intercept: intercept, slope: slope)
-}
-
-private func validateTCNSampling(_ points: [Point], sampleInterval: Double) throws {
-    let origin = points[0].time
-    let tolerance = max(abs(sampleInterval) * 1e-6, 1e-15)
-    for index in 1 ..< points.count {
-        let expected = origin + Double(index) * sampleInterval
-        if abs(points[index].time - expected) > tolerance * max(1, Double(index)) {
-            throw TCNForecastError.nonUniformSampling(index: index)
-        }
-    }
 }
 
 /// Build a sparse dilated causal kernel: dense recent taps plus an automatically detected

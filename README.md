@@ -184,13 +184,24 @@ Commands use the syntax `OPERATION argument`. Operation names are case-insensiti
 | `MatchEnds` | `MatchEnds` | Alias of `Seamless` |
 | `Pad` | `Pad 5m` · `Pad 5m, 0` | Extend by a duration, holding the last value (or a given level) |
 | `HoldLast` | `HoldLast 5m` | Alias of `Pad` |
+| `PadPoints` | `PadPoints 100` · `PadPoints 100, 0` | Append exactly N samples, holding the last value (or a given level) |
+| `HoldLastPoints` | `HoldLastPoints 100` | Alias of `PadPoints` |
 | `ExtendTo` | `ExtendTo 10m` · `ExtendTo 10m, 0` | Extend to an absolute end time, holding the last value (or a given level) |
 | `ExtractPeriod` | `ExtractPeriod` · `ExtractPeriod 0.5` | Keep one cycle from the first rising crossing (auto or given threshold); shift to t=0 |
 | `CutBefore` | `CutBefore 5m` | Discard samples before the timestamp and shift the first retained sample to t=0 |
 | `CutAfter` | `CutAfter 10u` | Discard samples at or after the timestamp |
+| `DropLast` | `DropLast 10u` | Remove samples inside the final duration; retain a sample exactly on the start boundary |
+| `DropLastPoints` | `DropLastPoints 10` | Remove exactly the final N sample points |
 | `Trim` | `Trim 1m, 10m` | Keep samples with start ≤ t < end and shift the first retained sample to t=0 |
 | `Repeat` | `Repeat 2.5` | Append copies of the capture⁴ |
+| `Oversample` | `Oversample 5` | Divide the capture into 5 equal segments and average their aligned samples |
 | `Forecast` | `Forecast 5m` · `Forecast 5m, 500` | Automatically choose a forecast model and append a duration, optionally using an exact number of samples |
+
+`Oversample N` performs coherent ensemble averaging for a repeating capture. The sample count
+must be exactly divisible by N. It returns one segment starting at t=0, preserves the original
+sample interval, and averages each output value from the N corresponding segment values. If the
+division is not exact, the error reports how many samples—and how much capture time—to add or
+remove. Segment alignment is essential: drift or a non-repeating signal will blur the result.
 
 `Forecast duration[, samples]` is a self-contained forecast: it trains on the current waveform and appends
 uniformly spaced future samples, so no model file or extra dependency is needed. It automatically
@@ -198,8 +209,9 @@ backtests causal temporal convolution, repeating-pattern, linear-trend, stable-m
 strategies on a known part of the capture. The best strategy is retrained on the complete capture;
 the console reports its name and a 0–100% backtest confidence. Confidence below 20% also emits a
 warning and uses a conservative competitive forecast. It works best when the capture contains
-several examples of the pattern to predict. The input must contain at
-least 8 finite, uniformly spaced samples; add `ResampleF` before `Forecast` when necessary. Long,
+several examples of the pattern to predict. The input must contain at least 8 finite samples.
+Forecast aligns data by sample position and uses the average interval between the first and last
+timestamps for its output, so small or deliberate timestamp irregularities are accepted. Long,
 chaotic, or changing signals remain inherently uncertain, so treat the result as an estimate.
 
 ### Resampling

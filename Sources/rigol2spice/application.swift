@@ -520,6 +520,17 @@ struct Rigol2SpiceApplication {
                     "Padding signal by \(engineeringFormatter.string(duration))s (hold last value)...",
                 )
             }
+        case let .padPoints(count, value):
+            if let value {
+                Console.section(
+                    "Padding signal by \(count) sample points at \(engineeringFormatter.string(value))...",
+                )
+            }
+            else {
+                Console.section(
+                    "Padding signal by \(count) sample points (hold last value)...",
+                )
+            }
         case let .extendTo(endTime, value):
             if let value {
                 Console.section(
@@ -565,12 +576,22 @@ struct Rigol2SpiceApplication {
             Console.section(
                 "Cutting signal before \(engineeringFormatter.string(value))s and shifting it to t=0...",
             )
+        case let .dropLast(duration):
+            Console.section(
+                "Removing the final \(engineeringFormatter.string(duration))s of the signal...",
+            )
+        case let .dropLastPoints(count):
+            Console.section("Removing the final \(count) sample points...")
         case let .trim(start, end):
             Console.section(
                 "Trimming signal from \(engineeringFormatter.string(start))s to \(engineeringFormatter.string(end))s and shifting it to t=0...",
             )
         case let .repeat(amount):
             Console.section("Repeating capture for \(engineeringFormatter.string(amount)) times...")
+        case let .oversample(factor):
+            Console.section(
+                "Averaging \(factor) equal capture segments to improve amplitude resolution...",
+            )
         case let .tcn(duration, sampleCount):
             if let sampleCount {
                 Console.section(

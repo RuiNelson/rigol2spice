@@ -138,7 +138,7 @@ struct TCNForecastTests {
     }
 
     @Test
-    func `tcn rejects short non finite and irregular inputs`() {
+    func `forecast rejects short and non finite inputs but accepts irregular timestamps`() throws {
         #expect(throws: TCNForecastError.notEnoughSamples(actual: 7, minimum: 8)) {
             try tcnForecastPoints((0 ..< 7).map { Point(time: Double($0), value: 0) }, duration: 1)
         }
@@ -151,8 +151,8 @@ struct TCNForecastTests {
 
         var irregular = (0 ..< 8).map { Point(time: Double($0), value: Double($0)) }
         irregular[5].time += 0.1
-        #expect(throws: TCNForecastError.nonUniformSampling(index: 5)) {
-            try tcnForecastPoints(irregular, duration: 1)
-        }
+        let result = try tcnForecastPoints(irregular, duration: 1)
+        #expect(result.count == 9)
+        #expect(result.last?.time == 8)
     }
 }
