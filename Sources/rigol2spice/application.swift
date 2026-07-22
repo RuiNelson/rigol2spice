@@ -106,8 +106,11 @@ struct Rigol2SpiceApplication {
             reportAnalysis(analysisReports)
         }
 
-        if let decoder, let decoderPoints {
+        let decodedResult: ProtocolDecodeResult? = if let decoder, let decoderPoints {
             try decode(decoder, pointsByChannel: decoderPoints)
+        }
+        else {
+            nil
         }
 
         // Plot the dense processed waveform (before collinear optimization).
@@ -118,6 +121,7 @@ struct Rigol2SpiceApplication {
                 sourceFile: options.inputFile,
                 channel: capture.selectedChannel ?? options.channel,
                 analysisReports: analysisReports,
+                decodeResult: decodedResult,
             )
         }
 
@@ -273,7 +277,10 @@ struct Rigol2SpiceApplication {
         return result
     }
 
-    private func decode(_ request: DecodeRequest, pointsByChannel: [String: [Point]]) throws {
+    private func decode(
+        _ request: DecodeRequest,
+        pointsByChannel: [String: [Point]],
+    ) throws -> ProtocolDecodeResult {
         func points(_ channel: String) throws -> [Point] {
             guard let points = pointsByChannel[channel] else {
                 throw ParseError.channelNotFound(channelLabel: channel)
@@ -336,6 +343,7 @@ struct Rigol2SpiceApplication {
             let data = try writer.data(for: result, format: options.decodeFormat)
             FileHandle.standardOutput.write(data)
         }
+        return result
     }
 
     private func loadInput() throws -> Data {
@@ -894,6 +902,7 @@ struct Rigol2SpiceApplication {
         sourceFile: String,
         channel: String,
         analysisReports: [AnalysisReport] = [],
+        decodeResult: ProtocolDecodeResult? = nil,
     ) throws {
         if points.count > PlotWriter.largePlotPointThreshold {
             Console.warning(
@@ -920,6 +929,8 @@ struct Rigol2SpiceApplication {
             sourceFile: sourceFile,
             channel: channel,
             analysisReports: analysisReports,
+            decodeTitle: decodeResult?.plotTitle,
+            decodeAnnotations: decodeResult?.plotAnnotations ?? [],
         )
         Console.detail(
             "Saving file: \(ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))...",

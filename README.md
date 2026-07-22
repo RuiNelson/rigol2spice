@@ -150,6 +150,8 @@ rigol2spice.exe capture.wfm --decode "SPI clk=CH1, mosi=CH2, miso=CH3, cs=CH4, m
 
 `order` defaults to `msb`; `cs-active` defaults to `low`. Omit `cs` for captures that contain only the intended transfer. Every relevant protocol channel receives the same ordered transformations before decoding. The output-only `--downsample` step runs later and therefore cannot alter decoded frames.
 
+When `--decode` and `--plot` are combined, the SVG includes a time-aligned protocol lane below the waveform. UART bytes and parity/framing errors, I²C addresses/data/ACK status, and SPI MOSI/MISO words are labelled over their decoded time intervals; each interval also includes an SVG tooltip.
+
 Use `--decode-format` to select the decoder output and `--decode-output` to write it to a file:
 
 ```bat
@@ -541,7 +543,7 @@ Wave-type analysis compares measured harmonic-amplitude ratios, up to harmonic 1
 | `-k, --keep-all` | Disable removal of redundant (collinear) points |
 | `-p, --plot [file]` | Write an SVG plot of the processed signal (default: `plot.svg`) |
 
-The plot uses 1 pixel per sample, auto-scaled Y (min / avg / max markers), and decade-spaced X time markers. When `-a` is combined with `-p`, analysis results are listed in a text block under the time plot (not drawn over the waveform). An `FFT` analysis also appends a spectrum panel (dB vs frequency, peak marker). A console warning is emitted above 10 000 points (use a `Downsample` transformation or a shorter time window when the plot itself should contain fewer samples).
+The plot uses 1 pixel per sample, auto-scaled Y (min / avg / max markers), and decade-spaced X time markers. When `-a` is combined with `-p`, analysis results are listed in a text block under the time plot (not drawn over the waveform). When `--decode` is combined with `-p`, a time-aligned decoded-protocol lane is added below the time plot. An `FFT` analysis also appends a spectrum panel (dB vs frequency, peak marker). A console warning is emitted above 10 000 points (use a `Downsample` transformation or a shorter time window when the plot itself should contain fewer samples).
 
 ## Full Usage Reference (`-h`)
 

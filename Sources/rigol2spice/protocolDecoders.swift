@@ -343,3 +343,63 @@ struct SPIDecoder {
         return SPIDecodeResult(mode: configuration.mode, bitOrder: configuration.bitOrder, frames: frames)
     }
 }
+
+// MARK: - Plot annotations
+
+extension ProtocolDecodeResult {
+    var plotTitle: String {
+        switch self {
+        case let .uart(result): "UART · \(String(format: "%.12g", result.baudRate)) baud"
+        case let .i2c(result): "I2C · \(result.transactions.count) transaction(s)"
+        case let .spi(result): "SPI mode \(result.mode) · \(result.bitOrder.rawValue) first"
+        }
+    }
+
+    var plotAnnotations: [PlotAnnotation] {
+        switch self {
+        case let .uart(result):
+            result.frames.map { frame in
+                var suffixes: [String] = []
+                if frame.parityError { suffixes.append("PARITY") }
+                if frame.framingError { suffixes.append("FRAMING") }
+                let suffix = suffixes.isEmpty ? "" : " · " + suffixes.joined(separator: "+")
+                let digits = max(1, (frame.dataBits + 3) / 4)
+                return PlotAnnotation(
+                    startTime: frame.startTime,
+                    endTime: frame.endTime,
+                    label: "0x\(String(format: "%0*X", digits, frame.value))\(suffix)",
+                    isError: frame.parityError || frame.framingError,
+                )
+            }
+        case let .i2c(result):
+            result.frames.map { frame in
+                let acknowledgement = frame.acknowledged ? "ACK" : "NACK"
+                let label = if let address = frame.address, let read = frame.read {
+                    "ADDR 0x\(String(format: "%02X", address)) \(read ? "R" : "W") · \(acknowledgement)"
+                }
+                else {
+                    "0x\(String(format: "%02X", frame.value)) · \(acknowledgement)"
+                }
+                return PlotAnnotation(
+                    startTime: frame.startTime,
+                    endTime: frame.endTime,
+                    label: label,
+                    isError: false,
+                )
+            }
+        case let .spi(result):
+            result.frames.map { frame in
+                let digits = max(1, (frame.bitCount + 3) / 4)
+                var fields: [String] = []
+                if let mosi = frame.mosi { fields.append("MOSI 0x\(String(format: "%0*llX", digits, mosi))") }
+                if let miso = frame.miso { fields.append("MISO 0x\(String(format: "%0*llX", digits, miso))") }
+                return PlotAnnotation(
+                    startTime: frame.startTime,
+                    endTime: frame.endTime,
+                    label: fields.joined(separator: " · "),
+                    isError: false,
+                )
+            }
+        }
+    }
+}

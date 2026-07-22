@@ -1,6 +1,15 @@
 import Foundation
 import SwiftEngineeringNumberFormatter
 
+// MARK: - PlotAnnotation
+
+struct PlotAnnotation: Equatable {
+    let startTime: Double
+    let endTime: Double
+    let label: String
+    let isError: Bool
+}
+
 // MARK: - PlotWriter
 
 enum PlotWriter {
@@ -16,6 +25,7 @@ enum PlotWriter {
     private static let bottomMargin: Double = 48
     private static let analysisLineHeight: Double = 15
     private static let analysisBlockPadding: Double = 10
+    private static let decodeBlockHeight: Double = 48
 
     /// Compact engineering labels for axis ticks (1 decimal place).
     private static let plotEngineeringFormatter = EngineeringNumberFormatter(
@@ -33,12 +43,16 @@ enum PlotWriter {
         sourceFile: String,
         channel: String,
         analysisReports: [AnalysisReport] = [],
+        decodeTitle: String? = nil,
+        decodeAnnotations: [PlotAnnotation] = [],
     ) throws -> Int {
         let svg = render(
             points,
             sourceFile: sourceFile,
             channel: channel,
             analysisReports: analysisReports,
+            decodeTitle: decodeTitle,
+            decodeAnnotations: decodeAnnotations,
         )
         guard let data = svg.data(using: .utf8) else {
             throw PlotError.encodingFailed
@@ -52,6 +66,8 @@ enum PlotWriter {
         sourceFile: String = "",
         channel: String = "",
         analysisReports: [AnalysisReport] = [],
+        decodeTitle: String? = nil,
+        decodeAnnotations: [PlotAnnotation] = [],
     ) -> String {
         guard !points.isEmpty else {
             return emptySVG(sourceFile: sourceFile, channel: channel)
@@ -60,6 +76,7 @@ enum PlotWriter {
         let count = points.count
         let plotWidth = Double(max(count, 1))
         let spectra = analysisReports.compactMap(\.fftSpectrum)
+        let decodedBlockHeight = decodeTitle == nil && decodeAnnotations.isEmpty ? 0 : decodeBlockHeight
         // Title line + one line per report, below the X-axis labels.
         let analysisBlockHeight = analysisReports.isEmpty
             ? 0
@@ -69,11 +86,13 @@ enum PlotWriter {
             ? 0
             : Double(spectra.count) * (spectrumGap + spectrumHeight + spectrumBottomPad)
         let width = leftMargin + plotWidth + rightMargin
-        let analysisOriginY = topMargin + plotHeight + bottomMargin + 4
+        let decodeOriginY = topMargin + plotHeight + bottomMargin + 4
+        let analysisOriginY = decodeOriginY + decodedBlockHeight
         let spectraOriginY = analysisOriginY
             + (analysisReports.isEmpty ? 0 : analysisBlockHeight)
             + (spectra.isEmpty ? 0 : 8)
         let height = topMargin + plotHeight + bottomMargin
+            + decodedBlockHeight
             + (analysisReports.isEmpty ? 0 : analysisBlockHeight)
             + spectraBlockHeight
             + (spectra.isEmpty || analysisReports.isEmpty ? 0 : 8)
@@ -212,6 +231,13 @@ enum PlotWriter {
             plotWidth: plotWidth,
             originY: spectraOriginY,
         )
+        let decodeElements = decodeAnnotationElements(
+            annotations: decodeAnnotations,
+            title: decodeTitle ?? "Decoded protocol",
+            points: points,
+            plotWidth: plotWidth,
+            originY: decodeOriginY,
+        )
 
         return """
         <?xml version="1.0" encoding="UTF-8"?>
@@ -240,6 +266,11 @@ enum PlotWriter {
               .subtitle { fill: #94a3b8; font: 12px ui-sans-serif, system-ui, -apple-system, sans-serif; }
               .analysis-title { fill: #cbd5e1; font: 600 11px ui-sans-serif, system-ui, -apple-system, sans-serif; }
               .analysis-line { fill: #e2e8f0; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
+              .decode-panel { fill: #111b31; stroke: #33466e; stroke-width: 1; }
+              .decode-event { fill: #164e63; stroke: #22d3ee; stroke-width: 1; }
+              .decode-event-error { fill: #7f1d1d; stroke: #fb7185; stroke-width: 1; }
+              .decode-title { fill: #cbd5e1; font: 600 10px ui-sans-serif, system-ui, -apple-system, sans-serif; }
+              .decode-label { fill: #ecfeff; font: 10px ui-monospace, SFMono-Regular, Menlo, monospace; text-anchor: middle; }
               .spectrum-title { fill: #cbd5e1; font: 600 11px ui-sans-serif, system-ui, -apple-system, sans-serif; }
             </style>
           </defs>
@@ -253,6 +284,7 @@ enum PlotWriter {
           <polyline class="signal" points="\(polyline)"/>
           \(xLabels)
           \(titleElements(sourceFile: sourceFile, channel: channel, x: leftMargin))
+          \(decodeElements)
           \(analysisText)
           \(spectrumPanels)
         </svg>
@@ -469,6 +501,61 @@ enum PlotWriter {
             roundedMin = roundedMax - max(interval, 10)
         }
         return (roundedMin, roundedMax)
+    }
+
+    private static func decodeAnnotationElements(
+        annotations: [PlotAnnotation],
+        title: String,
+        points: [Point],
+        plotWidth: Double,
+        originY: Double,
+    ) -> String {
+        guard !points.isEmpty else { return "" }
+        let firstTime = points[0].time
+        let lastTime = points[points.count - 1].time
+        var elements = """
+        <rect class="decode-panel" x="\(formatCoord(leftMargin))" y="\(formatCoord(originY))" width="\(formatCoord(
+            plotWidth,
+        ))" height="44.00" rx="5"/>
+        <text class="decode-title" x="\(formatCoord(leftMargin + 4))" y="\(formatCoord(originY + 12))">\(escapeXML(
+            title,
+        ))</text>
+        """
+
+        if annotations.isEmpty {
+            elements.append(
+                """
+                <text class="decode-label" x="\(formatCoord(leftMargin + plotWidth / 2))" y="\(formatCoord(originY +
+                        31))">No decoded frames</text>
+                """,
+            )
+        }
+
+        for (index, annotation) in annotations.enumerated() {
+            guard annotation.endTime >= firstTime, annotation.startTime <= lastTime else { continue }
+            let startIndex = nearestIndex(forTime: max(firstTime, annotation.startTime), in: points)
+            let endIndex = nearestIndex(forTime: min(lastTime, annotation.endTime), in: points)
+            let x = leftMargin + Double(min(startIndex, endIndex))
+            let availableWidth = max(1, leftMargin + plotWidth - x)
+            let width = min(max(2, Double(abs(endIndex - startIndex))), availableWidth)
+            let eventClass = annotation.isError ? "decode-event-error" : "decode-event"
+            let clipID = "decode-clip-\(index)"
+            let label = escapeXML(annotation.label)
+            elements.append(
+                """
+                <clipPath id="\(clipID)"><rect x="\(formatCoord(x))" y="\(formatCoord(originY +
+                        15))" width="\(formatCoord(width))" height="24.00"/></clipPath>
+                <g class="decode-group">
+                  <title>\(label)</title>
+                  <rect class="\(eventClass)" x="\(formatCoord(x))" y="\(formatCoord(originY +
+                          16))" width="\(formatCoord(width))" height="22.00" rx="2"/>
+                  <text class="decode-label" clip-path="url(#\(clipID))" x="\(formatCoord(x + width /
+                          2))" y="\(formatCoord(originY + 31))">\(label)</text>
+                </g>
+                """,
+            )
+        }
+        return elements
     }
 
     private static func analysisTextElements(

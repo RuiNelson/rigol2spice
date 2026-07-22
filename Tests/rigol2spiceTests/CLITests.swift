@@ -404,9 +404,12 @@ struct CLITests {
             .appendingPathComponent("rigol2spice-i2c-\(UUID().uuidString).csv")
         let output = FileManager.default.temporaryDirectory
             .appendingPathComponent("rigol2spice-i2c-\(UUID().uuidString)-decoded.csv")
+        let plot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rigol2spice-i2c-\(UUID().uuidString).svg")
         defer {
             try? FileManager.default.removeItem(at: input)
             try? FileManager.default.removeItem(at: output)
+            try? FileManager.default.removeItem(at: plot)
         }
 
         var states: [(sda: Bool, scl: Bool)] = []
@@ -436,6 +439,7 @@ struct CLITests {
             "--decode", "I2C sda=SDA, scl=SCL, threshold=4",
             "--decode-format", "csv",
             "--decode-output", output.path,
+            "--plot", plot.path,
         ])
 
         #expect(result.status == 0)
@@ -445,6 +449,10 @@ struct CLITests {
         #expect(csv.contains("I2C,0,"))
         #expect(csv.contains(",0xA0,160,address,0x50,write,true"))
         #expect(csv.contains(",0x42,66,data,,,true"))
+        let svg = try String(contentsOf: plot, encoding: .utf8)
+        #expect(svg.contains("class=\"decode-panel\""))
+        #expect(svg.contains("ADDR 0x50 W · ACK"))
+        #expect(svg.contains("0x42 · ACK"))
     }
 
     private func runCLI(_ arguments: [String]) throws -> CLIResult {
