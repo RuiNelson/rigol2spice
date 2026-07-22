@@ -48,6 +48,26 @@ struct OversampleTests {
             ))
             #expect(error.localizedDescription.contains("Remove 2 sample(s) (4us)"))
             #expect(error.localizedDescription.contains("add 3 sample(s) (6us)"))
+            #expect(error.localizedDescription.contains("Alternatively, apply `ResampleF "))
+            #expect(error.localizedDescription.contains("Hz` before `Oversample 5`"))
+            #expect(error.localizedDescription.contains("to resample to 10 samples"))
+
+            let rateStart = try #require(
+                error.localizedDescription.range(of: "`ResampleF ")?.upperBound,
+            )
+            let rateEnd = try #require(
+                error.localizedDescription[rateStart...].range(of: "Hz`")?.lowerBound,
+            )
+            let suggestedRate = try #require(parseEngineeringNotation(
+                String(error.localizedDescription[rateStart ..< rateEnd]),
+            ))
+            let resampled = try resamplePoints(
+                points,
+                frequency: suggestedRate,
+                interpolation: .linear,
+            )
+            #expect(resampled.count == 10)
+            #expect(resampled.count.isMultiple(of: 5))
         }
     }
 

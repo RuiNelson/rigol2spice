@@ -255,6 +255,8 @@ chaotic, or changing signals remain inherently uncertain, so treat the result as
 | `sinc` | Finite windowed-sinc interpolation; best suited to sufficiently sampled, band-limited signals |
 | `fast` | Select original samples at source positions `0`, `factor`, `2 × factor`, and so on; performs no interpolation |
 
+Scalar arguments accept an optional physical-unit suffix after the engineering prefix. The unit is ignored, so `Pad 5ms` is equivalent to `Pad 5m`, and `ResampleF 10MHz` is equivalent to `ResampleF 10M`. Engineering prefixes remain case-sensitive (`m` is milli and `M` is mega).
+
 `ResampleF` and `Downsample` do not apply an anti-alias low-pass filter automatically when reducing the sampling frequency. Add `LowPass` earlier in the transformation chain when anti-alias filtering is required. The post-processing option `--downsample N` is equivalent to a final `Downsample N` with linear interpolation.
 
 ### Triggers

@@ -16,7 +16,7 @@ enum OversampleError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case let .factorExceedsPointCount(factor, pointCount):
-            "Oversample factor \(factor) exceeds the capture's \(pointCount) samples"
+            return "Oversample factor \(factor) exceeds the capture's \(pointCount) samples"
         case let .pointCountNotDivisible(
             factor,
             pointCount,
@@ -24,9 +24,16 @@ enum OversampleError: LocalizedError, Equatable {
             addPoints,
             sampleInterval,
         ):
-            "Oversample \(factor) requires a sample count divisible by \(factor), but the capture has \(pointCount) samples. Remove \(removePoints) sample(s) (\(engineeringFormatter.string(Double(removePoints) * sampleInterval))s) or add \(addPoints) sample(s) (\(engineeringFormatter.string(Double(addPoints) * sampleInterval))s)."
+            let targetPointCount = removePoints <= addPoints
+                ? pointCount - removePoints
+                : pointCount + addPoints
+            let duration = Double(pointCount - 1) * sampleInterval
+            // Keep the suggested rate just above the exact boundary because ResampleF
+            // determines its point count by flooring duration * frequency.
+            let frequency = (Double(targetPointCount - 1) / duration) * (1 + 1e-12)
+            return "Oversample \(factor) requires a sample count divisible by \(factor), but the capture has \(pointCount) samples. Remove \(removePoints) sample(s) (\(engineeringFormatter.string(Double(removePoints) * sampleInterval))s) or add \(addPoints) sample(s) (\(engineeringFormatter.string(Double(addPoints) * sampleInterval))s). Alternatively, apply `ResampleF \(engineeringFormatter.string(frequency))Hz` before `Oversample \(factor)` to resample to \(targetPointCount) samples."
         case let .nonFiniteSample(index):
-            "Oversample requires finite timestamps and values; sample \(index) is not finite"
+            return "Oversample requires finite timestamps and values; sample \(index) is not finite"
         }
     }
 }

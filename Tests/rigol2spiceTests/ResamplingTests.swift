@@ -29,6 +29,9 @@ struct ResamplingTests {
         #expect(try Transformation.parseList("ResampleF 1M, PCHIP") == [
             .resampleF(frequency: 1_000_000, interpolation: .pchip),
         ])
+        #expect(try Transformation.parseList("ResampleF 10Mhz") == [
+            .resampleF(frequency: 10_000_000, interpolation: .linear),
+        ])
     }
 
     @Test

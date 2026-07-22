@@ -405,6 +405,7 @@ struct Rigol2spiceTests {
     @Test
     func `pad and extendTo lengthen the capture`() throws {
         #expect(try Transformation.parseList("Pad 5") == [.pad(duration: 5, value: nil)])
+        #expect(try Transformation.parseList("Pad 5ms") == [.pad(duration: 5e-3, value: nil)])
         #expect(try Transformation.parseList("HoldLast 2, 0") == [.pad(duration: 2, value: 0)])
         #expect(try Transformation.parseList("ExtendTo 10") == [.extendTo(endTime: 10, value: nil)])
         #expect(try Transformation.parseList("ExtendTo 10, -1") == [.extendTo(endTime: 10, value: -1)])
