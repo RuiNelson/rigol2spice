@@ -118,6 +118,55 @@ rigol2spice.exe -c "(CH1-CH2)/CH3" input.csv output.txt
 rigol2spice.exe -c "CH1-CH2" -t "RemoveDC" input.csv output.txt
 ```
 
+## Serial Decoding (`--decode`)
+
+Decode UART, I²C, and SPI signals directly from analogue capture channels. UART accepts an explicit baud rate or automatic detection:
+
+```bat
+rigol2spice.exe capture.wfm --decode "UART rx=CH2, baud=115200, threshold=1.65"
+```
+
+Set `baud=auto` to estimate the baud rate from the captured signal:
+
+```bat
+rigol2spice.exe capture.wfm --decode "UART rx=CH2, baud=auto, threshold=1.65"
+```
+
+An explicit baud rate is preferable when it is known. Automatic detection requires enough clean transitions in the capture to determine the bit period reliably. `threshold` is the analogue voltage used to distinguish low and high logic levels.
+
+I²C requires SDA and SCL. It reports START/repeated-START transactions, 7-bit addresses, read/write direction, bytes, and ACK/NACK:
+
+```bat
+rigol2spice.exe capture.wfm --decode "I2C sda=CH1, scl=CH2, threshold=1.65" --decode-format csv --decode-output i2c.csv
+```
+
+Use `sda-threshold` and `scl-threshold` instead of the shared `threshold` when the channels use different logic levels.
+
+SPI supports modes 0–3, MSB/LSB-first words, optional chip select, and either or both data directions:
+
+```bat
+rigol2spice.exe capture.wfm --decode "SPI clk=CH1, mosi=CH2, miso=CH3, cs=CH4, mode=0, bits=8, threshold=1.65" --decode-format csv --decode-output spi.csv
+```
+
+`order` defaults to `msb`; `cs-active` defaults to `low`. Omit `cs` for captures that contain only the intended transfer. Every relevant protocol channel receives the same ordered transformations before decoding. The output-only `--downsample` step runs later and therefore cannot alter decoded frames.
+
+Use `--decode-format` to select the decoder output and `--decode-output` to write it to a file:
+
+```bat
+rigol2spice.exe capture.wfm --decode "UART rx=CH2, baud=115200, threshold=1.65" --decode-format csv --decode-output uart.csv
+rigol2spice.exe capture.wfm --decode "UART rx=CH2, baud=auto, threshold=1.65" --decode-format bin --decode-output uart.bin
+```
+
+| Decode format | Output |
+|---|---|
+| `text` (default) | Human-readable decoded events, including timing and UART status information |
+| `csv` | The same event information as `text`, represented as CSV with a header row |
+| `bin` | Raw decoded octets, with no text, timestamps, headers, separators, or error metadata |
+
+For UART, `bin` contains valid frames only. For I²C it contains data bytes and omits address bytes. For SPI it contains MOSI words, or MISO when MOSI is absent. SPI words wider than eight bits cannot be represented by `bin`; use text or CSV instead. Use text or CSV when timing, addressing, acknowledgement, or error details need to be retained.
+
+If `--decode-output` is omitted, `text` and `csv` are written to standard output. Binary output requires `--decode-output`, preventing raw bytes from being mixed with the normal console report.
+
 ## Transformations (`-t`)
 
 Pass an ordered list of transformation commands with `-t` or `--transformations`. Separate commands with semicolons or line breaks (CR, LF, or CRLF); empty commands and blank lines are ignored. Enclose the complete string in double quotes for the Windows command line:
@@ -257,7 +306,7 @@ chaotic, or changing signals remain inherently uncertain, so treat the result as
 
 Scalar arguments accept an optional physical-unit suffix after the engineering prefix. The unit is ignored, so `Pad 5ms` is equivalent to `Pad 5m`, and `ResampleF 10MHz` is equivalent to `ResampleF 10M`. Engineering prefixes remain case-sensitive (`m` is milli and `M` is mega).
 
-`ResampleF` and `Downsample` do not apply an anti-alias low-pass filter automatically when reducing the sampling frequency. Add `LowPass` earlier in the transformation chain when anti-alias filtering is required. The post-processing option `--downsample N` is equivalent to a final `Downsample N` with linear interpolation.
+`ResampleF` and the `Downsample` transformation do not apply an anti-alias low-pass filter automatically when reducing the sampling frequency. Add `LowPass` earlier in the transformation chain when anti-alias filtering is required. The post-processing option `--downsample N` is separate: it reduces only a converted signal output, after transformations, analyses, and protocol decoding have used the full processed waveform.
 
 ### Triggers
 
@@ -362,7 +411,7 @@ rigol2spice.exe fm-capture.csv recovered.txt -t "DemodFM 100k, 10k, 20k"
 
 ## Analysis (`-a`)
 
-Pass measurement commands with `-a` or `--analysis`. Syntax matches `-t` (commands separated by semicolons or CR/LF/CRLF line breaks; empty commands and blank lines ignored; case-insensitive; engineering scalars). Results print to the console with one fractional digit and combine the engineering prefix with the physical unit, for example `2.4ms`, `8.4mV`, `1.2MV/s`, or `2mW`. Signal amplitudes are reported in volts; ratios such as duty cycle and THD are displayed as percentages, while crest factor uses `×`. Analysis always run **after** transformations (and downsample), on the processed waveform. When `-a` is used, the PWL output file is optional (same as `-l` / `-p`).
+Pass measurement commands with `-a` or `--analysis`. Syntax matches `-t` (commands separated by semicolons or CR/LF/CRLF line breaks; empty commands and blank lines ignored; case-insensitive; engineering scalars). Results print to the console with one fractional digit and combine the engineering prefix with the physical unit, for example `2.4ms`, `8.4mV`, `1.2MV/s`, or `2mW`. Signal amplitudes are reported in volts; ratios such as duty cycle and THD are displayed as percentages, while crest factor uses `×`. Analyses always run **after transformations** on the full processed waveform, before the output-only `--downsample` step. When `-a` is used, the PWL output file is optional (same as `-l` / `-p`).
 
 Use `-af` or `--analysis-file` to read analysis from a UTF-8 file. When combined with `-a`, file analysis come first, so dependents such as an inline `THD` can reuse an `FFT` declared in the file.
 
@@ -488,11 +537,11 @@ Wave-type analysis compares measured harmonic-amplitude ratios, up to harmonic 1
 
 | Option | Effect |
 |---|---|
-| `-d, --downsample N` | Reduce point count by factor N using linear interpolation, equivalent to a final `Downsample N` |
+| `-d, --downsample N` | Reduce only the converted signal output by factor N, after transformations, analyses, and decoding |
 | `-k, --keep-all` | Disable removal of redundant (collinear) points |
 | `-p, --plot [file]` | Write an SVG plot of the processed signal (default: `plot.svg`) |
 
-The plot uses 1 pixel per sample, auto-scaled Y (min / avg / max markers), and decade-spaced X time markers. When `-a` is combined with `-p`, analysis results are listed in a text block under the time plot (not drawn over the waveform). An `FFT` analysis also appends a spectrum panel (dB vs frequency, peak marker). A console warning is emitted above 10 000 points (prefer downsample or a shorter time window).
+The plot uses 1 pixel per sample, auto-scaled Y (min / avg / max markers), and decade-spaced X time markers. When `-a` is combined with `-p`, analysis results are listed in a text block under the time plot (not drawn over the waveform). An `FFT` analysis also appends a spectrum panel (dB vs frequency, peak marker). A console warning is emitted above 10 000 points (use a `Downsample` transformation or a shorter time window when the plot itself should contain fewer samples).
 
 ## Full Usage Reference (`-h`)
 
@@ -507,14 +556,17 @@ OPTIONS:
                                   Read transformations from a file before inline commands
   -a,  --analysis <value>         Ordered analyses separated by semicolons or line breaks; FFT dependants follow FFT
   -af, --analysis-file <value>    Read analyses from a file before inline commands
-  -d,  --downsample <ratio>       Downsample ratio
+       --decode <value>           Decode UART, I2C, or SPI signals
+       --decode-format <format>   Decoder output: text, csv, or bin (default: text)
+       --decode-output <file>     Write decoded output to a file
+  -d,  --downsample <ratio>       Downsample ratio for the converted signal output
   -f,  --format <format>          Output format: pwl, matlab, wav32, wav16, npy, or npz (default: pwl)
   -k,  --keep-all                 Keep all sample points
   -p,  --plot [<file>]            Write SVG plot (default: plot.svg)
   -h,  --help                     Show help
 ```
 
-`output-file` is optional with `-l`, `-p`, `-a`, or `-af`.
+`output-file` is optional with `-l`, `-p`, `-a`, `-af`, or `--decode`.
 
 ## Building from Source
 

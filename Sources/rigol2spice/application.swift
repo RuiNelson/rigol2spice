@@ -12,11 +12,13 @@ enum Rigol2SpiceError: LocalizedError, Equatable {
     case triggerEventNotFound(operation: String)
     case periodNotDetected
     case commandFileUnreadable(option: String, path: String, reason: String)
+    case decodeOutputWithoutDecoder
+    case binaryDecodeRequiresOutput
 
     var errorDescription: String? {
         switch self {
         case .outputFileNotSpecified:
-            "Please specify an output file, or use --list-channels, --plot, and/or --analysis"
+            "Please specify an output file, or use --list-channels, --plot, --analysis, and/or --decode"
         case .inputFileContainsNoPoints: "Input file contains zero samples"
         case let .invalidDownsampleValue(value): "Invalid downsample value: \(value)"
         case .mustHaveAtLeastTwoPointsToRepeat: "Must have at least two original samples to repeat capture"
@@ -29,6 +31,10 @@ enum Rigol2SpiceError: LocalizedError, Equatable {
             "Could not detect a repeating period in the capture"
         case let .commandFileUnreadable(option, path, reason):
             "Could not read \(option) file \"\(path)\": \(reason)"
+        case .decodeOutputWithoutDecoder:
+            "--decode-output and --decode-format require --decode"
+        case .binaryDecodeRequiresOutput:
+            "--decode-format bin requires --decode-output"
         }
     }
 }
@@ -42,6 +48,9 @@ struct ApplicationOptions {
     let transformationsFile: String?
     let analysis: String?
     let analysisFile: String?
+    let decode: String?
+    let decodeFormat: DecodeFormat
+    let decodeOutput: String?
     let downsample: Int?
     let format: OutputFormat
     let keepAll: Bool
@@ -60,9 +69,12 @@ struct Rigol2SpiceApplication {
     }
 
     func run() throws {
-        let (transformations, analyses) = try validateOptions()
+        let (transformations, analyses, decoder) = try validateOptions()
         let data = try loadInput()
-        let capture = try parseCapture(data)
+        let capture = try parseCapture(data, channel: decoder?.primaryChannel)
+        let decoderCaptures = try decoder.map {
+            try loadDecoderChannels($0, data: data, primaryCapture: capture)
+        }
 
         reportMetadata(capture.metadata)
         reportChannels(capture.channels)
@@ -80,10 +92,22 @@ struct Rigol2SpiceApplication {
             transformations: transformations,
             sampleInterval: capture.sampleInterval,
         )
+        let decoderPoints = try decoderCaptures.map {
+            try processDecoderChannels(
+                $0,
+                primaryChannel: decoder?.primaryChannel ?? "",
+                primaryPoints: processedPoints,
+                transformations: transformations,
+            )
+        }
 
         let analysisReports = AnalysisReport.reports(for: analyses, on: processedPoints)
         if !analysisReports.isEmpty {
             reportAnalysis(analysisReports)
+        }
+
+        if let decoder, let decoderPoints {
+            try decode(decoder, pointsByChannel: decoderPoints)
         }
 
         // Plot the dense processed waveform (before collinear optimization).
@@ -97,24 +121,31 @@ struct Rigol2SpiceApplication {
             )
         }
 
+        let signalPoints = if options.outputFile != nil {
+            try downsampleSignalOutput(processedPoints)
+        }
+        else {
+            processedPoints
+        }
+
         let outputPoints: [Point]
         if options.format == .pwl,
            !options.keepAll,
-           processedPoints.count >= 3,
+           signalPoints.count >= 3,
            options.outputFile != nil {
             Console.section("Removing redundant sample points (optimize)...")
-            let countBefore = processedPoints.count
-            outputPoints = removeRedundant(processedPoints)
+            let countBefore = signalPoints.count
+            outputPoints = removeRedundant(signalPoints)
             try reportPointCount(before: countBefore, after: outputPoints.count)
         }
         else {
-            outputPoints = processedPoints
+            outputPoints = signalPoints
         }
 
         if options.outputFile != nil {
             try write(
                 outputPoints,
-                sampleInterval: inferredSampleInterval(from: processedPoints) ?? capture.sampleInterval ?? 0,
+                sampleInterval: inferredSampleInterval(from: signalPoints) ?? capture.sampleInterval ?? 0,
             )
         }
 
@@ -122,10 +153,22 @@ struct Rigol2SpiceApplication {
         print("")
     }
 
-    private func validateOptions() throws -> (transformations: [Transformation], analyses: [Analysis]) {
+    private func validateOptions() throws -> (
+        transformations: [Transformation],
+        analyses: [Analysis],
+        decoder: DecodeRequest?,
+    ) {
         let hasAnalysis = options.analysis != nil || options.analysisFile != nil
-        guard options.listChannels || options.outputFile != nil || options.plotFile != nil || hasAnalysis else {
+        guard options.listChannels || options.outputFile != nil || options.plotFile != nil || hasAnalysis
+            || options.decode != nil else {
             throw Rigol2SpiceError.outputFileNotSpecified
+        }
+
+        guard options.decode != nil || (options.decodeOutput == nil && options.decodeFormat == .text) else {
+            throw Rigol2SpiceError.decodeOutputWithoutDecoder
+        }
+        if options.decode != nil, options.decodeFormat == .bin, options.decodeOutput == nil {
+            throw Rigol2SpiceError.binaryDecodeRequiresOutput
         }
 
         if let downsample = options.downsample, downsample <= 1 {
@@ -156,7 +199,8 @@ struct Rigol2SpiceApplication {
             []
         }
 
-        return (transformations, analyses)
+        let decoder = try options.decode.map(DecodeRequest.parse)
+        return (transformations, analyses, decoder)
     }
 
     private func combinedCommandSource(file: String?, inline: String?, option: String) throws -> String? {
@@ -193,6 +237,107 @@ struct Rigol2SpiceApplication {
         }
     }
 
+    private func loadDecoderChannels(
+        _ request: DecodeRequest,
+        data: Data,
+        primaryCapture: Capture,
+    ) throws -> [String: Capture] {
+        var result = [request.primaryChannel: primaryCapture]
+        let parser = CaptureFormat.detect(in: data).parser
+        for channel in request.channels where result[channel] == nil {
+            result[channel] = try parser.parse(data, channel: channel)
+        }
+        return result
+    }
+
+    private func processDecoderChannels(
+        _ captures: [String: Capture],
+        primaryChannel: String,
+        primaryPoints: [Point],
+        transformations: [Transformation],
+    ) throws -> [String: [Point]] {
+        var result: [String: [Point]] = [:]
+        for (channel, capture) in captures {
+            if channel == primaryChannel {
+                result[channel] = primaryPoints
+            }
+            else {
+                result[channel] = try process(
+                    capture.points,
+                    transformations: transformations,
+                    sampleInterval: capture.sampleInterval,
+                    reporting: false,
+                )
+            }
+        }
+        return result
+    }
+
+    private func decode(_ request: DecodeRequest, pointsByChannel: [String: [Point]]) throws {
+        func points(_ channel: String) throws -> [Point] {
+            guard let points = pointsByChannel[channel] else {
+                throw ParseError.channelNotFound(channelLabel: channel)
+            }
+            return points
+        }
+
+        let result: ProtocolDecodeResult
+        switch request {
+        case let .uart(request):
+            Console.section("Decoding UART on \(request.channel)...")
+            let decoded = try UARTDecoder(configuration: request.configuration)
+                .decode(points: points(request.channel))
+            Console.detail("Baud rate: \(engineeringFormatter.string(decoded.baudRate)) baud")
+            Console.detail("Decoded frames: \(decoded.frames.count)")
+            let invalidCount = decoded.frames.count(where: { $0.parityError || $0.framingError })
+            if invalidCount > 0 {
+                Console.warning(
+                    "\(invalidCount) UART frame(s) have parity or framing errors; bin output omits them.",
+                )
+            }
+            result = .uart(decoded)
+
+        case let .i2c(request):
+            Console.section("Decoding I2C on SDA=\(request.sdaChannel), SCL=\(request.sclChannel)...")
+            let decoded = try I2CDecoder(configuration: request.configuration).decode(
+                sdaPoints: points(request.sdaChannel),
+                sclPoints: points(request.sclChannel),
+            )
+            Console.detail("Transactions: \(decoded.transactions.count)")
+            Console.detail("Decoded bytes: \(decoded.frames.count)")
+            result = .i2c(decoded)
+
+        case let .spi(request):
+            Console.section("Decoding SPI mode \(request.configuration.mode) on CLK=\(request.clockChannel)...")
+            let decoded = try SPIDecoder(configuration: request.configuration).decode(
+                clockPoints: points(request.clockChannel),
+                mosiPoints: request.mosiChannel.map(points),
+                misoPoints: request.misoChannel.map(points),
+                chipSelectPoints: request.chipSelectChannel.map(points),
+            )
+            Console.detail("Decoded words: \(decoded.frames.count)")
+            result = .spi(decoded)
+        }
+
+        let writer = DecodeWriter()
+        if let outputFile = options.decodeOutput {
+            Console.section("Writing decoded \(options.decodeFormat.rawValue.uppercased()) output...")
+            let byteCount = try writer.write(
+                result,
+                format: options.decodeFormat,
+                to: fileURL(for: outputFile),
+            )
+            Console.detail("File: \(outputFile)")
+            Console.detail(
+                "Saved \(ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file))",
+            )
+        }
+        else {
+            let data = try writer.data(for: result, format: options.decodeFormat)
+            FileHandle.standardOutput.write(data)
+        }
+    }
+
     private func loadInput() throws -> Data {
         Console.section("Loading input file...")
         let data = try Data(contentsOf: fileURL(for: options.inputFile))
@@ -200,7 +345,7 @@ struct Rigol2SpiceApplication {
         return data
     }
 
-    private func parseCapture(_ data: Data) throws -> Capture {
+    private func parseCapture(_ data: Data, channel: String? = nil) throws -> Capture {
         Console.section("Parsing input file...")
         if data.count > 1_000_000 {
             Console.detail("(This might take a while)")
@@ -208,7 +353,7 @@ struct Rigol2SpiceApplication {
 
         let detectedFormat = CaptureFormat.detect(in: data)
         Console.detail("Detected format: \(detectedFormat.displayName)")
-        let requestedChannel = options.listChannels ? nil : options.channel
+        let requestedChannel = options.listChannels ? nil : (channel ?? options.channel)
         return try detectedFormat.parser.parse(data, channel: requestedChannel)
     }
 
@@ -295,6 +440,7 @@ struct Rigol2SpiceApplication {
         _ source: [Point],
         transformations: [Transformation],
         sampleInterval: Double?,
+        reporting: Bool = true,
     ) throws -> [Point] {
         var points = source
         var currentSampleInterval = sampleInterval
@@ -303,7 +449,7 @@ struct Rigol2SpiceApplication {
             let countBefore = points.count
             if case let .removeDC(method) = transformation {
                 let estimate = estimateDC(points, method: method)
-                reportTransformation(transformation, points: points, dcEstimate: estimate)
+                if reporting { reportTransformation(transformation, points: points, dcEstimate: estimate) }
                 points = offsetPoints(points, offset: -estimate.value)
             }
             else if let kind = transformation.filterKind {
@@ -312,28 +458,30 @@ struct Rigol2SpiceApplication {
                     points: points,
                     sampleInterval: currentSampleInterval,
                 )
-                reportFilter(design, transformation: transformation, points: points)
+                if reporting { reportFilter(design, transformation: transformation, points: points) }
                 points = applyZeroPhaseFilter(design, to: points)
             }
             else if case let .tcn(duration, sampleCount) = transformation {
-                reportTransformation(transformation, points: points)
+                if reporting { reportTransformation(transformation, points: points) }
                 let result = try tcnForecast(
                     points,
                     duration: duration,
                     sampleCount: sampleCount,
                     sampleInterval: currentSampleInterval,
                 )
-                Console.detail("Automatic model: \(result.method.displayName)")
-                Console.detail("Backtest confidence: \(Int((result.confidence * 100).rounded()))%")
-                if result.confidence < 0.2 {
-                    Console.warning(
-                        "The capture has little repeatable information about its future. Forecast selected a conservative model; treat it as low confidence.",
-                    )
+                if reporting {
+                    Console.detail("Automatic model: \(result.method.displayName)")
+                    Console.detail("Backtest confidence: \(Int((result.confidence * 100).rounded()))%")
+                    if result.confidence < 0.2 {
+                        Console.warning(
+                            "The capture has little repeatable information about its future. Forecast selected a conservative model; treat it as low confidence.",
+                        )
+                    }
                 }
                 points = result.points
             }
             else {
-                reportTransformation(transformation, points: points)
+                if reporting { reportTransformation(transformation, points: points) }
                 points = try transformation.applying(to: points, sampleInterval: currentSampleInterval)
             }
 
@@ -342,22 +490,29 @@ struct Rigol2SpiceApplication {
             }
 
             if transformation.reportsPointCount {
-                try reportPointCount(before: countBefore, after: points.count)
+                if reporting {
+                    try reportPointCount(before: countBefore, after: points.count)
+                }
+                else if points.isEmpty {
+                    throw Rigol2SpiceError.operationRemovedEveryPoint
+                }
             }
         }
 
-        if let interval = options.downsample {
-            Console.section("Downsampling by \(interval)× using linear interpolation (no anti-alias filter)...")
-            let countBefore = points.count
-            points = try resamplePoints(
-                points,
-                factor: Double(interval),
-                direction: .downsample,
-                interpolation: .linear,
-            )
-            try reportPointCount(before: countBefore, after: points.count)
-        }
+        return points
+    }
 
+    private func downsampleSignalOutput(_ source: [Point]) throws -> [Point] {
+        guard let interval = options.downsample else { return source }
+        Console
+            .section("Downsampling signal output by \(interval)× using linear interpolation (no anti-alias filter)...")
+        let points = try resamplePoints(
+            source,
+            factor: Double(interval),
+            direction: .downsample,
+            interpolation: .linear,
+        )
+        try reportPointCount(before: source.count, after: points.count)
         return points
     }
 

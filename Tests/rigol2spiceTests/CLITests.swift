@@ -3,7 +3,7 @@ import Testing
 
 struct CLITests {
     @Test
-    func `analysis output is optional and sees transformed downsampled waveform`() throws {
+    func `analysis sees transformed waveform before output downsample`() throws {
         let result = try runCLI([
             samplePath(named: "Legacy"),
             "-c", "CH2",
@@ -14,11 +14,33 @@ struct CLITests {
 
         #expect(result.status == 0)
         #expect(result.stderr.isEmpty)
-        #expect(result.stdout.contains("From 1200 samples to 400 samples"))
-        #expect(result.stdout.contains("Points: 400"))
+        #expect(!result.stdout.contains("Downsampling signal output"))
+        #expect(result.stdout.contains("Points: 1.2k"))
         // Offset then multiply produces values around 2; reversed order would be around 1.
         #expect(result.stdout.contains("Avg: 2"))
         #expect(result.stdout.contains("Max: 2"))
+    }
+
+    @Test
+    func `downsample applies only to the written signal after analysis`() throws {
+        let output = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rigol2spice-downsample-\(UUID().uuidString).m")
+        defer { try? FileManager.default.removeItem(at: output) }
+
+        let result = try runCLI([
+            samplePath(named: "Legacy"), output.path,
+            "-c", "CH2",
+            "-d", "3",
+            "-a", "Points",
+            "--format", "matlab",
+        ])
+
+        #expect(result.status == 0)
+        #expect(result.stdout.contains("Points: 1.2k"))
+        #expect(result.stdout.contains("Downsampling signal output by 3×"))
+        let lines = try String(contentsOf: output, encoding: .ascii)
+            .split(whereSeparator: \Character.isNewline)
+        #expect(lines.count == 402)
     }
 
     @Test
@@ -341,6 +363,88 @@ struct CLITests {
         let lines = text.split(whereSeparator: \Character.isNewline)
         #expect(lines.count == 12512)
         #expect(lines.first == "0\t0.05")
+    }
+
+    @Test
+    func `cli decodes UART to a separate CSV output`() throws {
+        let output = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rigol2spice-uart-\(UUID().uuidString).csv")
+        defer { try? FileManager.default.removeItem(at: output) }
+
+        let result = try runCLI([
+            samplePath(named: "Legacy"),
+            "--decode", "UART rx=CH2, baud=500k, threshold=0",
+            "--decode-format", "csv",
+            "--decode-output", output.path,
+        ])
+
+        #expect(result.status == 0)
+        #expect(result.stderr.isEmpty)
+        #expect(result.stdout.contains("Selected channel / expression: CH2"))
+        #expect(result.stdout.contains("Decoding UART on CH2"))
+        let csv = try String(contentsOf: output, encoding: .utf8)
+        #expect(csv.hasPrefix("protocol,baud,start_time_s,end_time_s,byte_hex"))
+    }
+
+    @Test
+    func `cli requires a file for binary decode output`() throws {
+        let result = try runCLI([
+            samplePath(named: "Legacy"),
+            "--decode", "UART rx=CH2, baud=500k, threshold=0",
+            "--decode-format", "bin",
+        ])
+
+        #expect(result.status != 0)
+        #expect((result.stdout + result.stderr).contains("requires --decode-output"))
+    }
+
+    @Test
+    func `cli loads multiple channels and decodes I2C`() throws {
+        let input = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rigol2spice-i2c-\(UUID().uuidString).csv")
+        let output = FileManager.default.temporaryDirectory
+            .appendingPathComponent("rigol2spice-i2c-\(UUID().uuidString)-decoded.csv")
+        defer {
+            try? FileManager.default.removeItem(at: input)
+            try? FileManager.default.removeItem(at: output)
+        }
+
+        var states: [(sda: Bool, scl: Bool)] = []
+        func append(_ sda: Bool, _ scl: Bool) {
+            states.append(contentsOf: repeatElement((sda: sda, scl: scl), count: 3))
+        }
+        append(true, true)
+        append(false, true)
+        for byte in [UInt8(0xA0), UInt8(0x42)] {
+            for bit in (0 ..< 8).map({ byte & (1 << (7 - $0)) != 0 }) + [false] {
+                append(bit, false)
+                append(bit, true)
+            }
+        }
+        append(false, false)
+        append(false, true)
+        append(true, true)
+        let rows = ["Time(s),SDA,SCL"] + states.enumerated().map {
+            "\(Double($0.offset) * 1e-6),\($0.element.sda ? 3 : 0),\($0.element.scl ? 3 : 0)"
+        }
+        try rows.joined(separator: "\n").write(to: input, atomically: true, encoding: .utf8)
+
+        let result = try runCLI([
+            input.path,
+            "--transformations", "Multiply 2",
+            "--downsample", "3",
+            "--decode", "I2C sda=SDA, scl=SCL, threshold=4",
+            "--decode-format", "csv",
+            "--decode-output", output.path,
+        ])
+
+        #expect(result.status == 0)
+        #expect(result.stdout.contains("Decoding I2C on SDA=SDA, SCL=SCL"))
+        #expect(!result.stdout.contains("Downsampling signal output"))
+        let csv = try String(contentsOf: output, encoding: .utf8)
+        #expect(csv.contains("I2C,0,"))
+        #expect(csv.contains(",0xA0,160,address,0x50,write,true"))
+        #expect(csv.contains(",0x42,66,data,,,true"))
     }
 
     private func runCLI(_ arguments: [String]) throws -> CLIResult {

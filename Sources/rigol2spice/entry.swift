@@ -83,7 +83,23 @@ struct Rigol2SpiceCommand: ParsableCommand {
     )
     var analysisFile: String?
 
-    @Option(name: .shortAndLong, help: "Downsample ratio.")
+    @Option(
+        name: .long,
+        help: "Decode UART, I2C, or SPI (e.g. UART rx=CH2, baud=auto, threshold=1.65).",
+    )
+    var decode: String?
+
+    @Option(name: .long, help: "Decoded output format: text, csv, or bin.")
+    var decodeFormat: DecodeFormat = .text
+
+    @Option(
+        name: .long,
+        help: "Write decoded data to this file instead of printing it.",
+        completion: .file(),
+    )
+    var decodeOutput: String?
+
+    @Option(name: .shortAndLong, help: "Downsample ratio for the converted signal output.")
     var downsample: Int?
 
     @Option(name: .shortAndLong, help: "Output format: pwl, matlab, wav32, wav16, npy, or npz.")
@@ -106,7 +122,7 @@ struct Rigol2SpiceCommand: ParsableCommand {
     var inputFile: String
 
     @Argument(
-        help: "The converted waveform file to write (optional with --list-channels, --plot, --analysis, or --analysis-file).",
+        help: "The converted waveform file to write (optional with --list-channels, --plot, --analysis, --analysis-file, or --decode).",
         completion: nil,
     )
     var outputFile: String?
@@ -120,6 +136,9 @@ struct Rigol2SpiceCommand: ParsableCommand {
                 transformationsFile: transformationsFile,
                 analysis: analysis,
                 analysisFile: analysisFile,
+                decode: decode,
+                decodeFormat: decodeFormat,
+                decodeOutput: decodeOutput,
                 downsample: downsample,
                 format: format,
                 keepAll: keepAll,
