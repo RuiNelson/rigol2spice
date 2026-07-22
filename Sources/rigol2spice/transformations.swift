@@ -109,6 +109,8 @@ enum Transformation: Equatable {
     case cutBefore(Double)
     case trim(start: Double, end: Double)
     case `repeat`(Double)
+    /// Learn a compact causal temporal convolution from the capture and append a forecast.
+    case tcn(duration: Double, sampleCount: Int?)
     case am(carrier: Double, depth: Double, amplitude: Double)
     case fm(carrier: Double, sensitivity: Double, amplitude: Double)
     case pm(carrier: Double, sensitivity: Double, amplitude: Double)
@@ -947,6 +949,34 @@ enum Transformation: Equatable {
                     throw TransformationParseError.invalidPositiveScalar(operation: operation, value: arguments[0])
                 }
                 return .repeat(value)
+            case "forecast":
+                guard arguments.count == 1 || arguments.count == 2 else {
+                    throw TransformationParseError.invalidArgumentCount(
+                        operation: operation,
+                        expected: 1,
+                        actual: arguments.count,
+                    )
+                }
+                let duration = try parseScalarArgument(arguments[0])
+                guard duration > 0 else {
+                    throw TransformationParseError.invalidPositiveScalar(
+                        operation: operation,
+                        value: arguments[0],
+                    )
+                }
+                let sampleCount: Int? = if arguments.count == 2 {
+                    try positiveInteger(at: 1)
+                }
+                else {
+                    nil
+                }
+                if let sampleCount, sampleCount > tcnMaximumForecastSamples {
+                    throw TransformationParseError.invalidPositiveScalar(
+                        operation: operation,
+                        value: arguments[1],
+                    )
+                }
+                return .tcn(duration: duration, sampleCount: sampleCount)
             case "am",
                  "modulateam":
                 guard arguments.count == 2 || arguments.count == 3 else {
@@ -1064,7 +1094,8 @@ enum Transformation: Equatable {
              .cutAfter,
              .cutBefore,
              .trim,
-             .repeat:
+             .repeat,
+             .tcn:
             true
         default:
             false
@@ -1268,6 +1299,13 @@ enum Transformation: Equatable {
             return trimPoints(points, start: start, end: end)
         case let .repeat(amount):
             return try repeatPoints(points, amount: amount)
+        case let .tcn(duration, sampleCount):
+            return try tcnForecastPoints(
+                points,
+                duration: duration,
+                sampleCount: sampleCount,
+                sampleInterval: sampleInterval,
+            )
         case let .am(carrier, depth, amplitude):
             return try modulateAMPoints(
                 points,

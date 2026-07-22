@@ -315,6 +315,23 @@ struct Rigol2SpiceApplication {
                 reportFilter(design, transformation: transformation, points: points)
                 points = applyZeroPhaseFilter(design, to: points)
             }
+            else if case let .tcn(duration, sampleCount) = transformation {
+                reportTransformation(transformation, points: points)
+                let result = try tcnForecast(
+                    points,
+                    duration: duration,
+                    sampleCount: sampleCount,
+                    sampleInterval: currentSampleInterval,
+                )
+                Console.detail("Automatic model: \(result.method.displayName)")
+                Console.detail("Backtest confidence: \(Int((result.confidence * 100).rounded()))%")
+                if result.confidence < 0.2 {
+                    Console.warning(
+                        "The capture has little repeatable information about its future. Forecast selected a conservative model; treat it as low confidence.",
+                    )
+                }
+                points = result.points
+            }
             else {
                 reportTransformation(transformation, points: points)
                 points = try transformation.applying(to: points, sampleInterval: currentSampleInterval)
@@ -545,13 +562,26 @@ struct Rigol2SpiceApplication {
         case let .cutAfter(value):
             Console.section("Cutting signal after \(engineeringFormatter.string(value))s...")
         case let .cutBefore(value):
-            Console.section("Cutting signal before \(engineeringFormatter.string(value))s...")
+            Console.section(
+                "Cutting signal before \(engineeringFormatter.string(value))s and shifting it to t=0...",
+            )
         case let .trim(start, end):
             Console.section(
-                "Trimming signal from \(engineeringFormatter.string(start))s to \(engineeringFormatter.string(end))s...",
+                "Trimming signal from \(engineeringFormatter.string(start))s to \(engineeringFormatter.string(end))s and shifting it to t=0...",
             )
         case let .repeat(amount):
             Console.section("Repeating capture for \(engineeringFormatter.string(amount)) times...")
+        case let .tcn(duration, sampleCount):
+            if let sampleCount {
+                Console.section(
+                    "Forecasting \(engineeringFormatter.string(duration))s as \(sampleCount) samples automatically...",
+                )
+            }
+            else {
+                Console.section(
+                    "Forecasting \(engineeringFormatter.string(duration))s automatically...",
+                )
+            }
         case let .am(carrier, depth, amplitude):
             Console.section(
                 "AM-modulating at \(engineeringFormatter.string(carrier))Hz (depth \(engineeringFormatter.string(depth)), carrier amplitude \(engineeringFormatter.string(amplitude)))...",

@@ -87,6 +87,21 @@ struct Rigol2spiceTests {
     }
 
     @Test
+    func `forecast accepts a positive duration and optional sample count`() throws {
+        #expect(try Transformation.parseList("Forecast 5m") == [.tcn(duration: 5e-3, sampleCount: nil)])
+        #expect(try Transformation.parseList("forecast 2e-6") == [.tcn(duration: 2e-6, sampleCount: nil)])
+        #expect(try Transformation.parseList("Forecast 2m, 2k") == [.tcn(duration: 2e-3, sampleCount: 2000)])
+        #expect(try Transformation.parseList("Forecast 1m, 500") == [.tcn(duration: 1e-3, sampleCount: 500)])
+        #expect(try Transformation.parseList("Forecast 1m") == [.tcn(duration: 1e-3, sampleCount: nil)])
+        #expect(throws: (any Error).self) { try Transformation.parseList("Predict 1m") }
+        #expect(throws: (any Error).self) { try Transformation.parseList("TCN 1m") }
+        #expect(throws: (any Error).self) { try Transformation.parseList("Forecast") }
+        #expect(throws: (any Error).self) { try Transformation.parseList("Forecast 0") }
+        #expect(throws: (any Error).self) { try Transformation.parseList("Forecast -1m") }
+        #expect(throws: (any Error).self) { try Transformation.parseList("Forecast 1m, 2.5") }
+    }
+
+    @Test
     func `rejects legacy negative prefix`() {
         do {
             _ = try Transformation.parseList("Offset N1.2")
@@ -561,18 +576,18 @@ struct Rigol2spiceTests {
     }
 
     @Test
-    func `cut before discards samples before the timestamp`() throws {
+    func `cut before discards samples and shifts the first retained sample to zero`() throws {
         #expect(try Transformation.parseList("CutBefore 2") == [.cutBefore(2)])
 
         let points = (0 ... 4).map { Point(time: Double($0), value: Double($0)) }
         let result = try Transformation.cutBefore(2).applying(to: points)
 
-        #expect(result.map(\.time) == [2, 3, 4])
+        #expect(result.map(\.time) == [0, 1, 2])
         #expect(result.map(\.value) == [2, 3, 4])
     }
 
     @Test
-    func `trim keeps samples inside the half open window`() throws {
+    func `trim keeps the half open window and shifts its first sample to zero`() throws {
         #expect(try Transformation.parseList("Trim 1m, 10m") == [.trim(start: 1e-3, end: 10e-3)])
         #expect(throws: (any Error).self) {
             try Transformation.parseList("Trim 2, 1")
@@ -581,7 +596,8 @@ struct Rigol2spiceTests {
         let points = (0 ... 5).map { Point(time: Double($0), value: Double($0)) }
         let result = try Transformation.trim(start: 2, end: 5).applying(to: points)
 
-        #expect(result.map(\.time) == [2, 3, 4])
+        #expect(result.map(\.time) == [0, 1, 2])
+        #expect(result.map(\.value) == [2, 3, 4])
     }
 
     @Test

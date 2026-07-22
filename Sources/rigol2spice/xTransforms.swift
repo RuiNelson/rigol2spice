@@ -239,7 +239,7 @@ func extractPeriodPoints(_ points: [Point], threshold: Double?) throws -> [Point
 
     let start = crossings[0]
     let end = start + period
-    let trimmed = trimPoints(points, start: start, end: end)
+    let trimmed = pointsInHalfOpenRange(points, start: start, end: end)
     guard trimmed.count >= 2 else {
         throw Rigol2SpiceError.periodNotDetected
     }
@@ -655,21 +655,34 @@ func cutPointsAfter(_ points: [Point], after: Double) -> [Point] {
     return Array(points[..<endIndex])
 }
 
-/// Discard samples strictly before `before`; keep times unchanged.
+/// Discard samples strictly before `before`, then shift the first retained sample to t=0.
 func cutPointsBefore(_ points: [Point], before: Double) -> [Point] {
     let startIndex = firstPointIndex(atOrAfter: before, in: points)
-    guard startIndex > 0 else {
-        return points
-    }
     guard startIndex < points.count else {
         return []
     }
-    return Array(points[startIndex...])
+    return shiftingFirstPointToZero(Array(points[startIndex...]))
 }
 
-/// Keep samples with `start <= time < end`; times unchanged.
+/// Keep samples with `start <= time < end`, then shift the first retained sample to t=0.
 func trimPoints(_ points: [Point], start: Double, end: Double) -> [Point] {
-    cutPointsAfter(cutPointsBefore(points, before: start), after: end)
+    shiftingFirstPointToZero(pointsInHalfOpenRange(points, start: start, end: end))
+}
+
+private func pointsInHalfOpenRange(_ points: [Point], start: Double, end: Double) -> [Point] {
+    let startIndex = firstPointIndex(atOrAfter: start, in: points)
+    let endIndex = firstPointIndex(atOrAfter: end, in: points)
+    guard startIndex < points.count, startIndex < endIndex else {
+        return []
+    }
+    return Array(points[startIndex ..< endIndex])
+}
+
+private func shiftingFirstPointToZero(_ points: [Point]) -> [Point] {
+    guard let firstTime = points.first?.time else {
+        return points
+    }
+    return points.map { Point(time: $0.time - firstTime, value: $0.value) }
 }
 
 func repeatPoints(_ points: [Point], amount: Double) throws -> [Point] {
